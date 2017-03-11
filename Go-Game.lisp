@@ -117,13 +117,18 @@
             ((= 0 p) (format str "- "))
             ((= 1 p) (format str "X "))
             ((= 2 p) (format str "o ")))))
-          (format str "~%"))
-        (format str "  -------------------~%")
-        (format str "Est. Score: White ~A, Black ~A, Current Val: ~A~%" 
-                (svref evals *white*)
-                (svref evals *black*)
-                (- (svref evals whose-turn?)
-                   (svref evals (- 1 whose-turn?))))))
+      (format str "~%"))
+    (format str "  -------------------~%")
+    (format str "             Black    White  ~%")
+    (format str "Groups:        ~A       ~A~%" 
+            (length (gg-black-groups game)) 
+            (length (gg-white-groups game)))
+    (format str "Est. Score:   ~A       ~A~%"
+            (svref evals *white*)
+            (svref evals *black*))
+    (format str "Current Val: ~A~%" 
+            (- (svref evals whose-turn?)
+               (svref evals (- 1 whose-turn?))))))
 
 ;;  GROUP
 ;; ----------------------------
@@ -136,6 +141,51 @@
   (num-pieces 0)
   (area (vector 0 0 0 0))
   (territory 0))
+
+(defun init-group (row col)
+  (let ((terr 4))
+    (labels ((pos-min (pos)
+                      (if (= 0 pos)
+                        (when (setq terr (- terr 1)) 
+                          pos)
+                        (- pos 1)))
+             (pos-max (pos)
+                      (if (= *board-length* pos)
+                        (when (setq terr (- terr 1)) 
+                          pos)
+                        (+ pos 1))))
+      (make-group :pieces '(#(row col)) 
+                  :num-pieces 1 
+                  :area #((piece-min row) 
+                          (piece-min col)
+                          (piece-max row)
+                          (piece-max col))
+                  :territory terr))))
+
+
+;;  FIND-GROUP
+;; ----------------------
+;;  INPUTS
+;;  OUTPUS
+(defun find-group (game row col)
+    (labels ((do-group 
+               (groups)
+               ;; Search for an existing group it could fit in
+               (dolist (group groups)
+                 (let ((area (group-area group)))
+                   ;; When it's in the area of the group
+                   (when (and (>= row (svref area 0))
+                              (>= col (svref area 1))
+                              (< row (svref area 2))
+                              (< col (svref area 3)))
+                     (return-from do-group (add-to-group group row col)))))))
+      ;; If it's black's turn
+      (if (= (gg-whose-turn? game) *black*)
+               ;; If it doesn't fit in any of the current groups 
+               ;; make a new group for it
+               (setf (gg-black-groups game) (list (init-group row col)))
+               (setf (gg-white-groups game) (list (init-group row col))))))
+
 
 
 ;;  EVAL-SUBTOTALS!
@@ -203,4 +253,5 @@
 ;;    location specified by its ROW and COL fields.
 
 (defun put-piece! (game player row col)
-  (setf (svref (gg-board game) (find-pos row col)) (+ 1 player)))
+  (setf (svref (gg-board game) (find-pos row col)) (+ 1 player))
+    (find-group game row col))
