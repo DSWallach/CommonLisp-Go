@@ -136,16 +136,16 @@
 
 (defun init-group (row col)
   (let ((terr 4))
-    (labels ((pos-min (pos)
-                      (if (= 0 pos)
-                        (when (setq terr (- terr 1)) 
-                          pos)
-                        (- pos 1)))
-             (pos-max (pos)
-                      (if (= *board-length* pos)
-                        (when (setq terr (- terr 1)) 
-                          pos)
-                        (+ pos 1))))
+    (labels ((pos-min 
+               (pos)
+               (if (= 0 pos)
+                 (when (setq terr (- terr 1)) pos)
+                 (- pos 1)))
+             (pos-max 
+               (pos)
+               (if (= *board-length* pos)
+                 (when (setq terr (- terr 1)) pos)
+                 (+ pos 1))))
       (let ((min-row (pos-min row))
             (min-col (pos-min col))
             (max-row (pos-max row))
@@ -155,7 +155,7 @@
                     :area (vector min-row min-col max-row max-col)
                     :territory terr)))))
 
-;; CALC-AREA
+;;  CALC-AREA
 ;; ----------------------
 (defun calc-area (area row col)
   ;; When it's in the area of the group
@@ -189,53 +189,53 @@
 (defun check-group? (board group)
   ;; If the group is definitely alive
   (if (group-alive? group)
-      t ; Return T
+    t ; Return T
     ;; Otherwise check it's life
-      (labels 
-        ((check-left? (piece)
-                            (cond
-                              ;; Check if it's on the left edge
-                              ((= 0 (mod piece *board-length*)) nil)
-                              ;; Check if there is space to the left
-                              ((= 0 (svref board (- piece 1))) t)
-                              ;; Otherwise return nil
-                              (t nil)))
-               (check-right? (piece)
-                             (cond
-                               ;; Check if it's on the right edge
-                               ((= (- *board-length* 1) (mod piece *board-length*)) nil)
-                               ;; Check if there is space to the right
-                               ((= 0 (svref board (+ piece 1))) t)
-                               ;; Otherwise return nil
-                               (t nil)))
-               (check-above? (piece)
-                             (cond
-                               ;; Check if it's on the top edge
-                               ((> *board-length* piece) nil)
-                               ;; Check if there is space above 
-                               ((= 0 (svref board (- piece *board-length*))) t)
-                               ;; Otherwise return nil
-                               (t nil)))
-               (check-below? (piece)
-                             (cond
-                               ;; Check if it's on the bottom edge
-                               ((>= (* (- *board-length* 1) *board-length*) piece) nil)
-                               ;; Check if there is space to below 
-                               ((= 0 (svref board (- piece *board-length*))) t)
-                               ;; Otherwise return nil
-                               (t nil))))
-        (dolist (p (group-pieces group))
-          ;; If there is space next to any piece
-          (when (or (check-left? p)
-                    (check-right? p)
-                    (check-above? p)
-                    (check-below? p))
+    (labels 
+      ((check-left? (piece)
+                    (cond
+                      ;; Check if it's on the left edge
+                      ((= 0 (mod piece *board-length*)) nil)
+                      ;; Check if there is space to the left
+                      ((= 0 (svref board (- piece 1))) t)
+                      ;; Otherwise return nil
+                      (t nil)))
+       (check-right? (piece)
+                     (cond
+                       ;; Check if it's on the right edge
+                       ((= (- *board-length* 1) (mod piece *board-length*)) nil)
+                       ;; Check if there is space to the right
+                       ((= 0 (svref board (+ piece 1))) t)
+                       ;; Otherwise return nil
+                       (t nil)))
+       (check-above? (piece)
+                     (cond
+                       ;; Check if it's on the top edge
+                       ((> *board-length* piece) nil)
+                       ;; Check if there is space above 
+                       ((= 0 (svref board (- piece *board-length*))) t)
+                       ;; Otherwise return nil
+                       (t nil)))
+       (check-below? (piece)
+                     (cond
+                       ;; Check if it's on the bottom edge
+                       ((>= (* (- *board-length* 1) *board-length*) piece) nil)
+                       ;; Check if there is space to below 
+                       ((= 0 (svref board (- piece *board-length*))) t)
+                       ;; Otherwise return nil
+                       (t nil))))
+      (dolist (p (group-pieces group))
+        ;; If there is space next to any piece
+        (when (or (check-left? p)
+                  (check-right? p)
+                  (check-above? p)
+                  (check-below? p))
 
-            ;; Return T
-            (return-from check-group? t)))
+          ;; Return T
+          (return-from check-group? t)))
 
-        ;; Otherwise return false
-        nil)))
+      ;; Otherwise return false
+      nil)))
 
 ;;  CAPTURE-GROUP!
 ;; ---------------------------------
@@ -255,7 +255,8 @@
    (dolist (p (group-pieces group)) 
      (setf (svref (gg-board game) p) 0))))
 
-;; Caluclate territory basic method
+;;  CALC-TERRITORY
+;; -------------------------------------
 ;; Calculate the area of the square with 
 ;; dimensions defined by area
 (defun calc-territory (area)
@@ -409,7 +410,7 @@
 ;; Like legal move but uses the array position rather than 
 ;; row & col
 (defun fast-legal-move? (game pos)
-  (when (= 0 (svref (gg-board game) pos) t)))
+  (when (= 0 (svref (gg-board game) pos)) t))
 
 ;;  LEGAL-MOVES
 (defun legal-moves (game)
@@ -428,7 +429,7 @@
     ;; Check each col
     (dotimes (pos *board-size*)
       (when (fast-legal-move? game pos)
-        (append moves (list pos))))
+        (push pos moves)))
     moves))
 
 (defun test-caps ()

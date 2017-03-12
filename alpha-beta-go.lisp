@@ -1,17 +1,7 @@
 ;; ====================================
 ;;  CMPU-365, Spring 2017
-;;  Asmt. 4
-;;  alpha-beta-dsw.lisp
-;;  Feb. 28, 2017
 ;;  Name: David S. Wallach
 ;; ====================================
-;; NOTE: Thank you for your help in office hours
-;;       it seemed obvious the moment you pointed
-;;       out but I was stuck there for a while. 
-;;       I changed my implementation again because
-;;       it was very slow before. Maybe it's 
-;;       because I ssh in but I still wouldn't 
-;;       call a depth of 6 "comfertable"
 
 ;; Tell the copiler to speed things up
 (eval-when (compile)
@@ -47,7 +37,7 @@
     (t 
       (let ((moves (legal-moves g))
             (node-val nil))
-        
+
         ;; Update stats data
         (setf (stats-num-potential-moves statty)
               (+ (stats-num-potential-moves statty) (length moves)))
@@ -80,8 +70,6 @@
 
       ;; Return Beta
       beta)))
-
-
 
 ;;  COMPUTE-MAX
 ;; ---------------------------------------------------------------
@@ -133,32 +121,30 @@
           ;; Undo modification
           (undo-move! g)
 
-               ;; When it returns a value greater than alpha
-               (when (> node-val alpha)
-                 ;; Update alpha
-                 (setq alpha node-val)
+          ;; When it returns a value greater than alpha
+          (when (> node-val alpha)
+            ;; Update alpha
+            (setq alpha node-val)
 
-                 ;; Check if anything can be pruned
-                 (when (>= alpha beta)
+            ;; Check if anything can be pruned
+            (when (>= alpha beta)
 
-                   ;; When it can, skip the remaining nodes
-                   (return-from compute-max alpha)))))
-      
-           ;; Return alpha
-           alpha)))
+              ;; When it can, skip the remaining nodes
+              (return-from compute-max alpha)))))
 
+      ;; Return alpha
+      alpha)))
 
-  ;;  COMPUTE-MOVE
-  ;; -------------------------------------------------------------
-  ;;  INPUTS:  G, a CHESS struct
-  ;;           CUTOFF-DEPTH, to limit depth of minimax search
-  ;;  OUTPUT:  The best move according to MINIMAX with ALPHA-BETA
-  ;;   pruning, using the static eval func, EVAL-FUNC.  Searches to
-  ;;   a depth of CUTOFF-DEPTH.
+;;  COMPUTE-MOVE
+;; -------------------------------------------------------------
+;;  INPUTS:  G, a CHESS struct
+;;           CUTOFF-DEPTH, to limit depth of minimax search
+;;  OUTPUT:  The best move according to MINIMAX with ALPHA-BETA
+;;   pruning, using the static eval func, EVAL-FUNC.  Searches to
+;;   a depth of CUTOFF-DEPTH.
 
 (defun compute-move (g cutoff-depth)
   (format t "~%COMPUTE-MOVE (cutoff=~A)~%" cutoff-depth)
-
 
   ;; Compute move handles the initial call to 
   ;; compute-min each child of the node at depth 0
@@ -208,7 +194,6 @@
     ;; return my-move
     best-so-far))
 
-
 ;; A function for setting to A.I.'s with different
 ;; depths against each other. For fun.
 (defun play-game (game depth-one depth-two one?)
@@ -219,71 +204,3 @@
             (apply #'do-move! game nil (compute-move game depth-two)))
       (format t "Game State~%~A" game)
       (play-game game depth-one depth-two (not one?)))))
-
-;;  MY-TEST
-;; -------------------------------
-;; Source: http://chesstempo.com/chess-problems/31965 
-;; Note: I had to reduce the search depth from 6 to get it
-;;       to find the locally optimal solution
-(defun my-test ()
-  (problem "MY-TEST: White should sacrifice it's bishop to take black's Knight and Queen!")
-  (let ((g (init-game 
-             ;; White
-             (list (list *pawn* 1 0) 
-               (list *pawn* 1 1) 
-               (list *pawn* 1 5) 
-               (list *pawn* 1 6) 
-               (list *pawn* 2 7)
-               (list *knight* 0 1) 
-               (list *bishop* 0 2) 
-               (list *bishop* 2 5) 
-               (list *rook* 0 0) 
-               (list *rook* 0 5) 
-               (list *queen* 0 3) 
-               (list *king* 0 6))
-
-             ;; Black
-             (list (list *pawn* 6 0) 
-               (list *pawn* 6 1) 
-               (list *pawn* 5 4)
-               (list *pawn* 6 5) 
-               (list *pawn* 6 6) 
-               (list *pawn* 6 7)
-               (list *knight* 5 2) 
-               (list *knight* 5 5) 
-               (list *bishop* 7 5) 
-               (list *rook* 7 0) 
-               (list *rook* 7 7) 
-               (list *queen* 3 3) 
-               (list *king* 7 4)))))
-           ;; White should check in three
-           (compute-do-and-show-n-moves g 3 4)
-    (format t "White should have taken black's Queen ~%~%~%")))
-
-;;  MY-TEST
-;; -------------------------------
-;; Source: https://www.chess.com/forum/view/daily-puzzles/3-9-2017-rook-and-pawn-endgames 
-;; White should
-(defun my-test-2 (&optional (cutoff-depth 4))
-  (problem "MY-TEST: White should be able to win the rook in two moves!")
-  (let ((g (init-game 
-
-             ;; White
-             (list (list *king* 0 6)
-                   (list *rook* 0 4)
-                   (list *bishop* 1 4)
-                   (list *pawn* 1 5)
-                   (list *pawn* 1 6)
-                   (list *pawn* 1 7)
-                   (list *pawn* 5 6)
-                   )
-
-             ;; Black
-             (list (list *king* 6 1)
-                   (list *queen* 4 5)
-                   (list *bishop* 6 0)
-                   ))))
-
-    ;; White should check in three
-    (compute-do-and-show-n-moves g cutoff-depth 5)
-    (format t "White should have put Black's king in check!~%~%~%")))

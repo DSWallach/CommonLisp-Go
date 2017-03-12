@@ -1,13 +1,20 @@
 TO IMPLEMENT IN GO
 
+1) GAME MECHANICS 
+- Print game (DONE)
+- Put piece on board (DONE) 
+- Legal Moves
+    - Implement check for Ko
+    - Implement check for suicidal move
 
-1) GROUP MECHANICS
-- Group Capture
+2) GROUP MECHANICS
+- Print group (DONE)
+- Group Capture (DONE)
 - Group Merging
 - Group Life, set a flag when a group can no longer be captured
 
-2) EVALUATION FUNCTION
-- Territory evaluation that doesn't count the locations of pieces in the group
+3) EVALUATION FUNCTION
+- Evaluate each player's estimated score (DONE)
+- Create static evaluation function for use with alpha beta
+- Rigorous evalutation for end game
 
-3) GAME MECHANICS 
-- Implement check for Ko
