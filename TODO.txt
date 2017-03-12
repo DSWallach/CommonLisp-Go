@@ -1,0 +1,13 @@
+TO IMPLEMENT IN GO
+
+
+1) GROUP MECHANICS
+- Group Capture
+- Group Merging
+- Group Life, set a flag when a group can no longer be captured
+
+2) EVALUATION FUNCTION
+- Territory evaluation that doesn't count the locations of pieces in the group
+
+3) GAME MECHANICS 
+- Implement check for Ko
