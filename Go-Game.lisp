@@ -18,7 +18,7 @@
 (defconstant *black* 0)
 (defconstant *white* 1)
 (defconstant *group-dist* 4)
-(defconstant *board-length* 9)
+(defconstant *board-length* 6)
 (defconstant *board-size* (* *board-length* *board-length*)) 
 
 (defun cl (filename)
@@ -78,6 +78,15 @@
   (- (svref (gg-subtotals game) (gg-whose-turn? game))
      (svref (gg-subtotals game) (- 1(gg-whose-turn? game)))))
 
+
+(defun find-group (pos player game)
+  (let ((groups (svref (gg-groups game) player)))
+    (dolist (group groups)
+      (when (find pos (group-pieces group))
+        (return-from find-group (group-territory group))))))
+
+
+
 ;;  PRINT-GO
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
@@ -95,7 +104,7 @@
         (let ((p (svref board (find-pos col row))))
           (cond 
             ((= 0 p) (format str "- "))
-            ((= 1 p) (format str "X "))
+            ((= 1 p) (format str " "))
             ((= 2 p) (format str "o ")))))
       (format str "~%"))
     (format str "  -------------------~%")
@@ -127,20 +136,17 @@
     (when (not (= (svref board0 i) (svref board1 i)))
       (return-from equal-board? nil)))
   t)
+
 ;;  GAME-OVER? : GAME
 ;; -------------------------------
 (defun game-over? (game)
-  ;; Prevents errors, unlikely any game will 
-  ;; end after two moves
-  (when (< 2 (length (gg-move-history game)))
-    ;; The game ends when 
-    (when (or (and ; Both players have passed consecutively
-                (= *board-size* (svref (first (gg-move-history game)) 0))
-                (= *board-size* (svref (second (gg-move-history game)) 0)))
-              (< *board-size* (length (gg-move-history game)))
-              ;; Or there are no more legal moves to play
-              (= (length (legal-moves game)))
-              t)))) 
+  (if (or (> (length (gg-move-history game)) *board-size*) 
+          (and (> (length (gg-move-history game)) 2) 
+               (= (svref (first (gg-move-history game))0)
+                  (svref (second (gg-move-history game))0))))
+
+    t
+    nil))
 
 ;;  INIT-GAME
 ;; ---------------------------------------
