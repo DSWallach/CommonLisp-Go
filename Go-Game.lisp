@@ -10,7 +10,7 @@
 
 ;; Tell the copiler to speed things up
 (eval-when (compile)
-  (declaim (optimize (speed 3) (safety 1) (space 0) (debug 0))))
+  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
 
 ;;  GLOBAL CONSTANTS
 
@@ -18,7 +18,7 @@
 (defconstant *black* 0)
 (defconstant *white* 1)
 (defconstant *group-dist* 4)
-(defconstant *board-length* 6)
+(defconstant *board-length* 9)
 (defconstant *board-size* (* *board-length* *board-length*)) 
 
 (defun cl (filename)
@@ -79,33 +79,38 @@
      (svref (gg-subtotals game) (- 1(gg-whose-turn? game)))))
 
 
-(defun find-group (pos player game)
-  (let ((groups (svref (gg-groups game) player)))
-    (dolist (group groups)
-      (when (find pos (group-pieces group))
-        (return-from find-group (group-territory group))))))
+(defun find-group (pos game)
+  (let ((piece (svref (gg-board game) pos)))
+    (if (< 0 piece)
+        (let* ((player (- piece 1)) 
+              (groups (svref (gg-groups game) player)))
+          (dolist (group groups)
+            (when (find pos (group-pieces group))
+              (return-from find-group 
+                           (group-territory group)))))
+    '-)))
 
-
-
-;;  PRINT-GO
+    ;;  PRINT-GO
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
 (defun print-go (game str depth &optional (verbose? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))
-        (whose-turn? (gg-whose-turn? game)))
+        (player (gg-whose-turn? game)))
     (format str "~% ===== TURN[~A] =====~%" (length (gg-move-history game)))
     (format str "   0 1 2 3 4 5 6 7 8~%")
     (format str "  -------------------~%")
     (dotimes (row *board-length*)
       (format str "~A  " row)
       (dotimes (col *board-length*)
-        (let ((p (svref board (find-pos col row))))
-          (cond 
-            ((= 0 p) (format str "- "))
-            ((= 1 p) (format str " "))
-            ((= 2 p) (format str "o ")))))
+        (let* ((pos (svref board (find-pos col row)))
+               (p (find-group (find-pos col row) game)))
+          ;(cond 
+           ; ((= 0 p) (format str "- "))
+            ;((= 1 p) (format str " "))
+            ;((= 2 p) (format str "o ")))))
+            (format str "~A " p)))
       (format str "~%"))
     (format str "  -------------------~%")
     (format str "             Black    White  ~%")
@@ -114,7 +119,7 @@
             (svref evals *white*))
     (format str "Current Val: ~A, Whose Turn ~A, Game Over? ~A~%" 
             (eval-func game)
-            whose-turn?
+            player
             (game-over? game)))
   (when verbose?
     (format str "~%Black Groups:~%~A" (svref (gg-groups game) *black*)) 
@@ -349,14 +354,14 @@
       ;; Otherwise return false
       nil)))
 
-;;  CAPTURE-GROUP! : GROUP GAME
+;;  CAPTURE-GROUP! : GROUP GAME PLAYER
 ;; ---------------------------------
 ;;  INPUTS
 ;;  SIDE-EFFECT: Destructively modify the game state by 
 ;;          capturing GROUP
-(defun capture-group! (group game)
+(defun capture-group! (group game player)
   ;;(format t "Capture group: ~A ~%" group)
-  (let ((opponent (- 1 (gg-whose-turn? game))))
+  (let ((opponent (- 1 player)))
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 
           (delete group (svref (gg-groups game) opponent)))
@@ -549,16 +554,23 @@
             ;; Increment the capture flag
             (setq captured (+ 1 captured))
             ;; Capture the group
-            (capture-group! group game))
+            (capture-group! group game player))
           (when (= 1 (length (group-pieces group)))
             (setf (gg-ko? game) t)))
+
+        ;; Check if the move would kill the current group
+        (unless (check-group? (gg-board game) 
+                              (first (svref (gg-groups game) player)))
+
+          (capture-group! (first (svref (gg-groups game) (- 1 player)))
+                          game player)
 
         (when (= captured 0)
           (setf (gg-ko? game) nil))
         ;; Evaluate each players score
         (eval-subtotals! game)
 
-        (push (vector pos captured) (gg-move-history game))))
+        (push (vector pos captured) (gg-move-history game)))))
 
     ;; Chenge turn
     (setf (gg-whose-turn? game) (- 1 player))))
