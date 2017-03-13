@@ -3,8 +3,9 @@ TO IMPLEMENT IN GO
 1) GAME MECHANICS 
 - Print game (DONE)
 - Put piece on board (DONE) 
+- go-game equality function
 - Legal Moves
-    - Implement check for Ko
+    - Implement check for Ko (DONE)
     - Implement check for suicidal move
 - DO-MOVE! function (DONE)
     - Make a wrapper for put-piece that records what move was made
@@ -21,3 +22,6 @@ TO IMPLEMENT IN GO
 - Evaluate each player's estimated score (DONE)
 - Create static evaluation function for use with alpha beta
 - Rigorous evalutation for end game
+
+
+- 
