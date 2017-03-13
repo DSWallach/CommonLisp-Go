@@ -7,6 +7,19 @@
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1) (space 0) (debug 0))))
 
+;;  WIN-LOSS VALUES
+
+(defconstant *win-value* 400000)
+(defconstant *loss-value* -400000)
+
+;;  STATS struct
+;; ---------------------------
+;;  Stats compiled during minimax search
+
+(defstruct stats
+  (num-moves-done 0)
+  (num-potential-moves 0))
+
 ;;  COMPUTE-MIN
 ;; ---------------------------------------------------------------
 ;;  INPUTS:  G, a CHESS struct
@@ -46,7 +59,7 @@
         (dolist (move moves)
 
           ;; Modify the game state 
-          (apply #'do-move! g nil move) 
+          (do-move! g move) 
 
           ;; Compute the node's value
           (setq node-val (compute-max 
@@ -110,7 +123,7 @@
         (dolist (move moves)
 
           ;; Modify the game state 
-          (apply #'do-move! g nil move) 
+          (do-move! g move) 
 
           ;; Compute the node's value
           (setq node-val (compute-min 
@@ -164,7 +177,7 @@
     ;; Do each move
     (dolist (move moves)
 
-      (apply #'do-move! g nil move)
+      (do-move! g move)
 
       ;; Get the score
       (setq current-score (compute-min g 1 alpha beta statty cutoff-depth)) 
@@ -194,13 +207,15 @@
     ;; return my-move
     best-so-far))
 
+;;  PLAY-GAME
+;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
 ;; depths against each other. For fun.
 (defun play-game (game depth-one depth-two one?)
   (if (game-over? game)
     (format t "Game Over~%~A" game)
     (when (if one? 
-            (apply #'do-move! game nil (compute-move game depth-one))
-            (apply #'do-move! game nil (compute-move game depth-two)))
+            (do-move! game (compute-move game depth-one))
+            (do-move! game (compute-move game depth-two)))
       (format t "Game State~%~A" game)
       (play-game game depth-one depth-two (not one?)))))

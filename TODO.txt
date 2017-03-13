@@ -6,6 +6,10 @@ TO IMPLEMENT IN GO
 - Legal Moves
     - Implement check for Ko
     - Implement check for suicidal move
+- DO-MOVE! function (DONE)
+    - Make a wrapper for put-piece that records what move was made
+- UNDO-MOVE! (DONE)
+    - Make work like it does in chess example
 
 2) GROUP MECHANICS
 - Print group (DONE)
@@ -17,4 +21,3 @@ TO IMPLEMENT IN GO
 - Evaluate each player's estimated score (DONE)
 - Create static evaluation function for use with alpha beta
 - Rigorous evalutation for end game
-
