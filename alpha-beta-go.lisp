@@ -245,5 +245,5 @@
             (do-move! game (compute-move game depth-one))
             (do-move! game (compute-move game depth-two)))
       (format t "Game State~%")
-      (print-go game t nil t)
+      (print-go game t nil nil)
       (play-game game depth-one depth-two (not one?)))))
