@@ -40,7 +40,21 @@
     ;; If the game is over 
     ;; Player wins, return the 
     ;; winning minus the current depth
-    ((game-over? g) (- *win-value* curr-depth))
+    ((game-over? g) (let ((player (gg-whose-turn? g))
+                          (subtotals (gg-subtotals g)))
+                      (cond 
+                        ;; If the opponent has a higher score
+                        ((> (svref subtotals (- 1 player))
+                            (svref subtotals player))
+                         ;; Give loss val
+                         (+ *loss-value* curr-depth))
+                        ;; If player has a higher score 
+                        ((< (svref subtotals (- 1 player))
+                            (svref subtotals player))
+                        ;; Give win val
+                         (- *win-value* curr-depth))
+                        ;; Otherwise it's a tie
+                        (t 0))))
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -104,7 +118,21 @@
     ;; Get each players score 
     ;; Player loses, return the value of 
     ;; value of losing plus the current depth
-    ((game-over? g) (+ *loss-value* curr-depth))
+    ((game-over? g) (let ((player (gg-whose-turn? g))
+                          (subtotals (gg-subtotals g)))
+                      (cond 
+                        ;; If the opponent has a higher score
+                        ((> (svref subtotals (- 1 player))
+                            (svref subtotals player))
+                         ;; Give loss val
+                         (+ *loss-value* curr-depth))
+                        ;; If player has a higher score 
+                        ((< (svref subtotals (- 1 player))
+                            (svref subtotals player))
+                        ;; Give win val
+                         (- *win-value* curr-depth))
+                        ;; Otherwise it's a tie
+                        (t 0))))
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -148,8 +176,7 @@
       ;; Return alpha
       alpha)))
 
-;;  COMPUTE-MOVE
-;; -------------------------------------------------------------
+;;  COMPUTE-MOVE : G CUTOFF-DEPTH
 ;;  INPUTS:  G, a CHESS struct
 ;;           CUTOFF-DEPTH, to limit depth of minimax search
 ;;  OUTPUT:  The best move according to MINIMAX with ALPHA-BETA
@@ -217,5 +244,6 @@
     (when (if one? 
             (do-move! game (compute-move game depth-one))
             (do-move! game (compute-move game depth-two)))
-      (format t "Game State~%~A" game)
+      (format t "Game State~%")
+      (print-go game t nil t)
       (play-game game depth-one depth-two (not one?)))))
