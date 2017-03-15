@@ -52,8 +52,13 @@
              (svref subtotals player))
           ;; Give win val
           (return-from compute-min (- *win-value* curr-depth)))
-         ;; Otherwise it's a tie
-         (t (return-from compute-min 0)))))
+         ;; Otherwise it's a tie so white wins
+         (t 
+           (if (= player *white*) 
+             (return-from compute-min (- *win-value* curr-depth))
+             (return-from compute-min (+ *loss-value* curr-depth))))
+         ))
+     )
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -134,7 +139,12 @@
           ;; Give win val
           (return-from compute-max (- *win-value* curr-depth)))
          ;; Otherwise it's a tie
-         (t (return-from compute-max 0)))))
+         (t 
+           (if (= player *white*) 
+             (return-from compute-max (- *win-value* curr-depth))
+             (return-from compute-max (+ *loss-value* curr-depth))))
+         ))
+     )
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -174,7 +184,6 @@
 
               ;; When it can, skip the remaining nodes
               (return-from compute-max alpha)))))
-
       ;; Return alpha
       alpha)))
 

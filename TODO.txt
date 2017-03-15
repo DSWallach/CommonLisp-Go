@@ -3,25 +3,21 @@ TO IMPLEMENT IN GO
 1) GAME MECHANICS 
 - Print game (DONE)
 - Put piece on board (DONE) 
-- go-game equality function
+- go-game equality function (DONE)
 - Legal Moves
     - Implement check for Ko (DONE)
-    - Implement check for suicidal move
+    - Implement check for suicidal move (DONE)
 - DO-MOVE! function (DONE)
-    - Make a wrapper for put-piece that records what move was made
+    - Make a wrapper for put-piece that records what move was made (DONE)
 - UNDO-MOVE! (DONE)
-    - Make work like it does in chess example
 
 2) GROUP MECHANICS
 - Print group (DONE)
 - Group Capture (DONE)
-- Group Merging
+- Group Merging (DONE)
 - Group Life, set a flag when a group can no longer be captured
 
 3) EVALUATION FUNCTION
 - Evaluate each player's estimated score (DONE)
-- Create static evaluation function for use with alpha beta
-- Rigorous evalutation for end game
-
-
-- 
+- Create static evaluation function for use with alpha beta (DONE)
+- Rigorous evalutation for end game (DONE)
