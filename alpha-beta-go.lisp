@@ -252,3 +252,6 @@
       (format t "Game State~%")
       (print-go game t nil nil nil)
       (play-game game depth-one depth-two (not one?)))))
+
+(defun pg (d1 d2)
+  (play-game (init-game) d1 d2 t))

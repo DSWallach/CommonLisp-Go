@@ -10,14 +10,14 @@
 
 ;; Tell the copiler to speed things up
 (eval-when (compile)
-  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  (declaim (optimize (speed 0) (safety 0) (space 0) (debug 3))))
 
 ;;  GLOBAL CONSTANTS
 
 ;;  The players
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *group-dist* 1)
+(defconstant *group-dist* 2)
 (defconstant *board-length* 9)
 (defconstant *board-size* (* *board-length* *board-length*)) 
 
@@ -243,6 +243,7 @@
   (alive? nil)
   (pieces ())
   (area (vector 0 0 0 0))
+  (liberties 0)
   (territory 0))
 
 ;;  DEEP-COPY-GROUP
@@ -289,12 +290,7 @@
                                   min-col 
                                   max-row 
                                   max-col)
-                    :territory 
-                    (calc-territory (vector min-row 
-                                            min-col 
-                                            max-row 
-                                            max-col) 
-                                    board)))))
+                    :territory 0))))
 
 ;;  CALC-AREA: GROUP 
 ;; ----------------------------------
@@ -357,37 +353,68 @@
   ;; Return area
   area)
 
-;;  CALC-TERRITORY: AREA BOARD
+;;  CALC-TERRITORY: AREA BOARD PLAYER
 ;; -------------------------------------
 ;; Calculate the area of the square with 
 ;; dimensions defined by area. Subtract one for the
 ;; space taken up by the piece.
-(defconstant *penalty* 1);;(ceiling (/ *board-length* 4)))
-(defun calc-territory (area board)
+(defun calc-territory (area board player)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let ((terr (+ 1 (* (- (svref area *max-col*) (svref area *min-col*))
                  (- (svref area *max-row*) (svref area *min-row*)))))
         (min-row (svref area 0))
         (min-col (svref area 1))
         (max-row (svref area 2))
-        (max-col (svref area 3)))
-    (when (= 0 min-row)
-      (setq terr (- terr *penalty*))) 
-    (when (= 0 min-col)
-      (setq terr (- terr *penalty*))) 
-    (when (= (- *board-length* 1) max-row) 
-      (setq terr (- terr *penalty*))) 
-    (when (= (- *board-length* 1) max-col)
-      (setq terr (- terr *penalty*))) 
+        (max-col (svref area 3))
+        (opponent (- 1 player))
+        (territory 0)
+        (player? nil)
+        (total 0)
+        )
 
+    ;; For the area of the group 
     (dotimes (row *board-length*)
       (when (and (<= min-row row) (>= max-row row))
-        (dotimes (col *board-length*)
-          (when (and (<= min-col col) (>= max-col col))
-            (unless (= 0 (svref board (find-pos row col)))
-              (setq terr (- terr 1)))))))
+        ;; When a wall is reached 
+        (when (or (= 0 row) (= (- *board-length* 1) row)) 
+          ;; Set the player's flag
+          (setq player? t))
 
-    terr))
+        ;; Check each column 
+        (dotimes (col *board-length*)
+          ;; When a wall is reached 
+          (when (or (=(- *board-length* 1) col) (= 0 col))
+            ;; Set the player's flag
+            (setq player? t))
+          ;; Check each row 
+          (when (and (<= min-col col) (>= max-col col))
+            ;; Check the board
+            (case (svref board (find-pos row col)) 
+              ;; If it's player's piece, set flag
+              ;; If the player's flag is set
+              (player (when player?  
+                        ;; Add territory to the total
+                        (setq total (+ total territory))
+                        ;; Reset territory
+                        (setq territory 0)
+                        ;; Set player flag
+                        (setq player? t)))
+
+              ;; If it's an opponent's piece, remove flag, clear territory
+              (opponent (setq player? nil)
+                        (setq territory 0))
+              ;; If the space is open
+              ;; If the player's flag is set and 
+              (0 (when player? (setq territory (+ 1 territory)))))))
+
+          ;; If the player;s flag is set
+          (when player? 
+            ;; Update total
+            (setq total (+ total territory))
+            ;; Reset territory
+            (setq territory 0))))
+
+  terr))
 
 ;;  CHECK-GROUP? : BOARD GROUP
 ;; -------------------------
@@ -481,7 +508,7 @@
                ;; Destructively modify the group
                (push (find-pos row col) (group-pieces group))
                (setf (group-area group) (calc-new-area (group-area group) row col))
-               (setf (group-territory group) (calc-territory (group-area group) (gg-board game))))
+               (setf (group-territory group) (calc-territory (group-area group) (gg-board game) (gg-whose-turn? game))))
 
              ;; Find the group the piece should belong to if it exists
              (check-groups 
@@ -525,11 +552,11 @@
             ;; Otherwise make a new group
             (push (init-group row col (gg-board game)) (svref (gg-groups game) player)))))))
 
-;;  GROUP-REMOVE! : GROUP
+;;  GROUP-REMOVE! : GROUP BOARD PLAYER
 ;; -------------------------------
 ;;  INPUTS: GROUP, a group struct
 ;;          POS, The position of the piece to be removed
-(defun group-remove! (group board)
+(defun group-remove! (group board player)
 
   ;; Remove the most recent piece
   (pop (group-pieces group))
@@ -538,7 +565,7 @@
 
     (when ; Otherwise
       (setf (group-area group) (calc-area group)) 
-      (setf (group-territory group) (calc-territory (group-area group) board))
+      (setf (group-territory group) (calc-territory (group-area group) board player))
 
       ;; Return the modified group
       group)))
@@ -599,7 +626,7 @@
           (svref (gg-groups game) player)
           (delete group (svref (gg-groups game) player)))
         ;; Modify it 
-        (setq new-group (group-remove! group (gg-board game)))
+        (setq new-group (group-remove! group (gg-board game) (gg-whose-turn? game)))
         ;; Push it back on groups if it's not empty
         (when (group-pieces new-group) 
           (push new-group (svref (gg-groups game) player)))
@@ -745,6 +772,41 @@
     moves))
 
 ;;; TESTING
+;; Testing CALC-TERRITORY
+(defun test-terr ()
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g 0 4)
+    (play-move! new-g 8 4)
+    
+    (play-move! new-g 1 4)
+    (play-move! new-g 7 4)
+
+    (play-move! new-g 2 4)
+    (play-move! new-g 6 4)
+
+    (play-move! new-g 3 4)
+    (play-move! new-g 5 4)
+
+  (print-go new-g t nil nil nil )
+    (play-move! new-g 3 3)
+    (play-move! new-g 5 3)
+
+  (print-go new-g t nil nil nil)
+    (play-move! new-g 3 2)
+    (play-move! new-g 5 2)
+
+  (print-go new-g t nil nil nil)
+    (play-move! new-g 3 1)
+    (play-move! new-g 5 1)
+
+  (print-go new-g t nil nil nil)
+    (play-move! new-g 3 0)
+    (play-move! new-g 5 0)
+    
+  (print-go new-g t nil t t)
+  ))
+
 ;; For testing Capture
 (defun test-caps ()
   (let ((new-g (init-game)))
