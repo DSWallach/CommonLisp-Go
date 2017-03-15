@@ -10,7 +10,7 @@
 
 ;; Tell the copiler to speed things up
 (eval-when (compile)
-  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
+  (declaim (optimize (speed 0) (safety 0) (space 0) (debug 1))))
 
 ;;  GLOBAL CONSTANTS
 
@@ -536,8 +536,13 @@
       ((add-piece! ; (GROUP), Add the piece at row col to group
          (group)
          ;; Destructively modify the group
-         (push (find-pos row col) (group-pieces group))
-         (setf (group-area group) (calc-new-area (group-area group) row col)))
+         (push (find-pos row col) 
+               (group-pieces group))
+         (setf (group-area group) 
+               (calc-new-area (group-area group) row col))
+         (setf (group-territory group) 
+               (calc-territory (group-area group) (gg-board game) player)) 
+         )
 
        (find-group ; (GROUP), Check it the piece at row col, is connected to GROUP
          (group)
@@ -596,6 +601,9 @@
         (when (setq new-group (init-group row col))
           ;; Update liberties
           (check-group? (gg-board game) new-group)
+          ;; Update territory 
+          (setf (group-territory new-group) 
+                (calc-territory (group-area new-group) (gg-board game) player))
           ;; Make a list of groups containing the current move
           (setf (svref (gg-groups game) player) (list new-group)))
         ;; Otherwise check the groups of the player whose turn it is
@@ -674,7 +682,7 @@
       ;; to the score
       (setq b-score (+ b-score 
                        (group-territory group) 
-                       (floor (/ (group-liberties group) 2)))))
+                       (group-liberties group))))
     (dolist (capd b-captures)
       (setq b-score (+ b-score (length (group-pieces capd)))))
 
@@ -682,7 +690,7 @@
     (dolist (group w-groups)
       (setq w-score (+ w-score 
                        (group-territory group) 
-                       (floor (/ (group-liberties group) 2)))))
+                       (group-liberties group) 2)))
 
       (dolist (capd w-captures)
         (setq w-score (+ w-score (length (group-pieces capd)))))
@@ -819,22 +827,47 @@
     (setf (gg-game-history game) history)
     ))
 
-;;  LEGAL-MOVE? : GAME POS
+;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
 ;;  INPUT:  GAME, A go game struct
 ;;          ROW, The row of the move to check 
 ;;          COL, The column of the move to check
 ;;  OUTPUT: A boolean value indicating if the move is legal
 
-(defun legal-moves (game)
+(defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list *board-size*))
         (moves (list *board-size*))
         )
     ;; Check each row
     ;; Check each col
-    (dotimes (pos *board-size*)
-      (when (= 0 (svref (gg-board game) pos))
-        (push pos moves)))
+    (if fast? 
+      ;; At the opening only allow decent opening moves
+      (cond 
+        ;; If the game has just begun
+        ((> 4 (length (gg-move-history game)))
+         (dotimes (row (- *board-length* 2))
+           (when (> row 1)
+             (dotimes (col (- *board-length* 2))
+               (when (and (> col 1) 
+                          (= 0 (svref (gg-board game) (find-pos row col))))
+                 (push (find-pos row col) moves))))))
+        ;; More lenient in the mid game
+        ((> 20 (length (gg-move-history game)))
+         (dotimes (row (- *board-length* 1))
+           (when (> row 0)
+             (dotimes (col (- *board-length* 1))
+               (when (and (> col 0) 
+                          (= 0 (svref (gg-board game) (find-pos row col))))
+                 (push (find-pos row col) moves))))))
+
+
+        (t (dotimes (pos *board-size*)
+             (when (= 0 (svref (gg-board game) pos))
+               (push pos moves))))
+        )
+      (dotimes (pos *board-size*)
+        (when (= 0 (svref (gg-board game) pos))
+          (push pos moves))))
 
     (when (gg-ko? game)
       (dolist (move moves)
@@ -1108,17 +1141,17 @@
 
 ;; TEST-BENCH : Test performance of game
 (defun test-bench ()
-  (time (let ((new-g (init-game))
-              )
-          (dotimes (i *board-size*)
-            (do-move! new-g i)
-            (undo-move! new-g)
-            (do-move! new-g i)
+  (time 
+    (dotimes (j 1000) 
+      (let ((new-g (init-game))
             )
-        (print-go new-g t nil t t)
+        (dotimes (i *board-size*)
+          (do-move! new-g i)
+          (undo-move! new-g)
+          (do-move! new-g i)
+          )
         (setq new-g (init-game))
         (dotimes (i *board-size*)
           (do-move! new-g i)
           (do-move! new-g *board-size*))
-        (print-go new-g t nil t t)
-        )))
+        ))))

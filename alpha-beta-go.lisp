@@ -43,12 +43,12 @@
            )
        (cond 
          ;; If the opponent has a higher score
-         ((> (svref subtotals (- 1 player))
+         ((< (svref subtotals (- 1 player))
              (svref subtotals player))
           ;; Give loss val
           (return-from compute-min (+ *loss-value* curr-depth)))
          ;; If player has a higher score 
-         ((< (svref subtotals (- 1 player))
+         ((> (svref subtotals (- 1 player))
              (svref subtotals player))
           ;; Give win val
           (return-from compute-min (- *win-value* curr-depth)))
