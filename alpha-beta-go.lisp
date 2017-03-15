@@ -3,10 +3,6 @@
 ;;  Name: David S. Wallach
 ;; ====================================
 
-;; Tell the copiler to speed things up
-(eval-when (compile)
-  (declaim (optimize (speed 3) (safety 1) (space 0) (debug 0))))
-
 ;;  WIN-LOSS VALUES
 
 (defconstant *win-value* 400000)
@@ -40,21 +36,24 @@
     ;; If the game is over 
     ;; Player wins, return the 
     ;; winning minus the current depth
-    ((game-over? g) (let ((player (gg-whose-turn? g))
-                          (subtotals (gg-subtotals g)))
-                      (cond 
-                        ;; If the opponent has a higher score
-                        ((> (svref subtotals (- 1 player))
-                            (svref subtotals player))
-                         ;; Give loss val
-                         (+ *loss-value* curr-depth))
-                        ;; If player has a higher score 
-                        ((< (svref subtotals (- 1 player))
-                            (svref subtotals player))
-                        ;; Give win val
-                         (- *win-value* curr-depth))
-                        ;; Otherwise it's a tie
-                        (t 0))))
+    ((game-over? g) 
+
+     (let ((player (gg-whose-turn? g))
+           (subtotals (gg-subtotals g))
+           )
+       (cond 
+         ;; If the opponent has a higher score
+         ((> (svref subtotals (- 1 player))
+             (svref subtotals player))
+          ;; Give loss val
+          (return-from compute-min (+ *loss-value* curr-depth)))
+         ;; If player has a higher score 
+         ((< (svref subtotals (- 1 player))
+             (svref subtotals player))
+          ;; Give win val
+          (return-from compute-min (- *win-value* curr-depth)))
+         ;; Otherwise it's a tie
+         (t (return-from compute-min 0)))))
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -63,7 +62,8 @@
     ;; Otherwise
     (t 
       (let ((moves (legal-moves g))
-            (node-val nil))
+            (node-val nil)
+            )
 
         ;; Update stats data
         (setf (stats-num-potential-moves statty)
@@ -118,21 +118,23 @@
     ;; Get each players score 
     ;; Player loses, return the value of 
     ;; value of losing plus the current depth
-    ((game-over? g) (let ((player (gg-whose-turn? g))
-                          (subtotals (gg-subtotals g)))
-                      (cond 
-                        ;; If the opponent has a higher score
-                        ((> (svref subtotals (- 1 player))
-                            (svref subtotals player))
-                         ;; Give loss val
-                         (+ *loss-value* curr-depth))
-                        ;; If player has a higher score 
-                        ((< (svref subtotals (- 1 player))
-                            (svref subtotals player))
-                        ;; Give win val
-                         (- *win-value* curr-depth))
-                        ;; Otherwise it's a tie
-                        (t 0))))
+    ((game-over? g) 
+     (let ((player (gg-whose-turn? g))
+           (subtotals (gg-subtotals g))
+           )
+       (cond 
+         ;; If the opponent has a higher score
+         ((> (svref subtotals (- 1 player))
+             (svref subtotals player))
+          ;; Give loss val
+          (return-from compute-max (+ *loss-value* curr-depth)))
+         ;; If player has a higher score 
+         ((< (svref subtotals (- 1 player))
+             (svref subtotals player))
+          ;; Give win val
+          (return-from compute-max (- *win-value* curr-depth)))
+         ;; Otherwise it's a tie
+         (t (return-from compute-max 0)))))
 
     ;; If the cutoff depth is reached
     ;; Return result of the static evaluation function
@@ -195,6 +197,7 @@
          (moves (legal-moves g)) ; fetch legal moves  
          (best-so-far nil)
          (best-score -1000000)
+         (counter 0)
          (current-score 0))
 
     ;; Increment stats data
@@ -212,6 +215,7 @@
       ;; Reset the game state
       (undo-move! g)
 
+      (setq counter (+ counter 1))
       ;; When the generated node is the best so far
       (when (> current-score best-score)
 
@@ -234,16 +238,17 @@
     ;; return my-move
     best-so-far))
 
-;;  PLAY-GAME
+;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
 ;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
 ;; depths against each other. For fun.
 (defun play-game (game depth-one depth-two one?)
   (if (game-over? game)
-    (format t "Game Over~%~A" game)
+    (unless (format t "++++++++ Game Over +++++++++~%")
+      (print-go game t nil t t))
     (when (if one? 
             (do-move! game (compute-move game depth-one))
             (do-move! game (compute-move game depth-two)))
       (format t "Game State~%")
-      (print-go game t nil nil)
+      (print-go game t nil nil nil)
       (play-game game depth-one depth-two (not one?)))))
