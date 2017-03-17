@@ -503,9 +503,11 @@
 ;;  INPUTS
 ;;  SIDE-EFFECT: Destructively modify the game state by 
 ;;          capturing GROUP
-(defun capture-group! (group game player)
+(defun capture-group! (group game)
   ;;(format t "Capture group: ~A ~%" group)
-  (let ((opponent (- 1 player)))
+  (let* ((player (gg-whose-turn? game))
+         (opponent (- 1 player))
+         )
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 
           (delete group (svref (gg-groups game) opponent)))
@@ -738,7 +740,7 @@
             ;; Increment the capture flag
             (setq captured (+ 1 captured))
             ;; Capture the group
-            (capture-group! group game player))
+            (capture-group! group game))
           (when (= 1 (length (group-pieces group)))
             (setf (gg-ko? game) t)))
 
@@ -766,15 +768,16 @@
 ;; ----------------------------------------
 ;;  Undo the most recently played move
 (defun undo-move! (game)
-  (format t "UNDO-MOVE ~A~%" game)
   (let* ((captured 0)
-        (move (pop (gg-move-history game)))
-        (pos (svref move 0))
-        (player (gg-whose-turn? game)))
+         (move (pop (gg-move-history game)))
+         (pos (svref move 0))
+         (player (gg-whose-turn? game))
+         (opponent (- 1 player))
+         )
 
     ;; Unless the previous move was a pass
     (unless (= *board-size* pos)
-      
+
       ;; Remove the piece from the board and from player's groups
       (pull-piece! game pos)
 
@@ -784,22 +787,29 @@
 
       ;; If necessary return captured groups
       (when (< 0 (svref move 1))
+        (format t "Player caps: ~A, Oppo Caps ~A, Move: ~A~%" 
+                (svref (gg-captures game) player)
+                (svref (gg-captures game) opponent)
+                move)
+
+        ;; Return each captured group
         (dotimes (i (svref move 1))
-          (let ((group) (pop (svref (gg-captures game) player))
+          (let ((group (pop (svref (gg-captures game) opponent)))
                         )              
+            (format t "Group: ~A~%" group )
             ;; Add the group's pieces to the board
             (dolist (p (group-pieces group))
-              (setf (svref (gg-board game) p) (+ player 1)))
+              (format t "Piece: ~A~%" p)
+              (setf (svref (gg-board game) p) (+ 1 player)))
 
-            (push group (svref (gg-groups game) (- 1 player)))
+            (push group (svref (gg-groups game) player))
 
             ;; Evaluate each players score
-            ))
-        (eval-subtotals! game)
-
-        ;; Change turn
-        (setf (gg-whose-turn? game) (- 1 player)))
-      )))
+            (eval-subtotals! game)))
+      ))
+    ;; Change turn
+    (setf (gg-whose-turn? game) opponent)
+    ))
 
 ;;  PULL-PIECE!  -- used by UNDO-MOVE!
 ;; ---------------------------------------------------------------
