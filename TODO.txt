@@ -15,6 +15,7 @@ TO IMPLEMENT IN GO
 - Print group (DONE)
 - Group Capture (DONE)
 - Group Merging (DONE)
+- Group Seperating (for UNDO move)
 - Group Life, set a flag when a group can no longer be captured
 
 3) EVALUATION FUNCTION
