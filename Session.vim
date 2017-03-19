@@ -311,117 +311,114 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-1,55fold
-58,85fold
-87,120fold
-122,130fold
-132,154fold
-156,176fold
-178,235fold
-240,254fold
-256,299fold
-301,314fold
-316,319fold
-321,331fold
-333,343fold
-345,355fold
-237,363fold
-365,372fold
-374,383fold
-385,407fold
-57,407fold
-410,423fold
-425,436fold
-438,446fold
-448,458fold
-460,466fold
-468,495fold
-497,535fold
-537,599fold
-613,644fold
-601,664fold
-666,689fold
-691,720fold
-722,764fold
-766,776fold
-791,799fold
-801,817fold
-819,855fold
-857,872fold
-877,903fold
-904,918fold
-778,918fold
-920,936fold
-409,936fold
-939,951fold
-962,997fold
-953,1042fold
-1044,1128fold
-1130,1187fold
-1189,1193fold
-1195,1266fold
-938,1266fold
-1269,1273fold
-1275,1284fold
-1286,1327fold
-1329,1347fold
-1349,1376fold
-1378,1396fold
-1398,1449fold
-1451,1474fold
-1476,1498fold
-1500,1539fold
-1541,1566fold
-1568,1599fold
-1601,1630fold
-1632,1666fold
-1668,1690fold
-1692,1696fold
-1698,1719fold
-1721,1736fold
-1268,1736fold
+1,48fold
+51,78fold
+80,113fold
+115,146fold
+148,168fold
+170,227fold
+232,246fold
+248,291fold
+293,306fold
+308,311fold
+313,323fold
+325,335fold
+337,347fold
+229,355fold
+357,364fold
+366,375fold
+377,399fold
+50,399fold
+402,415fold
+417,428fold
+430,438fold
+440,450fold
+452,458fold
+460,487fold
+489,527fold
+529,591fold
+605,636fold
+593,656fold
+658,681fold
+683,712fold
+714,756fold
+758,768fold
+783,791fold
+793,809fold
+811,847fold
+849,864fold
+869,895fold
+896,910fold
+770,910fold
+912,928fold
+401,928fold
+931,943fold
+954,989fold
+945,1034fold
+1036,1119fold
+1121,1178fold
+1180,1184fold
+1186,1257fold
+930,1257fold
+1260,1264fold
+1266,1275fold
+1277,1318fold
+1320,1338fold
+1340,1367fold
+1369,1387fold
+1389,1440fold
+1442,1465fold
+1467,1489fold
+1491,1530fold
+1532,1557fold
+1559,1590fold
+1592,1621fold
+1623,1657fold
+1659,1681fold
+1683,1687fold
+1689,1710fold
+1712,1727fold
+1259,1727fold
 1
 normal! zc
-57
+50
 normal! zo
-237
+229
 normal! zo
-345
-normal! zo
-237
+229
 normal! zc
-57
+50
 normal! zc
-409
+401
 normal! zo
-601
+593
 normal! zo
-601
+593
 normal! zc
-778
+770
 normal! zo
-778
+770
 normal! zc
-409
+401
 normal! zc
-938
+930
 normal! zo
-953
+945
 normal! zo
-953
+945
 normal! zc
-938
+930
 normal! zc
-1268
+1259
 normal! zo
-1268
+1259
 normal! zc
-let s:l = 1268 - ((1267 * winheight(0) + 29) / 58)
+let s:l = 930 - ((880 * winheight(0) + 29) / 58)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1268
-normal! 01|
+930
+normal! 0
 tabnext 2
 set stal=1
 if exists('s:wipebuf')
