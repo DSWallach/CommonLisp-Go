@@ -178,7 +178,7 @@
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
-(defun print-go (game str depth &optional (verbose? t) (groups? t) (boards? t))
+(defun print-go (game str depth &optional (verbose? t) (groups? t) (boards? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))
@@ -674,6 +674,8 @@
          )
    ;; Break if the same group is to be captured twice 
     (when (find group (svref (gg-captures game) player) :test #'equal-group?)
+        
+      (format t "This group is already captured Turn ~A~%" (length (gg-move-history game)))
       (break))
     
     ;; Remove the groups from the opponent's groups
@@ -727,9 +729,11 @@
         (piece nil)
         (mark (pop (group-merge-marker group)))
         )
+    (format t "Seperate Groups~%")
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
     (when (null mark)
+      (format t "No Merged Groups~%")
       (break))
 
     (labels ((get-pieces 
@@ -979,10 +983,12 @@
                    (setq captured (+ 1 captured))
                    ;; Mark the group's position
                    (setf (group-last-pos group) i)
+
                    ;; Capture the group
                    (capture-group! group game)
-                   ;; Reset i 
-                   (setq i (- i 1)) 
+                   (when (find group (svref (gg-groups game) (- 1 player)))
+                     (format t "Group wasn't removed~%")
+                     (break))
                    )
 
                  ;; If only one group containing only one piece 
@@ -1007,10 +1013,13 @@
              (gg-move-history game)))
 
       ;; Otherwise Put their piece at pos 
-      ;; Track if any groups were merged in this round
-      (t (let ((groups-merged (put-piece! game player pos))
-               (group nil)
-               )
+      (t ;; Track if any groups were merged in this round
+        (let ((groups-merged nil)
+              (group nil)
+              (suicide? 0)
+              )
+        
+          (setq groups-merged (put-piece! game player pos))
 
            ;; Capture any dead groups
            (groups-capture group (length groups))
@@ -1019,21 +1028,27 @@
            (when (< 1 captured)
             (setf (gg-ko? game) nil))
 
-          ;; Check if the move would kill the current group
+          ;; Check if the move would be suicide
           (calc-liberties! (first (svref (gg-groups game) player))
                            (gg-board game))
 
-          ;; If so capture the group
+          ;; If so forefit the group
           (when (= 0 (group-liberties (first (svref (gg-groups game) player))))
-            (capture-group! (first (svref (gg-groups game) player)) game))
+            (let ((group (pop (svref (gg-groups game) player)))
+                  )
+              (dolist (p (group-pieces group))
+                (setf (svref (gg-board game) p) 0))
 
+              (push group (svref (gg-captures game) (- 1 player)))
+              (setq captured -1)))
+         
           (when (= captured 0)
             (setf (gg-ko? game) nil))
 
           ;; Evaluate each players score
           (eval-subtotals! game)
 
-          (push (vector pos captured groups-merged) 
+          (push (vector pos captured groups-merged suicide?) 
                 (gg-move-history game))
           )))
 
@@ -1048,12 +1063,12 @@
   (let* ((captured 0)
          (move (pop (gg-move-history game)))
          (pos (svref move 0))
-         (board nil)
          (player (gg-whose-turn? game))
          (opponent (- 1 player))
          )
     ;; Delete the previous board 
-    (setq board (pop (gg-board-history game)))
+    (pop (gg-board-history game))
+
     ;; Unless the previous move was a pass
     (unless (= *board-size* pos)
 
@@ -1069,7 +1084,8 @@
                   (seperate-group! mod-group game))
 
             ;; Add the new-group to the list of new groups
-            (push new-group new-groups) ;;(svref (gg-groups game) opponent))
+            (setq new-groups 
+                  (append new-groups (list new-group)))
             )
             ;; Push the modified onto the list of groups 
             (push mod-group 
@@ -1086,30 +1102,45 @@
       (when (= captured 0)
         (setf (gg-ko? game) nil))
 
-      ;; If necessary return captured groups
-      (when (< 0 (svref move 1))
+      (cond 
+        ;; If the last move was a suicide
+        ((= -1 (svref move 1))
+         (let ((group nil)
+               )
+           ;; Remove the piece from your opponent's captures
+           (setq group (pop (svref (gg-captures game) player)))
 
-        (let ((group nil)
-              )
-          ;; Return each captured group
-          (dotimes (i (svref move 1))
-            (setq group (pop (svref (gg-captures game) opponent)))
+           ;; Return pieces to the board except for the last move
+           (dolist (p (group-pieces group))
+             (unless (= p (svref move 0))
+               (setf (svref (gg-board game) p) 
+                     (+ 1 opponent))))))
 
-            ;; Add the group's pieces to the board
-            (dolist (p (group-pieces group))
+        ;; If necessary return captured groups
+        ((< 0 (svref move 1))
 
-              (setf (svref (gg-board game) p) (+ 1 player)))
-            
-            ;; Add the group back in it's previous position
-            (setf (svref (gg-groups game) player)
-                  ;; Append the groups that came before group
-                  (append (subseq (svref (gg-groups game) player) 
-                                  0 (group-last-pos group))  
-                          (list group) ; A list containing group
-                          ;; The groups that came after group
-                          (subseq (svref (gg-groups game) player) 
-                                  (group-last-pos group))))
-            )))
+         (let ((group nil)
+               )
+
+           ;; Return each captured group
+           (dotimes (i (svref move 1))
+
+             (setq group (pop (svref (gg-captures game) opponent)))
+
+             ;; Add the group's pieces to the board
+             (dolist (p (group-pieces group))
+               (setf (svref (gg-board game) p) (+ 1 player)))
+
+             ;; Add the group back in it's previous position
+             (setf (svref (gg-groups game) player)
+                   ;; Append the groups that came before group
+                   (append (subseq (svref (gg-groups game) player) 
+                                   0 (group-last-pos group))  
+                           (list group) ; A list containing group
+                           ;; The groups that came after group
+                           (subseq (svref (gg-groups game) player) 
+                                   (group-last-pos group))))
+             ))))
 
       ;; Update player's groups
       (dolist (group (svref (gg-groups game) player))
@@ -1665,6 +1696,26 @@
     ;; each player should have two groups
     (test "Test-Undo-Merge-Many-Group" (equal-go? new-g old-game verbose?))))
 
+;;  TEST-UNDO-SUICIDAL-PLAY
+;; ----------------------------------
+;;  Test what happens after a suicidal play
+(defun test-undo-suicidal-play (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g 1 0)
+    (play-move! new-g 4 4)
+
+    (play-move! new-g 0 1)
+    (setq old-game (deep-copy-go new-g))
+    (print-go new-g t nil t t t)
+    (play-move! new-g 0 0); Suicide
+    (print-go new-g t nil t t t)
+
+    (undo-move! new-g)
+
+    (test "Test-Undo-Suicidal-Play" (equal-go? new-g old-game))))
+
 ;;  TEST-UNDO : OP (VERBOSE?)
 ;; ------------------------------------
 ;;  Testing the correctness of UNDO-MOVE!
@@ -1673,7 +1724,7 @@
         (new-g-copy nil)
         )
     ;; Allow the A.I. to play to some random point
-    (dotimes (i (random num-moves))
+    (dotimes (i num-moves)
       (when verbose? (print-go new-g t nil t t))
       (do-move! new-g (compute-move new-g 2 nil)))
 
@@ -1688,6 +1739,23 @@
     (when verbose? (print-go new-g t nil t t))
     ;; Check if it's equal to the previous game state
     (test "Test-Undo" (equal-go? new-g new-g-copy t))))
+
+;;  TEST-SUICIDAL-PLAY
+;; ----------------------------------
+;;  Test what happens after a suicidal play
+(defun test-suicidal-play (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g 1 0)
+    (play-move! new-g 4 4)
+
+    (play-move! new-g 0 1)
+    (print-go new-g t nil t t t)
+    (play-move! new-g 0 0); Suicide
+    (print-go new-g t nil t t t)
+
+    (test "Test-Suicidal-Play" (and (= 1 (length (svref (gg-captures new-g) *black*)))
+                                    (= 1 (length (svref (gg-groups new-g) *white*)))))))
 
 ;;  TEST-ROBUST 
 ;; ------------------------------
@@ -1706,11 +1774,13 @@
   (test-corner-territory)
   (test-grouping-one)
   (test-grouping-two)
+  (test-suicidal-play)
   (test-undo-capture)
   (test-undo-surround-capture)
   (test-undo-two-captures)
   (test-undo-merge-group)
   (test-undo-merge-many-group)
+  (test-undo-suicidal-play)
   (test-undo 5)
   (test-undo 10)
   (test-undo 15)

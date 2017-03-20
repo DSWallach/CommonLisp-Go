@@ -195,7 +195,7 @@ normal! zc
 normal! zc
 250
 normal! zc
-let s:l = 1 - ((0 * winheight(0) + 29) / 59)
+let s:l = 1 - ((0 * winheight(0) + 29) / 58)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -244,7 +244,7 @@ setlocal foldcolumn=0
 setlocal foldenable
 setlocal foldexpr=0
 setlocal foldignore=#
-setlocal foldlevel=1
+setlocal foldlevel=2
 setlocal foldmarker={{{,}}}
 setlocal foldmethod=manual
 setlocal foldminlines=1
@@ -340,87 +340,190 @@ silent! normal! zE
 537,599fold
 613,644fold
 601,664fold
-666,689fold
-691,720fold
-722,764fold
-766,776fold
-791,799fold
-801,817fold
-819,855fold
-857,872fold
-877,903fold
-904,918fold
-778,918fold
-920,936fold
-409,936fold
-939,951fold
-962,997fold
-953,1042fold
-1044,1128fold
-1130,1187fold
-1189,1193fold
-1195,1266fold
-938,1266fold
-1269,1273fold
-1275,1284fold
-1286,1327fold
-1329,1347fold
-1349,1376fold
-1378,1396fold
-1398,1449fold
-1451,1474fold
-1476,1498fold
-1500,1539fold
-1541,1566fold
-1568,1599fold
-1601,1630fold
-1632,1666fold
-1668,1690fold
-1692,1696fold
-1698,1719fold
-1721,1736fold
-1268,1736fold
+666,691fold
+693,722fold
+724,768fold
+770,780fold
+795,803fold
+805,821fold
+823,859fold
+861,876fold
+881,907fold
+908,922fold
+782,922fold
+924,940fold
+409,940fold
+943,955fold
+966,1003fold
+957,1057fold
+1075,1097fold
+1075,1097fold
+1106,1111fold
+1119,1143fold
+1059,1159fold
+1161,1218fold
+1220,1224fold
+1226,1297fold
+942,1297fold
+1300,1304fold
+1306,1315fold
+1317,1358fold
+1360,1378fold
+1380,1407fold
+1409,1427fold
+1429,1480fold
+1482,1505fold
+1507,1529fold
+1531,1570fold
+1572,1597fold
+1599,1630fold
+1632,1661fold
+1663,1697fold
+1699,1717fold
+1719,1741fold
+1743,1758fold
+1743,1758fold
+1760,1764fold
+1766,1789fold
+1791,1806fold
+1299,1806fold
 1
 normal! zc
 57
 normal! zo
+87
+normal! zc
+122
+normal! zc
+132
+normal! zc
 237
 normal! zo
-345
-normal! zo
 237
+normal! zc
+365
+normal! zc
+374
+normal! zc
+385
 normal! zc
 57
 normal! zc
 409
 normal! zo
+410
+normal! zc
+425
+normal! zc
+438
+normal! zc
+448
+normal! zc
+460
+normal! zc
+468
+normal! zc
+497
+normal! zc
+537
+normal! zc
 601
 normal! zo
 601
 normal! zc
-778
+666
+normal! zc
+693
+normal! zc
+724
+normal! zc
+770
+normal! zc
+782
 normal! zo
-778
+782
+normal! zc
+924
 normal! zc
 409
 normal! zc
-938
+942
 normal! zo
-953
+943
+normal! zc
+957
 normal! zo
-953
-normal! zc
-938
-normal! zc
-1268
+966
 normal! zo
-1268
+957
 normal! zc
-let s:l = 1268 - ((1267 * winheight(0) + 29) / 58)
+1059
+normal! zo
+1075
+normal! zo
+1075
+normal! zo
+1106
+normal! zo
+1059
+normal! zc
+1161
+normal! zc
+1220
+normal! zc
+1226
+normal! zc
+942
+normal! zc
+1299
+normal! zo
+1300
+normal! zc
+1306
+normal! zc
+1317
+normal! zc
+1360
+normal! zc
+1380
+normal! zc
+1409
+normal! zc
+1429
+normal! zc
+1482
+normal! zc
+1507
+normal! zc
+1531
+normal! zc
+1572
+normal! zc
+1599
+normal! zc
+1632
+normal! zc
+1663
+normal! zc
+1699
+normal! zc
+1719
+normal! zc
+1743
+normal! zo
+1760
+normal! zc
+1766
+normal! zc
+1791
+normal! zc
+1299
+normal! zc
+let s:l = 1 - ((0 * winheight(0) + 29) / 58)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1268
+1
 normal! 01|
 tabnext 2
 set stal=1
