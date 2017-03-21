@@ -195,7 +195,7 @@ normal! zc
 normal! zc
 250
 normal! zc
-let s:l = 1 - ((0 * winheight(0) + 29) / 58)
+let s:l = 1 - ((0 * winheight(0) + 25) / 51)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -312,218 +312,228 @@ setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
 1,55fold
-58,85fold
-87,120fold
-122,130fold
-132,154fold
-156,176fold
-178,235fold
-240,254fold
-256,299fold
-301,314fold
-316,319fold
-321,331fold
-333,343fold
-345,355fold
-237,363fold
-365,372fold
-374,383fold
-385,407fold
-57,407fold
-410,423fold
-425,436fold
-438,446fold
-448,458fold
-460,466fold
-468,495fold
-497,535fold
-537,599fold
-613,644fold
-601,664fold
-666,691fold
-693,722fold
-724,768fold
-770,780fold
-795,803fold
-805,821fold
-823,859fold
-861,876fold
-881,907fold
-908,922fold
-782,922fold
-924,940fold
-409,940fold
-943,955fold
-966,1003fold
-957,1057fold
-1075,1097fold
-1075,1097fold
-1106,1111fold
-1119,1143fold
-1059,1159fold
-1161,1218fold
-1220,1224fold
-1226,1297fold
-942,1297fold
+58,86fold
+88,121fold
+123,131fold
+133,155fold
+157,177fold
+179,236fold
+241,255fold
+257,300fold
+302,315fold
+317,320fold
+322,332fold
+334,344fold
+346,356fold
+238,364fold
+366,373fold
+375,384fold
+386,408fold
+57,408fold
+411,424fold
+426,437fold
+439,447fold
+449,459fold
+461,467fold
+469,496fold
+498,536fold
+538,600fold
+614,645fold
+602,665fold
+667,692fold
+694,723fold
+725,769fold
+771,781fold
+796,804fold
+806,822fold
+824,860fold
+862,877fold
+882,908fold
+910,923fold
+783,923fold
+925,941fold
+410,941fold
+944,956fold
+968,1010fold
+958,1065fold
+1086,1113fold
+1124,1129fold
+1137,1160fold
+1067,1187fold
+1260,1267fold
+1269,1284fold
+1229,1287fold
+1289,1295fold
+1189,1298fold
 1300,1304fold
-1306,1315fold
-1317,1358fold
-1360,1378fold
-1380,1407fold
-1409,1427fold
-1429,1480fold
-1482,1505fold
-1507,1529fold
-1531,1570fold
-1572,1597fold
-1599,1630fold
-1632,1661fold
-1663,1697fold
-1699,1717fold
-1719,1741fold
-1743,1758fold
-1743,1758fold
-1760,1764fold
-1766,1789fold
-1791,1806fold
-1299,1806fold
+1306,1377fold
+943,1377fold
+1380,1384fold
+1386,1395fold
+1397,1438fold
+1440,1458fold
+1460,1487fold
+1489,1507fold
+1509,1560fold
+1562,1585fold
+1587,1609fold
+1611,1650fold
+1652,1677fold
+1679,1710fold
+1712,1741fold
+1743,1777fold
+1779,1797fold
+1799,1821fold
+1823,1838fold
+1840,1844fold
+1846,1869fold
+1871,1886fold
+1379,1886fold
 1
 normal! zc
 57
 normal! zo
-87
+58
 normal! zc
-122
+88
 normal! zc
-132
+123
 normal! zc
-237
+133
+normal! zc
+157
+normal! zc
+179
+normal! zc
+238
 normal! zo
-237
+238
 normal! zc
-365
+366
 normal! zc
-374
+375
 normal! zc
-385
+386
 normal! zc
 57
 normal! zc
-409
+410
 normal! zo
+411
+normal! zc
+426
+normal! zc
+439
+normal! zc
+449
+normal! zc
+461
+normal! zc
+469
+normal! zc
+498
+normal! zc
+538
+normal! zc
+602
+normal! zo
+602
+normal! zc
+667
+normal! zc
+694
+normal! zc
+725
+normal! zc
+771
+normal! zc
+783
+normal! zo
+783
+normal! zc
+925
+normal! zc
 410
 normal! zc
-425
-normal! zc
-438
-normal! zc
-448
-normal! zc
-460
-normal! zc
-468
-normal! zc
-497
-normal! zc
-537
-normal! zc
-601
-normal! zo
-601
-normal! zc
-666
-normal! zc
-693
-normal! zc
-724
-normal! zc
-770
-normal! zc
-782
-normal! zo
-782
-normal! zc
-924
-normal! zc
-409
-normal! zc
-942
-normal! zo
 943
-normal! zc
-957
 normal! zo
-966
-normal! zo
-957
+944
 normal! zc
-1059
+958
 normal! zo
-1075
+958
+normal! zc
+1067
 normal! zo
-1075
+1124
 normal! zo
-1106
+1067
+normal! zc
+1189
 normal! zo
-1059
-normal! zc
-1161
-normal! zc
-1220
-normal! zc
-1226
-normal! zc
-942
-normal! zc
-1299
+1229
 normal! zo
+1260
+normal! zo
+1269
+normal! zo
+1289
+normal! zo
+1189
+normal! zc
 1300
 normal! zc
 1306
 normal! zc
-1317
-normal! zc
-1360
-normal! zc
+1379
+normal! zo
 1380
 normal! zc
-1409
+1386
 normal! zc
-1429
+1397
 normal! zc
-1482
+1440
 normal! zc
-1507
+1460
 normal! zc
-1531
+1489
 normal! zc
-1572
+1509
 normal! zc
-1599
+1562
 normal! zc
-1632
+1587
 normal! zc
-1663
+1611
 normal! zc
-1699
+1652
 normal! zc
-1719
+1679
+normal! zc
+1712
 normal! zc
 1743
-normal! zo
-1760
 normal! zc
-1766
+1779
 normal! zc
-1791
+1799
 normal! zc
-1299
+1823
 normal! zc
-let s:l = 1 - ((0 * winheight(0) + 29) / 58)
+1840
+normal! zc
+1846
+normal! zc
+1871
+normal! zc
+1379
+normal! zc
+let s:l = 1300 - ((111 * winheight(0) + 25) / 51)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+1300
 normal! 01|
 tabnext 2
 set stal=1
