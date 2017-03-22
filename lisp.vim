@@ -360,35 +360,37 @@ silent! normal! zE
 1124,1129fold
 1137,1160fold
 1067,1187fold
-1260,1267fold
-1269,1284fold
-1229,1287fold
-1289,1295fold
-1189,1298fold
-1300,1304fold
-1306,1377fold
-943,1377fold
-1380,1384fold
-1386,1395fold
-1397,1438fold
-1440,1458fold
-1460,1487fold
-1489,1507fold
-1509,1560fold
-1562,1585fold
-1587,1609fold
-1611,1650fold
-1652,1677fold
-1679,1710fold
-1712,1741fold
-1743,1777fold
-1779,1797fold
-1799,1821fold
-1823,1838fold
-1840,1844fold
-1846,1869fold
-1871,1886fold
-1379,1886fold
+1231,1248fold
+1253,1266fold
+1253,1274fold
+1230,1279fold
+1281,1286fold
+1189,1287fold
+1289,1293fold
+1295,1366fold
+943,1366fold
+1369,1373fold
+1375,1384fold
+1386,1427fold
+1429,1447fold
+1449,1476fold
+1478,1496fold
+1498,1549fold
+1551,1574fold
+1576,1598fold
+1600,1639fold
+1641,1666fold
+1668,1699fold
+1701,1730fold
+1732,1766fold
+1768,1786fold
+1788,1810fold
+1812,1827fold
+1829,1844fold
+1846,1850fold
+1852,1876fold
+1878,1893fold
+1368,1893fold
 1
 normal! zc
 57
@@ -465,75 +467,79 @@ normal! zo
 normal! zc
 1067
 normal! zo
-1124
-normal! zo
 1067
 normal! zc
 1189
 normal! zo
-1229
+1230
 normal! zo
-1260
+1231
 normal! zo
-1269
+1253
 normal! zo
-1289
+1253
+normal! zo
+1281
 normal! zo
 1189
 normal! zc
-1300
+1289
 normal! zc
-1306
+1295
 normal! zc
-1379
+943
+normal! zc
+1368
 normal! zo
-1380
+1369
+normal! zc
+1375
 normal! zc
 1386
 normal! zc
-1397
+1429
 normal! zc
-1440
+1449
 normal! zc
-1460
+1478
 normal! zc
-1489
+1498
 normal! zc
-1509
+1551
 normal! zc
-1562
+1576
 normal! zc
-1587
+1600
 normal! zc
-1611
+1641
 normal! zc
-1652
+1668
 normal! zc
-1679
+1701
 normal! zc
-1712
+1732
 normal! zc
-1743
+1768
 normal! zc
-1779
+1788
 normal! zc
-1799
+1812
 normal! zc
-1823
-normal! zc
-1840
+1829
 normal! zc
 1846
 normal! zc
-1871
+1852
 normal! zc
-1379
+1878
 normal! zc
-let s:l = 1300 - ((111 * winheight(0) + 25) / 51)
+1368
+normal! zc
+let s:l = 1 - ((0 * winheight(0) + 25) / 51)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1300
+1
 normal! 01|
 tabnext 2
 set stal=1

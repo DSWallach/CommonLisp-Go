@@ -1085,14 +1085,14 @@
 
       ;; If necessary seperate groups
       (when (< 1 (svref move 2))
-        (format t "Seperate Groups ~A~%" move)
+        (format t "Seperate Groups Move ~A ~% Game ~%~A~%" move game)
         (let ((mod-group (pop (svref (gg-groups game) opponent)))
               (new-group nil) 
               (new-groups nil)
               )
           (format t "Seperate groups num ~A~%" (- (svref move 2) 1))
           (format t "Mod Group ~A~%" mod-group)
-          (dotimes (i (svref move 2))
+          (dotimes (i (- (svref move 2) 1))
 
             ;; Get the seperated group
             (setq new-group 
@@ -1204,98 +1204,87 @@
         (group nil)
         )
     (labels 
-    ;; Find the group's position from the move-history 
-    ((find-position 
-       (piece)
-       (dotimes (i (length (gg-move-history game))) 
-         (when (= piece (svref (nth i (gg-move-history game)) 0))
-           (return-from find-position i))))
-     )
-    ;; Remove the piece from the game board
-    (setf (svref (gg-board game) pos) 0)
+      ;; Find the group's position from the move-history 
+      ((find-position 
+         (piece)
+         (dotimes (i (length (gg-move-history game))) 
+           (when (= piece 
+                    (svref (nth i (gg-move-history game)) 0))
+             (return-from find-position i))))
+       )
+      ;; Remove the piece from the game board
+      (setf (svref (gg-board game) pos) 0)
 
-    (dotimes (i (length player-groups))
+      (dotimes (i (length player-groups))
 
-      ;; When the group contains the piece
-      (when (find pos (group-pieces (nth i player-groups)))
-        ;; Set the group
-        (setq group (nth i player-groups))
+        ;; When the group contains the piece
+        (when (find pos (group-pieces (nth i player-groups)))
+          ;; Set the group
+          (setq group (nth i player-groups))
 
-        ;; Remove from player's groups
-        (setf (svref (gg-groups game) player)
-              (delete group (svref (gg-groups game) player)))
-
-        (cond 
-          ;; CASE If the group has more than one piece
-          ((< 1 (length (group-pieces group))) 
-
-           (format t "More than one piece ~%")
-           ;; Remove the piece 
-           (setq group 
-                 (group-remove! group 
-                                pos 
-                                game))
-
-           ;; Recompute the group's area
-           (calc-area! group)
-
-           ;; Update the group's properties
-           (update-group! group 
-                          game)
-
-           ;; Find the groups position
-           (setq prev-position 
-                 (find-position (first (group-pieces group))))
-
-           (dotimes (j (length (svref (gg-groups game) player)))
-             (cond 
-               ;; If the player has no other groups
-               ((= 0 (lengthh (svref (gg-groups game) player)))
-                (format t "No Groups~%")
-                 (setf (svref (gg-groups game) player)
-                       (list group))
-                 (return-from pull-piece! t) 
-                 )
-
-               ;; If you reach the end of the list 
-               ((= j (- (length (svref (gg-groups game) player)) 1))
-                (format t "When End~%")
-                ;; Put the group at the end
-                (setf (svref (gg-groups game) player)
-                      (append (svref (gg-groups game) player) (list group)))
-                (format t "Groups~A~% " (svref (gg-groups game) player))
-                (return-from pull-piece! t))
-
-               ;; When you encouter a group with a higher position value
-               ((< prev-position
-                   (find-position 
-                     (first (group-pieces (nth j 
-                                               (svref (gg-groups game) 
-                                                      player))))))
-                (format t "Middle~%")
-                ;; Insert the group before it
-                (setf (svref (gg-groups game) player)
-                      (append (subseq (svref (gg-groups game) player) 0 j)
-                              (list group)
-                              (subseq (svref (gg-groups game) player) j)))
-                (format t "Print~%")
-                (print-go game t nil t t)
-                ;; Return
-                (return-from pull-piece! t))
-               )
-            (format t "Do TImes ~A~%" i) 
-             ))
-
-        ;; Otherwise delete the group    
-        (t 
-          (format t "Delete ~%")
+          ;; Remove from player's groups
           (setf (svref (gg-groups game) player)
                 (delete group (svref (gg-groups game) player)))
-          (return-from pull-piece! nil)
-          )
-        ); End Cond
-        (format t "Group not found Player = ~A~%" player)
-        )))))
+
+          (cond 
+            ;; CASE If the group has more than one piece
+            ((< 1 (length (group-pieces group))) 
+
+             ;; Remove the piece 
+             (setq group 
+                   (group-remove! group 
+                                  pos 
+                                  game))
+
+             ;; Recompute the group's area
+             (calc-area! group)
+
+             ;; Update the group's properties
+             (update-group! group 
+                            game)
+
+             ;; Find the groups position
+             (setq prev-position 
+                   (find-position (first (group-pieces group))))
+
+             (if (< 0 (length (svref (gg-groups game) player)))
+               (dotimes (j (length (svref (gg-groups game) player)))
+
+                 ;; When you encouter a group with a higher position value
+                 (when (< prev-position
+                          (find-position 
+                            (first (group-pieces (nth j 
+                                                      (svref (gg-groups game) 
+                                                             player))))))
+                   ;; Insert the group before it
+                   (setf (svref (gg-groups game) player)
+                         (append (subseq (svref (gg-groups game) player) 0 j)
+                                 (list group)
+                                 (subseq (svref (gg-groups game) player) j)))
+                   (print-go game t nil t t)
+                   ;; Return
+                   (return-from pull-piece! t))
+
+                 ;; If you reach the end of the list 
+                 (when (= j (- (length (svref (gg-groups game) player)) 1))
+                   ;; Put the group at the end
+                   (setf (svref (gg-groups game) player)
+                         (append (svref (gg-groups game) player) (list group)))
+                   (return-from pull-piece! t))
+                 )
+             ;; Else if the player has no other groups
+             (when (setf (svref (gg-groups game) player)
+                         (list group))
+               (return-from pull-piece! t))
+             ))
+
+            ;; Otherwise delete the group    
+            (t 
+              (setf (svref (gg-groups game) player)
+                    (delete group (svref (gg-groups game) player)))
+              (return-from pull-piece! nil)
+              )
+            ))))))
 
 ;;  PLAY-MOVE!
 ;; ------------------------------
@@ -1837,6 +1826,23 @@
     (test "Test-Suicidal-Play" (and (= 1 (length (svref (gg-captures new-g) *black*)))
                                     (= 1 (length (svref (gg-groups new-g) *white*)))))))
 
+;;  TEST-BROKEN-SITUATION
+;; -----------------------------------
+;;  Test the situation where the game fails
+(defun test-broken-situation (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (do-move! new-g 60)
+    (do-move! new-g 59)
+    (do-move! new-g 58)
+    (do-move! new-g 57)
+
+    (setq old-game (deep-copy-go new-g))
+
+    (compute-move! new-g)
+    (test "Test-Broken-Situation" (equal-go? old-game new-g))))
+
 ;;  TEST-ROBUST 
 ;; ------------------------------
 ;;  Testing the robustness of the game system
@@ -1855,6 +1861,7 @@
   (test-grouping-one)
   (test-grouping-two)
   (test-suicidal-play)
+  (test-broken-situation)
   (test-undo-capture)
   (test-undo-surround-capture)
   (test-undo-two-captures)
