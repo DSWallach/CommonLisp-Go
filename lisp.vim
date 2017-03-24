@@ -3,13 +3,11 @@ if &cp | set nocp | endif
 map [3~ x
 let s:cpo_save=&cpo
 set cpo&vim
-vmap gx <Plug>NetrwBrowseXVis
 nmap gx <Plug>NetrwBrowseX
+nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cWORD>"),0)
 nnoremap <M-F8> :call NextColor(0)
 nnoremap <S-F8> :call NextColor(-1)
 nnoremap <F8> :call NextColor(1)
-vnoremap <silent> <Plug>NetrwBrowseXVis :call netrw#BrowseXVis()
-nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cWORD>"),0)
 map! [3~ <Del>
 map! [6;3~ <PageDown>
 map! [5;3~ <PageUp>
@@ -50,24 +48,18 @@ set fileencodings=ucs-bom,utf-8,default,latin1
 set foldlevelstart=1
 set helplang=en
 set ignorecase
-set iminsert=0
-set imsearch=0
-set incsearch
 set iskeyword=38,42,43,45,47-58,60-62,64-90,97-122,_,&
-set nomodeline
 set mouse=a
-set printoptions=paper:letter
 set ruler
 set runtimepath=~/.vim,~/.vim/bundle/Vundle.vim,~/.vim/bundle/seabird,~/.vim/bundle/vim-colorschemes,~/.vim/bundle/vim-flake8,~/.vim/bundle/vim-javascript,~/.vim/bundle/vim-jsx,/usr/share/vim/site,/usr/share/vim/current,/usr/share/vim/site/after,~/.vim/bundle/vim-jsx/after,~/.vim/bundle/vim-javascript/after,~/.vim/after,~/.vim/bundle/Vundle.vim/after,~/.vim/bundle/seabird/after,~/.vim/bundle/vim-colorschemes/after
 set shiftwidth=4
 set showmatch
 set smartcase
-set suffixes=.bak,~,.swp,.o,.info,.aux,.log,.dvi,.bbl,.blg,.brf,.cb,.ind,.idx,.ilg,.inx,.out,.toc
 set tabstop=4
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
-cd ~/cs365/CommonLisp-Go
+cd ~/Documents/GitHub/CommonLisp-Go
 if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
@@ -88,11 +80,7 @@ argglobal
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
-setlocal backupcopy=
-setlocal balloonexpr=
 setlocal nobinary
-setlocal nobreakindent
-setlocal breakindentopt=
 setlocal bufhidden=
 setlocal buflisted
 setlocal buftype=
@@ -121,7 +109,6 @@ setlocal expandtab
 if &filetype != 'lisp'
 setlocal filetype=lisp
 endif
-setlocal fixendofline
 setlocal foldcolumn=0
 setlocal foldenable
 setlocal foldexpr=0
@@ -183,7 +170,6 @@ if &syntax != 'lisp'
 setlocal syntax=lisp
 endif
 setlocal tabstop=4
-setlocal tagcase=
 setlocal tags=
 setlocal textwidth=0
 setlocal thesaurus=
@@ -209,7 +195,7 @@ normal! zc
 normal! zc
 250
 normal! zc
-let s:l = 1 - ((0 * winheight(0) + 30) / 60)
+let s:l = 1 - ((0 * winheight(0) + 25) / 51)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -225,11 +211,7 @@ argglobal
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
-setlocal backupcopy=
-setlocal balloonexpr=
 setlocal nobinary
-setlocal nobreakindent
-setlocal breakindentopt=
 setlocal bufhidden=
 setlocal buflisted
 setlocal buftype=
@@ -258,7 +240,6 @@ setlocal expandtab
 if &filetype != 'lisp'
 setlocal filetype=lisp
 endif
-setlocal fixendofline
 setlocal foldcolumn=0
 setlocal foldenable
 setlocal foldexpr=0
@@ -320,7 +301,6 @@ if &syntax != 'lisp'
 setlocal syntax=lisp
 endif
 setlocal tabstop=4
-setlocal tagcase=
 setlocal tags=
 setlocal textwidth=0
 setlocal thesaurus=
@@ -349,46 +329,65 @@ silent! normal! zE
 366,373fold
 375,384fold
 386,408fold
-57,408fold
-411,424fold
-426,437fold
-439,447fold
-449,459fold
-461,467fold
-469,496fold
-498,536fold
-538,600fold
-614,645fold
-602,665fold
-667,692fold
-694,723fold
-725,769fold
-771,781fold
-796,804fold
-806,822fold
-824,860fold
-862,877fold
-882,908fold
-910,923fold
-783,923fold
-925,941fold
-410,941fold
-944,956fold
-968,1010fold
-958,1065fold
-1086,1113fold
-1124,1129fold
-1137,1160fold
-1067,1187fold
-1231,1248fold
-1253,1266fold
-1253,1274fold
-1230,1279fold
-1281,1286fold
-1189,1287fold
-1289,1293fold
-1295,1366fold
-943,1366fold
+410,448fold
+57,448fold
+451,464fold
+466,477fold
+479,487fold
+489,499fold
+501,507fold
+509,536fold
+538,576fold
+578,640fold
+654,685fold
+642,705fold
+707,732fold
+734,763fold
+765,809fold
+811,821fold
+823,839fold
+450,839fold
+865,873fold
+875,891fold
+893,929fold
+935,948fold
+952,964fold
+965,978fold
+842,997fold
+1012,1054fold
+999,1125fold
+1171,1206fold
+1212,1217fold
+1225,1249fold
+1127,1275fold
+1332,1346fold
+1331,1382fold
+1384,1389fold
+1277,1390fold
+1392,1396fold
+1398,1469fold
+841,1469fold
+1472,1476fold
+1478,1487fold
+1489,1530fold
+1532,1550fold
+1552,1579fold
+1581,1599fold
+1601,1652fold
+1654,1677fold
+1679,1701fold
+1703,1742fold
+1744,1769fold
+1771,1802fold
+1804,1833fold
+1835,1869fold
+1871,1889fold
+1891,1913fold
+1915,1930fold
+1932,1936fold
+1938,1961fold
+1963,1978fold
+1471,1978fold
 1
 normal! zc
 57
@@ -415,80 +414,128 @@ normal! zc
 normal! zc
 386
 normal! zc
+410
+normal! zc
 57
 normal! zc
-410
+450
 normal! zo
-411
+451
 normal! zc
-426
+466
 normal! zc
-439
+479
 normal! zc
-449
+489
 normal! zc
-461
+501
 normal! zc
-469
-normal! zc
-498
+509
 normal! zc
 538
 normal! zc
-602
+578
+normal! zc
+642
 normal! zo
-602
+642
 normal! zc
-667
+707
 normal! zc
-694
+734
 normal! zc
-725
+765
 normal! zc
-771
+811
 normal! zc
-783
+823
+normal! zc
+450
+normal! zc
+841
 normal! zo
-783
-normal! zc
-925
-normal! zc
-410
-normal! zc
-943
+842
 normal! zo
-944
+842
 normal! zc
-958
+999
 normal! zo
-958
+999
 normal! zc
-1067
+1127
 normal! zo
-1067
-normal! zc
-1189
+1171
 normal! zo
-1230
+1212
 normal! zo
-1253
+1127
+normal! zc
+1277
 normal! zo
-1281
+1331
 normal! zo
-1189
+1332
+normal! zo
+1384
+normal! zo
+1277
 normal! zc
-1289
+1392
 normal! zc
-1295
+1398
 normal! zc
-943
+841
 normal! zc
-let s:l = 943 - ((942 * winheight(0) + 30) / 60)
+1471
+normal! zo
+1472
+normal! zc
+1478
+normal! zc
+1489
+normal! zc
+1532
+normal! zc
+1552
+normal! zc
+1581
+normal! zc
+1601
+normal! zc
+1654
+normal! zc
+1679
+normal! zc
+1703
+normal! zc
+1744
+normal! zc
+1771
+normal! zc
+1804
+normal! zc
+1835
+normal! zc
+1871
+normal! zc
+1891
+normal! zc
+1915
+normal! zc
+1932
+normal! zc
+1938
+normal! zc
+1963
+normal! zc
+1471
+normal! zc
+let s:l = 1 - ((0 * winheight(0) + 25) / 51)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-943
-normal! 0
+1
+normal! 01|
 tabnext 2
 set stal=1
 if exists('s:wipebuf')

@@ -407,6 +407,46 @@
   (when (= handicap -1)
     (make-go-game :komi komi)))
 
+;;  CHECK-ORDER? : GAME
+;; -----------------------------------
+;;  Check that the ordering of groups is correct.
+;;  For debugging.
+(defun check-order? (game)
+  (let ((hist (gg-move-history game))
+        (b-groups (svref (gg-groups game) *black*))
+        (w-groups (svref (gg-groups game) *white*))
+        (counter 0)
+        (turn? (- 1 (gg-whose-turn? game)))
+        )
+    (dolist (group b-groups)
+      (dotimes (i (length hist))
+        (when (= (first (group-pieces group))
+                 (svref (nth i hist) 0))
+          (if (< i counter)
+            (unless (format t "Black Groups out of order~%")
+              (print-go game t nil t t)
+              (break)
+              )
+            (setq counter i))
+          (return))))
+
+    (setq counter 0)
+
+    (dolist (group w-groups)
+      (dotimes (i (length hist))
+        (when (= (first (group-pieces group))
+                 (svref (nth i hist) 0))
+          (if (< i counter)
+            (unless (format t "White Groups out of order~%")
+              (print-go game t nil t t)
+              (break)
+              )
+            (setq counter i))
+          (return)
+          )))
+    t
+))
+
 ;;;;; GROUP STRUCT/FUNCS
 ;;  GROUP
 ;; ----------------------------
@@ -655,9 +695,9 @@
 
           (when (check-above? p)
             (setq libs (+ libs 1)))
+
           (when (check-below? p)
             (setq libs (+ libs 1))))
-       
 
         ;; Update the group's liberties
         (setf (group-liberties group) libs)
@@ -780,16 +820,45 @@
   (calc-territory! group (gg-board game) (gg-whose-turn? game))
   )
 
-;;  FIND-ADD-GROUP! : GAME ROW COL
-;; ----------------------
+;;  GROUP-REMOVE! : GROUP POS GAME
+;; -------------------------------
+;;  INPUTS: GROUP, a group struct
+;;          POS, The position of the piece to be removed
+(defun group-remove! (group pos game)
+
+  ;; Remove the most recent piece
+  (setf (group-pieces group)
+        (delete pos (group-pieces group)))
+
+  ;; Unless there are no more pieces in the group
+  (if (< 0 (length (group-pieces group)))
+    ;; Update the group and return it
+    (when (update-group! group game)
+      group)
+    nil ; Otherwise return nil
+    ))
+
+;;;;; GAME PLAYING
+;;  PUT-PIECE!  -- used by DO-MOVE!
+;; -------------------------------------------
+;;  INPUTS:  GAME, a CHESS struct
+;;           PC, a PIECE struct
+;;  OUTPUT:  None
+;;  SIDE EFFECT:  Restores given piece to the board at the
+;;    location specified by its ROW and COL fields. 
 ;;  Find any groups the move at row col should belong to
 ;;  If there are multiple groups merge them into one
-(defun find-add-group! (game row col)
+
+(defun put-piece! (game pos)
+
   (let* ((new-group nil)
-        (player (gg-whose-turn? game))
-        (connected-groups ())
-        (player-groups (svref (gg-groups game) player)))
-    
+         (vec (find-row-col pos))
+         (row (svref vec 0))
+         (col (svref vec 1))
+         (player (gg-whose-turn? game))
+         (connected-groups ())
+         (player-groups (svref (gg-groups game) player)))
+
     ;; Recursive subroutines to locate and retrive the 
     ;; group the move at (row, col) should be added to 
     (labels 
@@ -857,8 +926,10 @@
                ))
            ;; Return t
            t)
-       ))
+         ))
 
+      ;; Put the piece on the board 
+      (setf (svref (gg-board game) pos) (+ 1 player))
       ;; If there are no groups 
       (if (null (svref (gg-groups game) player)) 
         ;; Make a new group 
@@ -871,11 +942,10 @@
 
           ;; Make a list of groups containing the current move
           (setf (svref (gg-groups game) player) (list new-group))
-          
-          
+
+
           ;; Return 0
           0)
-
         ;; Otherwise check the groups of the player whose turn it is
         (when (check-groups 0)
           (cond
@@ -892,79 +962,53 @@
              (push new-group (svref (gg-groups game) player))
              ;; Return 0
              0)
-             ;; If one group was found  
-             ((= 1 (length connected-groups)) 
+            ;; If one group was found  
+            ((= 1 (length connected-groups)) 
 
-              ;; Get the group
-              (setq new-group (pop connected-groups))
+             ;; Get the group
+             (setq new-group (pop connected-groups))
 
-              ;; Add the piece and update the group
-              (add-piece! new-group) 
-              
-              ;; Add it back at the front of the groups list
-              (push new-group 
-                    (svref (gg-groups game) player))
-              ;; Return 1
-              1)
+             ;; Add the piece and update the group
+             (add-piece! new-group) 
+
+             ;; Add it back at the front of the groups list
+             (push new-group 
+                   (svref (gg-groups game) player))
+             ;; Return 1
+             1)
 
             ;; Otherwise get the first group
             (t 
+              ;; Get the first group to merge
               (setq new-group (pop connected-groups))            
-              ;; Update it with the new piece 
-              (add-piece! new-group)
+
               ;; Merge it with the remaining groups 
               (dolist (group connected-groups)
                 (merge-groups! new-group group)) 
-              ;; Update the fully merged group
-              (update-group! new-group game)
+
+              ;; Update it with the new piece 
+              (add-piece! new-group)
+
               ;; Push it back onto the players groups
               (push new-group (svref (gg-groups game) player))
+
               ;; Return the number of groups merged
               (+ (length connected-groups) 1))))))))
 
-;;  GROUP-REMOVE! : GROUP POS GAME
-;; -------------------------------
-;;  INPUTS: GROUP, a group struct
-;;          POS, The position of the piece to be removed
-(defun group-remove! (group pos game)
-
-  ;; Remove the most recent piece
-  (setf (group-pieces group)
-        (delete pos (group-pieces group)))
-
-  ;; Unless there are no more pieces in the group
-  (if (< 0 (length (group-pieces group)))
-    ;; Update the group and return it
-    (when (update-group! group game)
-      group)
-    nil ; Otherwise return nil
-    ))
-
-;;;;; GAME PLAYING
-;;  PUT-PIECE!  -- used by DO-MOVE!
-;; -------------------------------------------
-;;  INPUTS:  GAME, a CHESS struct
-;;           PC, a PIECE struct
-;;  OUTPUT:  None
-;;  SIDE EFFECT:  Restores given piece to the board at the
-;;    location specified by its ROW and COL fields. 
-
-(defun put-piece! (game player pos)
-  (setf (svref (gg-board game) pos) (+ 1 player))
-  (let ((vec (find-row-col pos)))
-    ;; Return the result of find-add-group
-    (find-add-group! game (svref vec 0) (svref vec 1))))
 
 ;;  DO-MOVE! : GAME POS
 ;; --------------------------------------
 ;;  Works like the chess-solns function of the same name
-(defun do-move! (game pos &optional (debug? t))
+(defun do-move! (game pos &optional (debug? nil))
+  (format debug? "Do Move ~A ~%" pos)
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
          (opponent (- 1 player))
          (groups (svref (gg-groups game) (- 1 player)))
          )
+    (check-order? game)
+
     ;; Function for finding and capturing groups
     (labels ((groups-capture
                (group groups-length)
@@ -998,7 +1042,7 @@
                    (capture-group! c-group game)
 
                    (when (find c-group (svref (gg-groups game) (- 1 player)))
-                     (format t "Group wasn't removed~%")
+                     (format debug? "Group wasn't removed~%")
                      (break))
                    )
 
@@ -1009,10 +1053,10 @@
              ))
              )
     ;; Push game onto game history (For debug)
-    (push (deep-copy-go game) (gg-game-history game))
+    (when debug? (push (deep-copy-go game) (gg-game-history game)))
 
     ;; Push the board onto board history
-    (when debug? (push (copy-vector board) (gg-board-history game)))
+    (push (copy-vector board) (gg-board-history game))
 
     ;; If the move is a pass
     (cond
@@ -1027,7 +1071,7 @@
               (group nil)
               )
         
-          (setq groups-merged (put-piece! game player pos))
+          (setq groups-merged (put-piece! game pos))
 
            ;; Capture any dead groups
            (groups-capture group (length groups))
@@ -1060,14 +1104,30 @@
                 (gg-move-history game))
           )))
 
+    ;; Update player's groups
+    (dolist (group (svref (gg-groups game) player))
+      (calc-area! group)
+      (update-group! group game))
+
+    ;; Update opponent's groups
+    (dolist (group (svref (gg-groups game) opponent))
+      (calc-area! group)
+      (update-group! group game))
+
+    ;; Evaluate each players score
+    (eval-subtotals! game)
+
     ;; Change turn
     (setf (gg-whose-turn? game) 
-          (- 1 player)))))
+          (- 1 player))
+    
+   (check-order? game) 
+    )))
 
 ;;  UNDO-MOVE! : GAME
 ;; ----------------------------------------
 ;;  Undo the most recently played move
-(defun undo-move! (game &optional (debug? t))
+(defun undo-move! (game &optional (debug? nil))
   (let* ((captured 0)
          (move (pop (gg-move-history game)))
          (pos (svref move 0))
@@ -1076,47 +1136,75 @@
          (groups-copy nil)
          (deep-copy nil) 
          )
-    (format t "Undo ~A's move ~%" opponent)
-    ;; Delete the previous board 
+    (format debug? "Undo ~A's move ~%" opponent)
+    
+    (labels ((history-test? (pos move)
+                            (= pos (svref move 0)))
+             (group-order? 
+               (group-one group-two)
+                 ;; When group-one was modified more recently that group-two 
+                 (when (< (position (first (group-pieces group-one)) 
+                                    (gg-move-history game)
+                                    :test #'history-test?) 
+                          (position (first (group-pieces group-two)) 
+                                    (gg-move-history game)
+                                    :test #'history-test?))
+
+                   ;; Return true
+                   t))
+             )
+      (when debug? 
+        (setq deep-copy (pop (gg-game-history game))) 
+        (check-order? deep-copy)
+        )
+      ;; Delete the previous board 
     (pop (gg-board-history game))
 
     ;; Unless the previous move was a pass
     (unless (= *board-size* pos)
 
+      (format debug? "Player groups before pull :~A~%" (svref (gg-groups game) opponent))
+      ;; Remove the piece from the board and from player's groups
+      (pull-piece! game pos (< 1 (svref move 2)))
+      (format debug? "Player groups after pull :~A~%" (svref (gg-groups game) opponent))
+
       ;; If necessary seperate groups
       (when (< 1 (svref move 2))
-        (format t "Seperate Groups Move ~A ~% Game ~%~A~%" move game)
+        (format debug? "Seperate Groups Move ~A ~% Game ~%~A~%" move game)
         (let ((mod-group (pop (svref (gg-groups game) opponent)))
               (new-group nil) 
               (new-groups nil)
               )
-          (format t "Seperate groups num ~A~%" (- (svref move 2) 1))
-          (format t "Mod Group ~A~%" mod-group)
+          (format debug? "Seperate groups num ~A~%" (- (svref move 2) 1))
+          (format debug? "Mod Group ~A~%" mod-group)
           (dotimes (i (- (svref move 2) 1))
-
+             
             ;; Get the seperated group
             (setq new-group 
                   (seperate-group! mod-group game))
 
-            (format t "Seperation ~A: ~A~%" i new-group)
+            (format debug? "Seperation ~A: ~A~%" i new-group)
 
             ;; Add the new-group to the list of new groups
             (push new-group new-groups)
             )
 
           ;; Push the modified onto the list of groups 
-          (push mod-group 
-                (svref (gg-groups game) opponent))
+          (push mod-group new-groups)
 
-          (dolist (g new-groups)
-            (push g (svref (gg-groups game) opponent)))
 
+          (format debug? "new-groups ~A~% old ~A~%" new-groups (svref (gg-groups game) opponent))
+          ;; Add the group back into opponent's groups with the 
+          ;; correct ordering
+          (setf (svref (gg-groups game) opponent)
+                (merge 'list 
+                       (svref (gg-groups game) opponent)
+                       (stable-sort new-groups #'group-order?)
+                       #'group-order?
+                       ))
+          (format debug? "Groups after merge ~A~%" (svref (gg-groups game) opponent))
+          
           ))
-
-      (format t "Player groups before pull :~A~%" (svref (gg-groups game) opponent))
-      ;; Remove the piece from the board and from player's groups
-      (pull-piece! game pos)
-      (format t "Player groups after pull :~A~%" (svref (gg-groups game) opponent))
 
       (when (= captured 0)
         (setf (gg-ko? game) nil))
@@ -1137,6 +1225,7 @@
 
         ;; If necessary return captured groups
         ((< 0 (svref move 1))
+         (format debug? "Return captured groups ~%")
          (let ((group nil)
                )
 
@@ -1179,12 +1268,11 @@
     ;; Compare to the deep-copy board
     ;; break if there's a difference
     (when debug?  
-      (setq deep-copy (pop (gg-game-history game))) 
       (unless (equal-go? game deep-copy)
-        (format t "Undo doesn't match copy: Game ~% ~A Copy ~% ~A ~%" game deep-copy)
+        (format debug? "Undo doesn't match copy: Copy ~% ~A Game ~% ~A ~%" deep-copy game)
         (break)))
 
-    ))
+    )))
 
 ;;  PULL-PIECE!  -- used by UNDO-MOVE!
 ;; ---------------------------------------------------------------
@@ -1195,17 +1283,30 @@
 ;;  NOTE:  Removing piece from the board does not affect the
 ;;         values of its ROW and COL fields.  (See PUT-PIECE!.)
 
-(defun pull-piece! (game pos)
-  (format t "Pull Piece! ~A ~%" pos)
+(defun pull-piece! (game pos seperate?)
+  (format nil "Pull Piece! ~A ~%" pos)
   ;; The player of the previous turn is the opponent this turn
   (let* ((player (- 1 (gg-whose-turn? game)))
         (player-groups (svref (gg-groups game) player))
         (prev-position nil)
         (group nil)
         )
-    (labels 
+    (labels ((history-test? (pos move)
+                            (= pos (svref move 0)))
+             (group-order? 
+               (group-one group-two)
+                 ;; When group-one was modified more recently that group-two 
+                 (when (< (position (first (group-pieces group-one)) 
+                                    (gg-move-history game)
+                                    :test #'history-test?) 
+                          (position (first (group-pieces group-two)) 
+                                    (gg-move-history game)
+                                    :test #'history-test?))
+
+                   ;; Return true
+                   t))
       ;; Find the group's position from the move-history 
-      ((find-position 
+      (find-position 
          (piece)
          (dotimes (i (length (gg-move-history game))) 
            (when (= piece 
@@ -1247,7 +1348,9 @@
              (setq prev-position 
                    (find-position (first (group-pieces group))))
 
-             (if (< 0 (length (svref (gg-groups game) player)))
+             (if (and (< 0 (length (svref (gg-groups game) player)))
+                      (not seperate?))
+
                (dotimes (j (length (svref (gg-groups game) player)))
 
                  ;; When you encouter a group with a higher position value
@@ -1259,9 +1362,9 @@
                    ;; Insert the group before it
                    (setf (svref (gg-groups game) player)
                          (append (subseq (svref (gg-groups game) player) 0 j)
-                                 (list group)
-                                 (subseq (svref (gg-groups game) player) j)))
-                   (print-go game t nil t t)
+                                              (list group)
+                                              (subseq (svref (gg-groups game) player) j)))
+                         ;; (print-go game t nil t t)
                    ;; Return
                    (return-from pull-piece! t))
 
@@ -1272,11 +1375,11 @@
                          (append (svref (gg-groups game) player) (list group)))
                    (return-from pull-piece! t))
                  )
-             ;; Else if the player has no other groups
-             (when (setf (svref (gg-groups game) player)
-                         (list group))
-               (return-from pull-piece! t))
-             ))
+
+               ;; Else if the player has no other groups
+               (when (push group (svref (gg-groups game) player)) 
+                 (return-from pull-piece! t))
+               ))
 
             ;; Otherwise delete the group    
             (t 
@@ -1364,3 +1467,512 @@
       (return-from legal-moves legal-moves))
 
     moves))
+
+;;;;; TESTING
+;;  TEST : TESTNAME PASSED?
+;; -----------------------------
+;;  Testing function
+(defun test (testname passed?)
+  (format t "Test ~A passed? ~A~%" testname passed?))
+
+;;  TEST-CORNER-CAPTURE
+;; ------------------------
+;;  Testing Group-Capture! 
+(defun test-corner-capture ()
+  (let ((new-g (init-game)))
+    (play-move! new-g 0 0)
+    (play-move! new-g 0 1)
+    (play-move! new-g 1 1)
+    (play-move! new-g 1 0)
+    (test "Single-Corner-Capture" (= (length (svref (gg-captures new-g) *white*)) 1))))
+
+;;  TEST-LARGE-CAPTURE
+;; --------------------------------------
+;; Testing the correctness of capturing a large group 
+;; along the side of the board
+(defun test-large-capture (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (black-group nil)
+        )
+    (play-move! new-g 0 0)
+    (play-move! new-g 0 1)
+    
+    (play-move! new-g 1 0)
+    (play-move! new-g 1 1)
+
+    (play-move! new-g 2 0)
+    (play-move! new-g 2 1)
+
+    (play-move! new-g 3 0)
+    (play-move! new-g 3 1)
+
+    (play-move! new-g 4 0)
+    (play-move! new-g 4 1)
+
+    (play-move! new-g 5 0)
+    (play-move! new-g 5 1)
+
+    (play-move! new-g 6 0)
+    (play-move! new-g 6 1)
+
+    (play-move! new-g 7 0)
+    (play-move! new-g 7 1)
+
+    (when verbose? (print-go new-g t nil t t))
+    (play-move! new-g 8 0)
+    (setq black-group (first (svref (gg-groups new-g) *black*))) 
+
+    (play-move! new-g 8 1)
+
+    (when verbose? (print-go new-g t nil t t))
+    (test "Test-Large-Capture" 
+          (equal-group? black-group (first (svref (gg-captures new-g) *white*))))
+    ))
+
+;;  TEST-SURROUND-CAPTURE
+;; -------------------------
+;;  Test the capture of a group surrounded
+(defun test-surround-capture ()
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g 6 4)
+    (play-move! new-g 5 6)
+
+    (play-move! new-g 6 3)
+    (play-move! new-g 6 5)
+
+    (play-move! new-g 5 5)
+    (play-move! new-g 5 4)
+
+    (play-move! new-g 6 6)
+    (play-move! new-g 4 5)
+
+    (test "Test-Surround-Capture" (= (length (svref (gg-captures new-g) *white*)) 1))))
+
+;;  TEST-TWO-CAPTURES
+;; ---------------------------
+;;  Testing the correctness of capturing two groups with
+;;  one move
+(defun test-two-captures (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g 3 0)
+    (play-move! new-g 2 0)
+
+    (play-move! new-g 5 0)
+    (play-move! new-g 6 0)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 3 1)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 5 1)
+    (when verbose? (print-go new-g t nil t t))
+
+    (play-move! new-g 4 1)
+    (when verbose? (print-go new-g t nil t t))
+    (play-move! new-g 4 0) ; Capture
+    (when verbose? (print-go new-g t nil t t))
+
+    (test "Test-Two-Capture" (and (= 1 (length (svref (gg-groups new-g) *black*)))
+                                  (= 2 (length (svref (gg-captures new-g) *white*)))))
+))
+
+;;  TEST-CORNER-TERRITORY
+;; ---------------------------------------
+;;  Testing territory calculation
+(defun test-corner-territory()
+  (let ((new-g (init-game)))
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (test "Test-Corner-Territory" (= (group-territory (first (svref (gg-groups new-g) *black*))) 4))))
+
+;;  TEST-CORNER-AREA
+;; ----------------------------------
+;;  Testing the correctness of the area calculation for a group
+(defun test-corner-area()
+  (let ((new-g (init-game))
+        (correct? t)
+        )
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (unless (equalp (group-area (first (svref (gg-groups new-g) *black*)))
+                    (vector (- *board-length* 3) 
+                            (- *board-length* 1) 
+                            (- *board-length* 3) 
+                            (- *board-length* 1)))
+      (setq correct? nil))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (unless (equalp (group-area (first (svref (gg-groups new-g) *black*)))
+                    (vector (- *board-length* 3) 
+                            (- *board-length* 2) 
+                            (- *board-length* 3) 
+                            (- *board-length* 1)))
+      (setq correct? nil))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+    (unless (equalp (group-area (first (svref (gg-groups new-g) *black*)))
+                    (vector (- *board-length* 3) 
+                            (- *board-length* 3) 
+                            (- *board-length* 3) 
+                            (- *board-length* 1)))
+      (setq correct? nil))
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (unless (equalp (group-area (first (svref (gg-groups new-g) *black*)))
+                    (vector (- *board-length* 3) 
+                            (- *board-length* 3) 
+                            (- *board-length* 2) 
+                            (- *board-length* 1)))
+      (setq correct? nil))
+
+    (do-move! new-g *board-size*)
+
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (unless (equalp (group-area (first (svref (gg-groups new-g) *black*)))
+                    (vector (- *board-length* 3) 
+                            (- *board-length* 3) 
+                            (- *board-length* 1) 
+                            (- *board-length* 1)))
+      (setq correct? nil))
+    (test "Test-Corner-Area" correct?))) 
+
+;;  TEST-GROUPING-ONE : OP (VERBOSE?)
+;; --------------------------------------------
+;;  Testing the correctness of how pieces are grouped
+(defun test-grouping-one (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (play-move! new-g 0 2)
+    
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (play-move! new-g 1 2)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+    (play-move! new-g 2 2)
+
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (play-move! new-g 2 1)
+
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (play-move! new-g 2 0)
+    (when verbose? (print-go new-g t nil t t))
+    ;; each player should have only one group
+    (test "Test-Grouping-One" (and (= 1 (length (svref (gg-groups new-g) *white*)))
+                               (= 1 (length (svref (gg-groups new-g) *black*)))))))
+
+;;  TEST-GROUPING-TWO 
+;; ---------------------------------
+;;  Testing the correctness of how pieces are grouped
+(defun test-grouping-two ()
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (play-move! new-g 1 2)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (play-move! new-g 0 2)
+    
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (play-move! new-g 2 1)
+
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (play-move! new-g 2 0)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+    (play-move! new-g 2 2)
+    ;; each player should have only one group
+    (test "Test-Grouping-Two" (and (= 1 (length (svref (gg-groups new-g) *white*)))
+                               (= 1 (length (svref (gg-groups new-g) *black*)))))))
+
+;;  TEST-UNDO-CAPTURE
+;; ---------------------------------
+;;  Testing the correctness of undo after a group is captured
+(defun test-undo-capture (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g 0 0)
+    (play-move! new-g 1 0)
+                         
+    (play-move! new-g 0 1)
+    (play-move! new-g 1 1)
+                         
+    (play-move! new-g 0 2)
+    (play-move! new-g 1 2)
+                         
+    (play-move! new-g 0 3)
+    (play-move! new-g 1 3)
+                         
+    (play-move! new-g 0 4)
+    (play-move! new-g 1 4)
+                         
+    (play-move! new-g 0 5)
+    (play-move! new-g 1 5)
+                         
+    (play-move! new-g 0 6)
+    (play-move! new-g 1 6)
+                         
+    (play-move! new-g 0 7)
+    (play-move! new-g 1 7)
+
+    (play-move! new-g 0 8)
+    (setq old-game (deep-copy-go new-g))
+
+    (when verbose? (print-go new-g t nil t t))
+    (play-move! new-g 1 8)
+    (undo-move! new-g)
+    (when verbose? (print-go new-g t nil t t))
+
+    (test "Test-Undo-Capture" (equal-go? new-g old-game verbose?))))
+
+;;  TEST-UNDO-SURROUND-CAPTURE
+;; -------------------------
+;;  Test the capture of a group surrounded
+(defun test-undo-surround-capture (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g 6 4)
+    (play-move! new-g 5 6)
+
+    (play-move! new-g 6 3)
+    (play-move! new-g 6 5)
+
+    (play-move! new-g 5 5)
+    (play-move! new-g 5 4)
+
+    (play-move! new-g 6 6)
+    (when verbose? (print-go new-g t nil t t))
+    (setq old-game (deep-copy-go new-g))
+    (play-move! new-g 4 5)
+
+    (when verbose? (print-go new-g t nil t t))
+    (undo-move! new-g)
+
+    (when verbose? (print-go new-g t nil t t))
+    (test "Test-Undo-Surround-Capture" (equal-go? new-g old-game verbose?))))
+
+;;  TEST-UNDO-TWO-CAPTURES
+;; ---------------------------
+;;  Testing the correctness of capturing two groups with
+;;  one move
+(defun test-undo-two-captures (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g 3 0)
+    (play-move! new-g 2 0)
+
+    (play-move! new-g 5 0)
+    (play-move! new-g 6 0)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 3 1)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 5 1)
+
+    (play-move! new-g 4 1)
+    (setq old-game (deep-copy-go new-g)) 
+
+    (play-move! new-g 4 0) ; Capture
+
+    (when verbose? (print-go new-g t nil t t))
+
+    (undo-move! new-g)
+    (when verbose? (print-go new-g t nil t t))
+
+    (test "Test-Undo-Two-Captures" (equal-go? old-game new-g verbose?))
+))
+
+;;  TEST-UNDO-MERGE-GROUP
+;; ---------------------------
+;;  Testing UNDO-MOVE! after two groups are merged
+(defun test-undo-merge-group (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (play-move! new-g 1 2)
+
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (play-move! new-g 0 2)
+    
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (play-move! new-g 2 1)
+
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (play-move! new-g 2 0)
+
+    (setq old-game (deep-copy-go new-g))
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+    (play-move! new-g 2 2)
+
+    (undo-move! new-g)
+    (undo-move! new-g)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    ;; each player should have two groups
+    (test "Test-Merge-Group" (equal-go? new-g old-game verbose?)))) 
+
+;;  TEST-UNDO-MERGE-MANY-GROUP
+;; ---------------------------
+;;  Testing UNDO-MOVE! after two groups are merged
+(defun test-undo-merge-many-group (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g (- *board-length* 3) (- *board-length* 2))
+    (do-move! new-g *board-size*)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 3) (- *board-length* 1))
+    (do-move! new-g *board-size*)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 2) (- *board-length* 3))
+    (do-move! new-g *board-size*)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 3) (- *board-length* 4))
+    (do-move! new-g *board-size*)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+    (do-move! new-g *board-size*)
+
+    (setq old-game (deep-copy-go new-g))
+    (when verbose? (print-go new-g t nil t t)) 
+    (play-move! new-g (- *board-length* 3) (- *board-length* 3))
+
+    (undo-move! new-g)
+
+    (when verbose? (print-go new-g t nil t t)) 
+    ;; each player should have two groups
+    (test "Test-Undo-Merge-Many-Group" (equal-go? new-g old-game verbose?))))
+
+;;  TEST-UNDO-SUICIDAL-PLAY
+;; ----------------------------------
+;;  Test what happens after a suicidal play
+(defun test-undo-suicidal-play (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        (old-game nil)
+        )
+    (play-move! new-g 1 0)
+    (play-move! new-g 4 4)
+
+    (play-move! new-g 0 1)
+    (setq old-game (deep-copy-go new-g))
+    (when verbose? (print-go new-g t nil t t t))
+    (play-move! new-g 0 0); Suicide
+    (when verbose? (print-go new-g t nil t t t))
+
+    (undo-move! new-g)
+
+    (test "Test-Undo-Suicidal-Play" (equal-go? new-g old-game verbose?))))
+
+;;  TEST-UNDO : OP (VERBOSE?)
+;; ------------------------------------
+;;  Testing the correctness of UNDO-MOVE!
+(defun test-undo (num-moves &optional (verbose? nil)) 
+  (let ((new-g (init-game))
+        (new-g-copy nil)
+        )
+    ;; Allow the A.I. to play to some random point
+    (dotimes (i num-moves)
+      (when verbose? (print-go new-g t nil t t))
+      (do-move! new-g (compute-move new-g 2 nil)))
+
+    (when verbose? (print-go new-g t nil t t t))
+    ;; Copy the game 
+    (setq new-g-copy (deep-copy-go new-g))
+    ;; Do one more move
+    (do-move! new-g (compute-move new-g 2 nil))
+    (when verbose? (print-go new-g t nil t t t))
+    ;; Undo the move
+    (undo-move! new-g)
+    (when verbose? (print-go new-g t nil t t t))
+    ;; Check if it's equal to the previous game state
+    (test "Test-Undo" (equal-go? new-g new-g-copy verbose?))))
+
+;;  TEST-SUICIDAL-PLAY
+;; ----------------------------------
+;;  Test what happens after a suicidal play
+(defun test-suicidal-play (&optional (verbose? nil))
+  (let ((new-g (init-game))
+        )
+    (play-move! new-g 1 0)
+    (play-move! new-g 4 4)
+
+    (play-move! new-g 0 1)
+    (when verbose? (print-go new-g t nil verbose? verbose? verbose?))
+    (play-move! new-g 0 0); Suicide
+    (when verbose? (print-go new-g t nil verbose? verbose? verbose?))
+
+    (test "Test-Suicidal-Play" (and (= 1 (length (svref (gg-captures new-g) *black*)))
+                                    (= 1 (length (svref (gg-groups new-g) *white*)))))))
+
+;;  TEST-ROBUST 
+;; ------------------------------
+;;  Testing the robustness of the game system
+(defun test-robust ()
+  (pg 4 1))
+
+;;  DO-ALL-TESTS
+;; -----------------------
+(defun do-all-tests ()
+  (test-corner-capture)
+  (test-large-capture)
+  (test-surround-capture)
+  (test-two-captures)
+  (test-corner-area)
+  (test-corner-territory)
+  (test-grouping-one)
+  (test-grouping-two)
+  (test-suicidal-play)
+  (test-undo-capture)
+  (test-undo-surround-capture)
+  (test-undo-two-captures)
+  (test-undo-merge-group)
+  (test-undo-merge-many-group)
+  (test-undo-suicidal-play)
+  (test-undo 5)
+  (test-undo 10)
+  (test-undo 15)
+  (test-undo 30)
+  ;; (test-robust)
+  )
+
+;; TEST-BENCH : Test performance of game
+(defun test-bench ()
+  (time 
+    (dotimes (j 1000) 
+      (let ((new-g (init-game))
+            )
+        (dotimes (i *board-size*)
+          (do-move! new-g i)
+          (undo-move! new-g)
+          (do-move! new-g i)
+          )
+        (setq new-g (init-game))
+        (dotimes (i *board-size*)
+          (do-move! new-g i)
+          (do-move! new-g *board-size*))
+        ))))
