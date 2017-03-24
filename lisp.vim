@@ -3,11 +3,13 @@ if &cp | set nocp | endif
 map [3~ x
 let s:cpo_save=&cpo
 set cpo&vim
+vmap gx <Plug>NetrwBrowseXVis
 nmap gx <Plug>NetrwBrowseX
-nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cWORD>"),0)
 nnoremap <M-F8> :call NextColor(0)
 nnoremap <S-F8> :call NextColor(-1)
 nnoremap <F8> :call NextColor(1)
+vnoremap <silent> <Plug>NetrwBrowseXVis :call netrw#BrowseXVis()
+nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cWORD>"),0)
 map! [3~ <Del>
 map! [6;3~ <PageDown>
 map! [5;3~ <PageUp>
@@ -48,18 +50,24 @@ set fileencodings=ucs-bom,utf-8,default,latin1
 set foldlevelstart=1
 set helplang=en
 set ignorecase
+set iminsert=0
+set imsearch=0
+set incsearch
 set iskeyword=38,42,43,45,47-58,60-62,64-90,97-122,_,&
+set nomodeline
 set mouse=a
+set printoptions=paper:letter
 set ruler
 set runtimepath=~/.vim,~/.vim/bundle/Vundle.vim,~/.vim/bundle/seabird,~/.vim/bundle/vim-colorschemes,~/.vim/bundle/vim-flake8,~/.vim/bundle/vim-javascript,~/.vim/bundle/vim-jsx,/usr/share/vim/site,/usr/share/vim/current,/usr/share/vim/site/after,~/.vim/bundle/vim-jsx/after,~/.vim/bundle/vim-javascript/after,~/.vim/after,~/.vim/bundle/Vundle.vim/after,~/.vim/bundle/seabird/after,~/.vim/bundle/vim-colorschemes/after
 set shiftwidth=4
 set showmatch
 set smartcase
+set suffixes=.bak,~,.swp,.o,.info,.aux,.log,.dvi,.bbl,.blg,.brf,.cb,.ind,.idx,.ilg,.inx,.out,.toc
 set tabstop=4
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
-cd ~/Documents/GitHub/CommonLisp-Go
+cd ~/cs365/CommonLisp-Go
 if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
@@ -80,7 +88,11 @@ argglobal
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal backupcopy=
+setlocal balloonexpr=
 setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
 setlocal bufhidden=
 setlocal buflisted
 setlocal buftype=
@@ -109,6 +121,7 @@ setlocal expandtab
 if &filetype != 'lisp'
 setlocal filetype=lisp
 endif
+setlocal fixendofline
 setlocal foldcolumn=0
 setlocal foldenable
 setlocal foldexpr=0
@@ -170,6 +183,7 @@ if &syntax != 'lisp'
 setlocal syntax=lisp
 endif
 setlocal tabstop=4
+setlocal tagcase=
 setlocal tags=
 setlocal textwidth=0
 setlocal thesaurus=
@@ -195,7 +209,7 @@ normal! zc
 normal! zc
 250
 normal! zc
-let s:l = 1 - ((0 * winheight(0) + 25) / 51)
+let s:l = 1 - ((0 * winheight(0) + 30) / 60)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -211,7 +225,11 @@ argglobal
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal backupcopy=
+setlocal balloonexpr=
 setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
 setlocal bufhidden=
 setlocal buflisted
 setlocal buftype=
@@ -240,6 +258,7 @@ setlocal expandtab
 if &filetype != 'lisp'
 setlocal filetype=lisp
 endif
+setlocal fixendofline
 setlocal foldcolumn=0
 setlocal foldenable
 setlocal foldexpr=0
@@ -301,6 +320,7 @@ if &syntax != 'lisp'
 setlocal syntax=lisp
 endif
 setlocal tabstop=4
+setlocal tagcase=
 setlocal tags=
 setlocal textwidth=0
 setlocal thesaurus=
@@ -369,28 +389,6 @@ silent! normal! zE
 1289,1293fold
 1295,1366fold
 943,1366fold
-1369,1373fold
-1375,1384fold
-1386,1427fold
-1429,1447fold
-1449,1476fold
-1478,1496fold
-1498,1549fold
-1551,1574fold
-1576,1598fold
-1600,1639fold
-1641,1666fold
-1668,1699fold
-1701,1730fold
-1732,1766fold
-1768,1786fold
-1788,1810fold
-1812,1827fold
-1829,1844fold
-1846,1850fold
-1852,1876fold
-1878,1893fold
-1368,1893fold
 1
 normal! zc
 57
@@ -473,10 +471,6 @@ normal! zc
 normal! zo
 1230
 normal! zo
-1231
-normal! zo
-1253
-normal! zo
 1253
 normal! zo
 1281
@@ -489,58 +483,12 @@ normal! zc
 normal! zc
 943
 normal! zc
-1368
-normal! zo
-1369
-normal! zc
-1375
-normal! zc
-1386
-normal! zc
-1429
-normal! zc
-1449
-normal! zc
-1478
-normal! zc
-1498
-normal! zc
-1551
-normal! zc
-1576
-normal! zc
-1600
-normal! zc
-1641
-normal! zc
-1668
-normal! zc
-1701
-normal! zc
-1732
-normal! zc
-1768
-normal! zc
-1788
-normal! zc
-1812
-normal! zc
-1829
-normal! zc
-1846
-normal! zc
-1852
-normal! zc
-1878
-normal! zc
-1368
-normal! zc
-let s:l = 1 - ((0 * winheight(0) + 25) / 51)
+let s:l = 943 - ((942 * winheight(0) + 30) / 60)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 01|
+943
+normal! 0
 tabnext 2
 set stal=1
 if exists('s:wipebuf')
