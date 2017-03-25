@@ -739,7 +739,15 @@
         (min-col (svref (group-area group-two) *min-col*))
         (max-row (svref (group-area group-two) *max-row*))
         (max-col (svref (group-area group-two) *max-col*))
+        (print? nil)
         )
+    (when (or 
+            (and (= 59 (first (group-pieces group-one)))
+                 (= 51 (first (group-pieces group-two))))
+            (and (= 51 (first (group-pieces group-one)))
+                 (= 59 (first (group-pieces group-two)))))
+
+      (setq print? t))
     ;; Push the first piece from the group onto the merge-marker
     (push (first (group-pieces group-two))
           (group-merge-marker group-one))
@@ -760,6 +768,11 @@
 
     (when (> max-col (svref (group-area group-one) *max-col*))
       (setf (svref (group-area group-one) *max-col*) max-col))
+    (when print? 
+      (format t "~%============================================~%")
+      (format t "Merged Group ~A~%" group-one)
+      (format t "~%============================================~%")
+      )
     ))
 
 ;;  SEPERATE-GROUP! : GROUP GAME
@@ -774,6 +787,8 @@
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
     (when (null mark)
+      (format t "Group : ~A~%" group)
+      (print-go game t nil nil t nil)
       (format t "No Merged Groups~%")
       (break))
 
@@ -995,7 +1010,6 @@
               ;; Return the number of groups merged
               (+ (length connected-groups) 1))))))))
 
-
 ;;  DO-MOVE! : GAME POS
 ;; --------------------------------------
 ;;  Works like the chess-solns function of the same name
@@ -1136,7 +1150,6 @@
          (groups-copy nil)
          (deep-copy nil) 
          )
-    (format debug? "Undo ~A's move ~%" opponent)
     
     (labels ((history-test? (pos move)
                             (= pos (svref move 0)))
@@ -1153,6 +1166,11 @@
                    ;; Return true
                    t))
              )
+      (when (and (equalp move (vector 50 0 2)) 
+                 (< 6 (length (gg-move-history game))))
+      (format t "Undo ~A's move ~A~%" opponent move)
+       (print-go game t nil t t))
+     ; )
       (when debug? 
         (setq deep-copy (pop (gg-game-history game))) 
         (check-order? deep-copy)
@@ -1272,7 +1290,7 @@
         (format debug? "Undo doesn't match copy: Copy ~% ~A Game ~% ~A ~%" deep-copy game)
         (break)))
 
-    )))
+   )))
 
 ;;  PULL-PIECE!  -- used by UNDO-MOVE!
 ;; ---------------------------------------------------------------
@@ -1976,3 +1994,4 @@
           (do-move! new-g i)
           (do-move! new-g *board-size*))
         ))))
+
