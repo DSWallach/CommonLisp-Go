@@ -246,21 +246,3 @@
 
     ;; return my-move
     best-so-far))
-
-;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
-;; ---------------------------------------------
-;; A function for setting to A.I.'s with different
-;; depths against each other. For fun.
-(defun play-game (game depth-one depth-two one?)
-  (if (game-over? game)
-    (unless (format t "++++++++ Game Over +++++++++~%")
-      (print-go game t nil t t))
-    (when (if one? 
-            (do-move! game (compute-move game depth-one))
-            (do-move! game (compute-move game depth-two)))
-      (format t "Game State~%")
-      (print-go game t nil nil nil)
-      (play-game game depth-one depth-two (not one?)))))
-
-(defun pg (d1 d2)
-  (play-game (init-game) d1 d2 t))

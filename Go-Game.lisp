@@ -38,6 +38,28 @@
 ;; Load Alpha/Beta AI
 (cl "alpha-beta-go")
 
+;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
+;; ---------------------------------------------
+;; A function for setting to A.I.'s with different
+;; depths against each other. For fun.
+(defun play-game (game depth-one depth-two one?)
+  (if (game-over? game)
+    (unless (format t "++++++++ Game Over +++++++++~%")
+      (print-go game t nil t t))
+    (when (if one? 
+            (do-move! game (compute-move game depth-one))
+            (do-move! game (compute-move game depth-two)))
+      (format t "Game State~%")
+      (print-go game t nil t t)
+      (when (= 64 (svref (first (gg-move-history game)) 0))
+        (return-from play-game game))
+      (play-game game depth-one depth-two (not one?)))))
+
+
+(defun pg (d1 d2)
+  (play-game (init-game) d1 d2 t))
+
+
 (defun copy-vector (in-vec)
   (let ((out-vec (make-array (length in-vec)))
         )
@@ -105,7 +127,8 @@
       ;; to the score
       (setq b-score (+ b-score 
                        (group-territory group) 
-                       (group-liberties group))))
+                      ;; (group-liberties group)
+                       )))
     (dolist (capd b-captures)
       (setq b-score (+ b-score (length (group-pieces capd)))))
 
@@ -113,7 +136,8 @@
     (dolist (group w-groups)
       (setq w-score (+ w-score 
                        (group-territory group) 
-                       (group-liberties group) 2)))
+                      ;; (group-liberties group)
+                       )))
 
       (dolist (capd w-captures)
         (setq w-score (+ w-score (length (group-pieces capd)))))
@@ -184,11 +208,67 @@
   (let ((board (gg-board game))
         (evals (gg-subtotals game))
         (player (gg-whose-turn? game)))
-    (format str "~% ======== TURN[~A] ========~%" (length (gg-move-history game)))
-    (format str "    0  1  2  3  4  5  6  7  8~%")
-    (format str "  -----------------------------~%")
+
+    ;; Print game info
+    (format str "Turn: ~A       Black    White  ~%" (length (gg-move-history game)))
+    (format str "Est. Score:    ~A       ~A~%"
+            (svref evals *black*)
+            (svref evals *white*))
+    (format str "Current Val: ~A, Whose Turn ~A, Game Over? ~A~%" 
+            (eval-func game)
+            player
+            (game-over? game))
+
+  ;; Print group info
+  (when groups?
+    (format str "~%Black Groups:~%~A" (svref (gg-groups game) *black*)) 
+    (format str "~%Black Captures:~%~A" (svref (gg-captures game) *black*)) 
+    (format str "~%White Groups:~%~A" (svref (gg-groups game) *white*))
+    (format str "~%White Captures:~%~A" (svref (gg-captures game) *white*))
+    (format str "~%Game Length: ~A, " (length (gg-board-history game)))
+    (format str "Move history~%~A~%" (gg-move-history game)) 
+    )
+
+  ;; Print board history
+  (when boards?
+    (dotimes (i (length (gg-board-history game)))
+      (format str "Board at turn ~A : ~A~%" 
+              (- (length (gg-board-history game)) i)
+              (nth i (gg-board-history game)))))
+
+    ;; Print Header 
+    (cond
+      ((= 19 *board-length*) (format str "~%  ===="))
+      ((= 9 *board-length*) (format str "~% ")))
+
+    (dotimes (i (/ *board-length* 2))
+      (format str "=="))
+    (format str " TURN[~A] " (length (gg-move-history game)))
+    (dotimes (i (/ *board-length* 2))
+      (format str "=="))
+    (cond
+      ((= 19 *board-length*) (format str "  ====~%"))
+      ((= 9 *board-length*) (format str "~%")))
+
+    ;; Print column numbers
+    (format str "    ")
+    (dotimes (i *board-length*)
+      (if (< 9 i)
+        (format str "~A " i)
+        (format str " ~A " i)))
+    (format str "~% ")
+    (format str "   ")
+    (dotimes (i *board-length*)
+      (if (= i (- *board-length* 1))
+        (format str "--")
+        (format str "---")))
+    (format str "~%")
+
+    ;; Print the board
     (dotimes (row *board-length*)
-      (format str "~A  " row)
+      (if (< 9 row)
+        (format str "~A |" row)
+        (format str " ~A |" row))
       (dotimes (col *board-length*)
         (let* ((p (svref board (find-pos row col)))
                )
@@ -211,29 +291,16 @@
                 ((= 1 p) (format str " x "))
                 ((= 2 p) (format str " o ")))))))
       (format str "~%"))
-    (format str "  -----------------------------~%")
-    (format str "             Black    White  ~%")
-    (format str "Est. Score:    ~A       ~A~%"
-            (svref evals *black*)
-            (svref evals *white*))
-    (format str "Current Val: ~A, Whose Turn ~A, Game Over? ~A~%" 
-            (eval-func game)
-            player
-            (game-over? game)))
-  (when groups?
-    (format str "~%Black Groups:~%~A" (svref (gg-groups game) *black*)) 
-    (format str "~%Black Captures:~%~A" (svref (gg-captures game) *black*)) 
-    (format str "~%White Groups:~%~A" (svref (gg-groups game) *white*))
-    (format str "~%White Captures:~%~A" (svref (gg-captures game) *white*))
-    (format str "~%Game Length: ~A, " (length (gg-board-history game)))
-    (format str "Move history~%~A~%" (gg-move-history game)) 
-    )
-    (when boards?
-      (dotimes (i (length (gg-board-history game)))
-        (format str "Board at turn ~A : ~A~%" 
-                (- (length (gg-board-history game)) i)
-                (nth i (gg-board-history game)))))
-  ) 
+    
+    ;; Print seperator
+    (format str "    ")
+    (dotimes (i *board-length*)
+      (if (= i (- *board-length* 1))
+        (format str "--")
+        (format str "---")))
+    (format str "~%")
+
+  )) 
 
 ;;  EQUAL-GO?
 ;; -----------------------
@@ -454,7 +521,8 @@
 ;;  of territory in the game of Go. The 
 ;;  territory of each of a player's groups
 ;;  is added to their score estimate
-(defstruct (group (:print-function print-group))
+(defstruct (group (:print-function print-group)
+                  )
   (alive? nil)
   (pieces ())
   (area (vector 0 0 0 0))
@@ -484,6 +552,8 @@
               :pieces (copy-seq (group-pieces group))
               :area (copy-seq (group-area group))
               :liberties (group-liberties group)
+              :merge-marker (group-merge-marker group)
+              :last-pos (group-last-pos group)
               :territory (group-territory group)))
 
 ;;  PRINT-GROUP : GROUP STR DEPTH 
@@ -713,11 +783,6 @@
   (let* ((player (gg-whose-turn? game))
          (opponent (- 1 player))
          )
-   ;; Break if the same group is to be captured twice 
-    (when (find group (svref (gg-captures game) player) :test #'equal-group?)
-        
-      (format t "This group is already captured Turn ~A~%" (length (gg-move-history game)))
-      (break))
     
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 
@@ -739,17 +804,16 @@
         (min-col (svref (group-area group-two) *min-col*))
         (max-row (svref (group-area group-two) *max-row*))
         (max-col (svref (group-area group-two) *max-col*))
-        (print? nil)
+        (merger nil)
         )
-    (when (or 
-            (and (= 59 (first (group-pieces group-one)))
-                 (= 51 (first (group-pieces group-two))))
-            (and (= 51 (first (group-pieces group-one)))
-                 (= 59 (first (group-pieces group-two)))))
+    
+    ;; Create the merger from the first piece of a group
+    ;; and its merge markers
+    (setq merger (vector (first (group-pieces group-two))
+                         (group-merge-marker group-two)))
 
-      (setq print? t))
     ;; Push the first piece from the group onto the merge-marker
-    (push (first (group-pieces group-two))
+    (push merger 
           (group-merge-marker group-one))
 
     ;; Push all the pieces of group-two onto group-one
@@ -768,25 +832,22 @@
 
     (when (> max-col (svref (group-area group-one) *max-col*))
       (setf (svref (group-area group-one) *max-col*) max-col))
-    (when print? 
-      (format t "~%============================================~%")
-      (format t "Merged Group ~A~%" group-one)
-      (format t "~%============================================~%")
-      )
     ))
 
 ;;  SEPERATE-GROUP! : GROUP GAME
 ;; -------------------------------
 ;;  Reverse MERGE-GROUPS!, for use by UNDO-MOVE!
 (defun seperate-group! (group game)
-  (let ((new-group (make-group))
+  (let* ((new-group (make-group))
         (piece nil)
-        (mark (pop (group-merge-marker group)))
+        (mark-vec (pop (group-merge-marker group)))
+        (mark (svref mark-vec 0)) 
+        (merge-marker (svref mark-vec 1))
         )
 
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
-    (when (null mark)
+    (unless mark-vec
       (format t "Group : ~A~%" group)
       (print-go game t nil nil t nil)
       (format t "No Merged Groups~%")
@@ -811,11 +872,18 @@
                      ;; Push the piece
                      (push piece (group-pieces new-group))))))
              )
+
       ;; Get the pieces
       (get-pieces (length (group-pieces group)))
+
+      ;; Return the merge marker
+      (setf (group-merge-marker new-group)
+            merge-marker)
+      
       ;; Calculate areas
       (calc-area! group)
       (calc-area! new-group)
+
       ;; Update groups
       (update-group! group game)
       (update-group! new-group game)
@@ -864,7 +932,7 @@
 ;;  Find any groups the move at row col should belong to
 ;;  If there are multiple groups merge them into one
 
-(defun put-piece! (game pos)
+(defun put-piece! (game pos &optional (debug? nil))
 
   (let* ((new-group nil)
          (vec (find-row-col pos))
@@ -991,7 +1059,6 @@
                    (svref (gg-groups game) player))
              ;; Return 1
              1)
-
             ;; Otherwise get the first group
             (t 
               ;; Get the first group to merge
@@ -1004,6 +1071,7 @@
               ;; Update it with the new piece 
               (add-piece! new-group)
 
+              (format debug? " ++++++++++++++++++++  ~% New Group ~A~%" new-group)
               ;; Push it back onto the players groups
               (push new-group (svref (gg-groups game) player))
 
@@ -1013,7 +1081,7 @@
 ;;  DO-MOVE! : GAME POS
 ;; --------------------------------------
 ;;  Works like the chess-solns function of the same name
-(defun do-move! (game pos &optional (debug? nil))
+(defun do-move! (game pos &optional (move nil) (debug? nil))
   (format debug? "Do Move ~A ~%" pos)
   (let* ((captured 0)
          (board (gg-board game))
@@ -1021,10 +1089,10 @@
          (opponent (- 1 player))
          (groups (svref (gg-groups game) (- 1 player)))
          )
-    (check-order? game)
 
     ;; Function for finding and capturing groups
-    (labels ((groups-capture
+    (labels (
+             (groups-capture
                (group groups-length)
                (let ((capture-list nil)
                      )
@@ -1033,7 +1101,6 @@
 
                    ;; Get the group
                    (setq group (nth i groups))
-
 
                    ;; Update liberties
                    (calc-liberties! group (gg-board game))
@@ -1063,14 +1130,15 @@
                  ;; If only one group containing only one piece 
                  ;; was captured set the flag to check for ko
                  (when (and (= captured 1) (= 1 (length (group-pieces group)))
-                            (setf (gg-ko? game) t)))
-             ))
+                            (setf (gg-ko? game) t)))))
              )
     ;; Push game onto game history (For debug)
-    (when debug? (push (deep-copy-go game) (gg-game-history game)))
+    (when debug? (push (deep-copy-go game) 
+                       (gg-game-history game)))
 
     ;; Push the board onto board history
-    (push (copy-vector board) (gg-board-history game))
+    (push (copy-vector board) 
+          (gg-board-history game))
 
     ;; If the move is a pass
     (cond
@@ -1084,14 +1152,14 @@
         (let ((groups-merged nil)
               (group nil)
               )
-        
+
           (setq groups-merged (put-piece! game pos))
 
-           ;; Capture any dead groups
-           (groups-capture group (length groups))
+          ;; Capture any dead groups
+          (groups-capture group (length groups))
 
-           ;; If more groups were captured remove the flag
-           (when (< 1 captured)
+          ;; If more groups were captured remove the flag
+          (when (< 1 captured)
             (setf (gg-ko? game) nil))
 
           ;; Check if the move would be suicide
@@ -1102,12 +1170,13 @@
           (when (= 0 (group-liberties (first (svref (gg-groups game) player))))
             (let ((group (pop (svref (gg-groups game) player)))
                   )
+              ;;   (format t "Suicide move ~A ~%" (list pos captured groups-merged))
               (dolist (p (group-pieces group))
                 (setf (svref (gg-board game) p) 0))
 
               (push group (svref (gg-captures game) (- 1 player)))
               (setq captured -1)))
-         
+
           (when (= captured 0)
             (setf (gg-ko? game) nil))
 
@@ -1134,7 +1203,7 @@
     ;; Change turn
     (setf (gg-whose-turn? game) 
           (- 1 player))
-    
+
    (check-order? game) 
     )))
 
@@ -1166,10 +1235,10 @@
                    ;; Return true
                    t))
              )
-      (when (and (equalp move (vector 50 0 2)) 
-                 (< 6 (length (gg-move-history game))))
-      (format t "Undo ~A's move ~A~%" opponent move)
-       (print-go game t nil t t))
+   ;;   (when (and (equalp move (vector 50 0 2)) 
+    ;;             (< 6 (length (gg-move-history game))))
+    ;;  (format debug? "Undo ~A's move ~A~%" opponent move)
+    ;;   (print-go game t nil t t))
      ; )
       (when debug? 
         (setq deep-copy (pop (gg-game-history game))) 
@@ -1309,7 +1378,8 @@
         (prev-position nil)
         (group nil)
         )
-    (labels ((history-test? (pos move)
+    (labels (
+             (history-test? (pos move)
                             (= pos (svref move 0)))
              (group-order? 
                (group-one group-two)
@@ -1323,14 +1393,13 @@
 
                    ;; Return true
                    t))
-      ;; Find the group's position from the move-history 
-      (find-position 
-         (piece)
-         (dotimes (i (length (gg-move-history game))) 
-           (when (= piece 
-                    (svref (nth i (gg-move-history game)) 0))
-             (return-from find-position i))))
-       )
+             (find-position ; Find the group's position from the move-history 
+               (piece)
+               (dotimes (i (length (gg-move-history game))) 
+                 (when (= piece 
+                          (svref (nth i (gg-move-history game)) 0))
+                   (return-from find-position i))))
+             )
       ;; Remove the piece from the game board
       (setf (svref (gg-board game) pos) 0)
 
@@ -1366,23 +1435,27 @@
              (setq prev-position 
                    (find-position (first (group-pieces group))))
 
+             ;; If there is more than one group and no seperations
+             ;; are to be performed
              (if (and (< 0 (length (svref (gg-groups game) player)))
                       (not seperate?))
 
+               ;; Iterate through the groups
                (dotimes (j (length (svref (gg-groups game) player)))
 
                  ;; When you encouter a group with a higher position value
                  (when (< prev-position
                           (find-position 
-                            (first (group-pieces (nth j 
-                                                      (svref (gg-groups game) 
-                                                             player))))))
+                            (first (group-pieces 
+                                     (nth j (svref (gg-groups game) 
+                                                   player))))))
                    ;; Insert the group before it
                    (setf (svref (gg-groups game) player)
-                         (append (subseq (svref (gg-groups game) player) 0 j)
-                                              (list group)
-                                              (subseq (svref (gg-groups game) player) j)))
-                         ;; (print-go game t nil t t)
+                         (append (subseq (svref (gg-groups game) 
+                                                player) 0 j)
+                                 (list group)
+                                 (subseq (svref (gg-groups game) 
+                                                player) j)))
                    ;; Return
                    (return-from pull-piece! t))
 
@@ -1396,8 +1469,8 @@
 
                ;; Else if the player has no other groups
                (when (push group (svref (gg-groups game) player)) 
-                 (return-from pull-piece! t))
-               ))
+                 (return-from pull-piece! t)))
+             )
 
             ;; Otherwise delete the group    
             (t 
@@ -1405,7 +1478,8 @@
                     (delete group (svref (gg-groups game) player)))
               (return-from pull-piece! nil)
               )
-            ))))))
+            )
+          )))))
 
 ;;  PLAY-MOVE!
 ;; ------------------------------
@@ -1547,6 +1621,32 @@
           (equal-group? black-group (first (svref (gg-captures new-g) *white*))))
     ))
 
+;;  TEST-BOTTOM-CAPTURE
+;; ----------------------------------
+(defun test-bottom-capture (&optional (verbose? nil))
+    (let ((new-g (init-game))
+          )
+      (play-move! new-g 8 4)
+      (do-move! new-g *board-size*)
+
+      (play-move! new-g 7 4)
+      (do-move! new-g *board-size*)
+
+      (play-move! new-g 7 5)
+      (play-move! new-g 8 5)
+
+      (play-move! new-g 7 6)
+      (play-move! new-g 8 6)
+
+      (play-move! new-g 8 7)
+      (play-move! new-g 8 6)
+
+      (play-move! new-g 7 7)
+      (play-move! new-g 8 8)
+      
+      (print-go new-g t nil t t)
+      ))
+
 ;;  TEST-SURROUND-CAPTURE
 ;; -------------------------
 ;;  Test the capture of a group surrounded
@@ -1565,6 +1665,7 @@
     (play-move! new-g 6 6)
     (play-move! new-g 4 5)
 
+    (print-go new-g t nil t t t)
     (test "Test-Surround-Capture" (= (length (svref (gg-captures new-g) *white*)) 1))))
 
 ;;  TEST-TWO-CAPTURES
@@ -1994,4 +2095,3 @@
           (do-move! new-g i)
           (do-move! new-g *board-size*))
         ))))
-

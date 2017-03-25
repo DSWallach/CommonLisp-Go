@@ -62,6 +62,7 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
 endif
 set shortmess=aoO
 badd +1 Go-Game.lisp
+badd +0 alpha-beta-go.lisp
 argglobal
 silent! argdel *
 argadd Go-Game.lisp
@@ -175,100 +176,135 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-1,55fold
-58,86fold
-88,121fold
-123,131fold
-133,155fold
-157,162fold
-164,177fold
-179,236fold
-259,300fold
-302,314fold
-322,332fold
-334,344fold
-346,356fold
-238,364fold
-366,373fold
-375,384fold
-386,408fold
-410,448fold
-57,448fold
-451,464fold
-466,477fold
-479,487fold
-489,499fold
-501,507fold
-509,536fold
-538,576fold
-578,640fold
-654,685fold
-642,705fold
-707,732fold
-734,776fold
-778,824fold
-826,854fold
-450,854fold
-857,1011fold
-1013,1139fold
-1141,1293fold
-1295,1408fold
-1410,1414fold
-1416,1487fold
-856,1487fold
-1490,1494fold
-1496,1505fold
-1507,1548fold
-1550,1568fold
-1570,1597fold
-1599,1617fold
-1619,1670fold
-1672,1695fold
-1697,1719fold
-1721,1760fold
-1762,1787fold
-1789,1820fold
-1822,1851fold
-1853,1887fold
-1889,1907fold
-1909,1931fold
-1933,1948fold
-1950,1954fold
-1956,1979fold
-1981,1996fold
-1489,1996fold
+1,77fold
+80,108fold
+110,145fold
+147,155fold
+157,179fold
+181,186fold
+188,201fold
+212,220fold
+222,230fold
+232,237fold
+239,251fold
+253,265fold
+267,293fold
+295,301fold
+203,303fold
+326,367fold
+369,381fold
+389,399fold
+401,411fold
+413,423fold
+305,431fold
+433,440fold
+442,451fold
+453,475fold
+477,515fold
+79,515fold
+518,532fold
+534,545fold
+547,557fold
+559,569fold
+571,577fold
+579,606fold
+608,646fold
+648,710fold
+724,755fold
+712,775fold
+777,797fold
+799,835fold
+837,892fold
+894,922fold
+517,922fold
+948,956fold
+958,974fold
+976,1012fold
+1016,1031fold
+1035,1047fold
+1048,1061fold
+1062,1079fold
+925,1079fold
+1095,1133fold
+1081,1208fold
+1210,1362fold
+1382,1383fold
+1384,1395fold
+1396,1401fold
+1364,1482fold
+1484,1488fold
+1490,1561fold
+924,1561fold
+1564,1568fold
+1570,1579fold
+1581,1622fold
+1624,1648fold
+1650,1669fold
+1671,1698fold
+1700,1718fold
+1720,1771fold
+1773,1796fold
+1798,1820fold
+1822,1861fold
+1863,1888fold
+1890,1921fold
+1923,1952fold
+1954,1988fold
+1990,2008fold
+2010,2032fold
+2034,2049fold
+2051,2055fold
+2057,2080fold
+2082,2097fold
+1563,2097fold
 1
 normal! zc
-57
+79
 normal! zo
-238
+203
 normal! zo
-238
+203
 normal! zc
-57
-normal! zc
-450
+305
 normal! zo
-642
+305
+normal! zc
+79
+normal! zc
+517
 normal! zo
-642
-normal! zc
-450
-normal! zc
-856
+712
 normal! zo
-856
+712
 normal! zc
-1489
+517
+normal! zc
+924
 normal! zo
-1489
+925
+normal! zo
+925
 normal! zc
-let s:l = 1997 - ((1996 * winheight(0) + 26) / 52)
+1081
+normal! zo
+1081
+normal! zc
+1364
+normal! zo
+1364
+normal! zc
+924
+normal! zc
+1563
+normal! zo
+1563
+normal! zc
+let s:l = 924 - ((923 * winheight(0) + 26) / 52)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1997
-normal! 0
+924
+normal! 01|
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
