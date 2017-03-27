@@ -27,7 +27,7 @@
 ;;           Otherwise returns value of this node according
 ;;           to MINIMAX with ALPHA-BETA pruning.
 
-(defun compute-min (g curr-depth alpha beta statty cutoff-depth)
+(defun compute-min (g curr-depth alpha beta statty cutoff-depth &optional (debug? nil))
 
   ;; Increment the number of moves "done"
   (setf (stats-num-moves-done statty) (+ (stats-num-moves-done statty) 1)) 
@@ -78,7 +78,7 @@
         (dolist (move moves)
 
           ;; Modify the game state 
-          (do-move! g move) 
+          (do-move! g move debug?) 
 
           ;; Compute the node's value
           (setq node-val (compute-max 
@@ -87,7 +87,7 @@
                            statty cutoff-depth))
 
           ;; Undo modification
-          (undo-move! g)
+          (undo-move! g debug?)
 
           (when (< node-val beta)
 
@@ -114,7 +114,7 @@
 ;;           Otherwise returns value of this node according
 ;;           to MINIMAX with ALPHA-BETA pruning.
 
-(defun compute-max (g curr-depth alpha beta statty cutoff-depth)
+(defun compute-max (g curr-depth alpha beta statty cutoff-depth &optional (debug? nil))
 
   ;; Increment the number of moves "done"
   (setf (stats-num-moves-done statty) (+ (stats-num-moves-done statty) 1)) 
@@ -163,7 +163,7 @@
         (dolist (move moves)
 
           ;; Modify the game state 
-          (do-move! g move) 
+          (do-move! g move debug?) 
 
           ;; Compute the node's value
           (setq node-val (compute-min 
@@ -172,7 +172,7 @@
                            statty cutoff-depth))
 
           ;; Undo modification
-          (undo-move! g)
+          (undo-move! g debug?)
 
           ;; When it returns a value greater than alpha
           (when (> node-val alpha)
@@ -194,7 +194,7 @@
 ;;   pruning, using the static eval func, EVAL-FUNC.  Searches to
 ;;   a depth of CUTOFF-DEPTH.
 
-(defun compute-move (g cutoff-depth &optional (print-to t))
+(defun compute-move (g cutoff-depth &optional (print-to t) (debug? nil))
   (format print-to "~%COMPUTE-MOVE (cutoff=~A)~%" cutoff-depth)
 
   ;; Compute move handles the initial call to 
@@ -219,10 +219,10 @@
       (do-move! g move)
 
       ;; Get the score
-      (setq current-score (compute-min g 1 alpha beta statty cutoff-depth)) 
+      (setq current-score (compute-min g 1 alpha beta statty cutoff-depth debug?)) 
 
       ;; Reset the game state
-      (undo-move! g)
+      (undo-move! g debug?)
 
       (setq counter (+ counter 1))
       ;; When the generated node is the best so far

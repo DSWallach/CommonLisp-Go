@@ -53,6 +53,7 @@ set runtimepath=~/.vim,~/.vim/bundle/Vundle.vim,~/.vim/bundle/seabird,~/.vim/bun
 set shiftwidth=4
 set showmatch
 set tabstop=4
+set window=37
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
@@ -62,7 +63,7 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
 endif
 set shortmess=aoO
 badd +1 Go-Game.lisp
-badd +0 alpha-beta-go.lisp
+badd +1 alpha-beta-go.lisp
 argglobal
 silent! argdel *
 argadd Go-Game.lisp
@@ -176,135 +177,192 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-1,77fold
-80,108fold
-110,145fold
-147,155fold
-157,179fold
-181,186fold
-188,201fold
-212,220fold
-222,230fold
-232,237fold
-239,251fold
-253,265fold
-267,293fold
-295,301fold
-203,303fold
-326,367fold
-369,381fold
-389,399fold
-401,411fold
-413,423fold
-305,431fold
-433,440fold
-442,451fold
-453,475fold
-477,515fold
-79,515fold
-518,532fold
-534,545fold
-547,557fold
-559,569fold
-571,577fold
-579,606fold
-608,646fold
-648,710fold
-724,755fold
-712,775fold
-777,797fold
-799,835fold
-837,892fold
-894,922fold
-517,922fold
-948,956fold
-958,974fold
-976,1012fold
-1016,1031fold
-1035,1047fold
-1048,1061fold
-1062,1079fold
-925,1079fold
-1095,1133fold
-1081,1208fold
-1210,1362fold
-1382,1383fold
-1384,1395fold
-1396,1401fold
-1364,1482fold
-1484,1488fold
-1490,1561fold
-924,1561fold
-1564,1568fold
-1570,1579fold
-1581,1622fold
-1624,1648fold
-1650,1669fold
-1671,1698fold
-1700,1718fold
-1720,1771fold
-1773,1796fold
-1798,1820fold
-1822,1861fold
-1863,1888fold
-1890,1921fold
-1923,1952fold
-1954,1988fold
-1990,2008fold
-2010,2032fold
-2034,2049fold
-2051,2055fold
-2057,2080fold
-2082,2097fold
-1563,2097fold
+1,106fold
+109,137fold
+139,174fold
+176,184fold
+186,208fold
+210,215fold
+217,230fold
+241,249fold
+251,259fold
+261,266fold
+268,280fold
+282,294fold
+296,322fold
+324,330fold
+232,332fold
+355,396fold
+398,410fold
+418,428fold
+430,440fold
+442,452fold
+334,460fold
+462,469fold
+471,480fold
+482,504fold
+506,543fold
+545,583fold
+108,583fold
+586,600fold
+602,613fold
+615,625fold
+627,637fold
+639,645fold
+647,674fold
+676,714fold
+716,778fold
+780,809fold
+811,831fold
+833,869fold
+871,926fold
+928,956fold
+585,956fold
+984,992fold
+994,1010fold
+1012,1058fold
+1062,1077fold
+1081,1093fold
+1094,1107fold
+1108,1141fold
+959,1141fold
+1157,1195fold
+1212,1250fold
+1143,1256fold
+1273,1275fold
+1278,1290fold
+1310,1328fold
+1330,1353fold
+1356,1367fold
+1258,1379fold
+1401,1402fold
+1403,1414fold
+1415,1420fold
+1400,1421fold
+1430,1468fold
+1469,1480fold
+1381,1483fold
+1485,1489fold
+1504,1528fold
+1530,1533fold
+1553,1564fold
+1565,1594fold
+1535,1595fold
+1600,1626fold
+1491,1629fold
+958,1629fold
+1632,1636fold
+1639,1648fold
+1650,1691fold
+1693,1726fold
+1728,1748fold
+1750,1777fold
+1638,1777fold
+1780,1798fold
+1800,1851fold
+1853,1874fold
+1876,1899fold
+1901,1924fold
+1926,1954fold
+1956,1987fold
+1989,2017fold
+1779,2017fold
+2020,2059fold
+2061,2086fold
+2088,2119fold
+2121,2150fold
+2152,2186fold
+2188,2210fold
+2019,2210fold
+2213,2228fold
+2230,2253fold
+2255,2259fold
+2212,2259fold
+2261,2287fold
+2289,2304fold
+1631,2304fold
 1
 normal! zc
-79
+108
 normal! zo
-203
+232
 normal! zo
-203
+232
 normal! zc
-305
+334
 normal! zo
-305
+334
 normal! zc
-79
+108
 normal! zc
-517
+585
 normal! zo
-712
+585
+normal! zc
+958
 normal! zo
-712
-normal! zc
-517
-normal! zc
-924
+959
 normal! zo
-925
+1012
 normal! zo
-925
-normal! zc
-1081
+1108
 normal! zo
-1081
-normal! zc
-1364
+1143
 normal! zo
-1364
-normal! zc
-924
-normal! zc
-1563
+1212
 normal! zo
-1563
+1143
 normal! zc
-let s:l = 924 - ((923 * winheight(0) + 26) / 52)
+1258
+normal! zo
+1356
+normal! zo
+1258
+normal! zc
+1381
+normal! zo
+1400
+normal! zo
+1400
+normal! zc
+1381
+normal! zc
+1491
+normal! zo
+1535
+normal! zo
+1535
+normal! zc
+1600
+normal! zo
+1491
+normal! zc
+1631
+normal! zo
+1638
+normal! zo
+1638
+normal! zc
+1779
+normal! zo
+1779
+normal! zc
+2019
+normal! zo
+2019
+normal! zc
+2212
+normal! zo
+2212
+normal! zc
+2261
+normal! zo
+let s:l = 1022 - ((38 * winheight(0) + 26) / 52)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-924
-normal! 01|
+1022
+normal! 023|
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
