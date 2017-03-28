@@ -986,12 +986,9 @@
                (return-from find-group t)))))
 
        (check-groups ; (INDEX), Find the group the piece should belong to if it exists
-         (index)
+         ()
          ;; Do for each group 
-         (if (< index (length player-groups))
-           ;; Search for an existing group it could fit in
-           (let ((group (nth index player-groups))
-                 )
+         (dolist (group player-groups)
                ;; When it's in the area of the group
                (when (and (>= (+ row group-dist) 
                                (svref (group-area group) *min-row*))
@@ -1012,12 +1009,8 @@
                       (remove group
                               (svref (gg-groups game) player)
                               :test #'equal-group?))
-                  )
-
-                ;; Check the next group
-                (check-groups (+ index 1))
-           ;; Return t
-           t)))
+                  )) 
+         t)
        )
 
       ;; Put the piece on the board 
@@ -1039,7 +1032,7 @@
           ;; Return 0
           0)
         ;; Otherwise check the groups of the player whose turn it is
-        (when (check-groups 0)
+        (when (check-groups)
           (cond
             ;; If no group was found
             ;; Make a new group
@@ -1215,7 +1208,6 @@
     (setf (gg-whose-turn? game) 
           (- 1 player))
 
-   (check-order? game) 
     )))
 
 ;;  UNDO-MOVE! : GAME
