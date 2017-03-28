@@ -50,16 +50,16 @@
 ;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
 ;; depths against each other. For fun.
-(defun play-game (game depth-one depth-two one? &optional (debug-depth 5) (debug? nil))
+(defun play-game (game depth-one depth-two one?) 
   (if (game-over? game)
     (unless (format t "++++++++ Game Over +++++++++~%")
       (print-go game t nil t t))
     (when (if one? 
-            (do-move! game (compute-move game depth-one) debug?)
-            (do-move! game (compute-move game depth-two) debug?))
+            (do-move! game (compute-move game depth-one))
+            (do-move! game (compute-move game depth-two)))
       (format t "Game State~%")
-      (print-go game t nil t t)
-      (play-game game depth-one depth-two (not one?) debug-depth debug?))))
+      (print-go game t nil nil nil)
+      (play-game game depth-one depth-two (not one?)))))
 
 ;;  PLAY-GAME-DEBUG
 ;; -------------------------
@@ -86,7 +86,6 @@
 (defun pg (d1 d2)
   (play-game (init-game) d1 d2 t))
 
-
 (defun copy-vector (in-vec)
   (let ((out-vec (make-array (length in-vec)))
         )
@@ -95,9 +94,11 @@
     out-vec))
 
 (defun find-pos (row col)
+  (declare (type fixnum row col))
   (+ (* row *board-length*) col)) 
 
 (defun find-row-col (pos)
+  (declare (type fixnum pos))
   (let ((col  (mod pos *board-length*))
         (row (floor (/ pos *board-length*)))
         )
@@ -244,7 +245,8 @@
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
-(defun print-go (game str depth &optional (verbose? t) (groups? t) (boards? nil))
+(defun print-go (game str depth 
+                      &optional (verbose? nil) (groups? nil) (boards? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))
@@ -693,6 +695,10 @@
         (total 0)
         )
 
+    ;; This variable is used as a case
+    ;; for the switch (case) block
+    (declare (ignore opponent))
+
     ;; For the area of the group 
     (dotimes (row *board-length*)
       (when (and (<= min-row row) (>= max-row row))
@@ -781,7 +787,7 @@
     
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 
-          (delete group (svref (gg-groups game) opponent)))
+          (remove group (svref (gg-groups game) opponent)))
 
     ;; Add them to player's captures
     (push group (svref (gg-captures game) player))
@@ -904,7 +910,7 @@
 
   ;; Remove the most recent piece
   (setf (group-pieces group)
-        (delete pos (group-pieces group)))
+        (remove pos (group-pieces group)))
 
   ;; Unless there are no more pieces in the group
   (if (< 0 (length (group-pieces group)))
@@ -1003,7 +1009,7 @@
                   (push group connected-groups)
 
                  (setf (svref (gg-groups game) player)
-                      (delete group
+                      (remove group
                               (svref (gg-groups game) player)
                               :test #'equal-group?))
                   )
@@ -1075,7 +1081,7 @@
 
             (dolist (group connected-groups)
               (setf (svref (gg-groups game) player)
-                    (delete group 
+                    (remove group 
                             (svref (gg-groups game) 
                                    player)
                             :test #'equal-group?)))
@@ -1348,7 +1354,6 @@
   ;; The player of the previous turn is the opponent this turn
   (let* ((player (gg-whose-turn? game))
          (opponent (- 1 player)) 
-         (prev-position nil)
          (pos (svref move 0))
          (group (pop (svref (gg-groups game) opponent)))
          )
@@ -1539,29 +1544,25 @@
               (< 3 (length (gg-board-history game))))
        ;; Check for for infringement of the Ko rule
        (unless (dolist (move valid-moves)
-                 ;; When a group was captured
-                 (if (and (< 1 (length (gg-move-history game))) 
-                          (svref (first (gg-move-history game)) 1))
-                   ;; Check that the board is not returning to 
-                   ;; the state prior to your opponents last
-                   ;; move. (Ko Rule)
+           ;; Check that the board is not returning to 
+           ;; the state prior to your opponents last
+           ;; move. (Ko Rule)
 
-                   ;; Playing with fire
-                   (let ((new-board nil)
-                         (old-board nil))
-                     ;; Mod Game
-                     (do-move! game move)
-                     ;; Get board
-                     (setq new-board (gg-board game))
-                     ;; Unmod game 
-                     (undo-move! game)
+           ;; Playing with fire
+           (let ((new-board nil)
+                 (old-board nil))
 
-                     ;; Get the old board
-                     (setq old-board (first (gg-board-history game)))
+             ;; Get the old board
+             (setq old-board (first (gg-board-history game)))
 
-                     (unless (equal-board? new-board old-board)
-                       (push move legal-moves)))
-                   (push move legal-moves)))
+             ;; Mod Game
+             (do-move! game move)
+             ;; Get board
+             (setq new-board (copy-vector (gg-board game)))
+             ;; Unmod game 
+             (undo-move! game)
+             (unless (equal-board? new-board old-board)
+               (push move legal-moves))))
          ;; Return legal moves
          legal-moves)
 
@@ -2189,6 +2190,7 @@
     (when verbose? (print-go new-g t nil t t))
 
     (setq moves (legal-moves new-g))
+    (when verbose? (format t "Should not contain 41~%"))
     (when verbose? (format t "Legal Moves: ~A~%" moves))
 
     (test "Ko-Legality" 
