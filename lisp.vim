@@ -1,5 +1,50 @@
 let SessionLoad = 1
 if &cp | set nocp | endif
+map OE i
+map O5C w
+map O5D b
+map O5B ^F
+map O5A ^B
+map O2C w
+map O2D b
+map O2B ^F
+map O2A ^B
+map [3;5~ x
+map [2;5~ i
+map [3;2~ x
+map [2;2~ i
+map O5F $
+map O5H 0
+map O2F $
+map O2H 0
+map OF $
+map OH 0
+map [E i
+map [D h
+map [C l
+map [B j
+map [A k
+map [4~ $
+map [1~ 0
+map [F $
+map [H 0
+map On .
+map Op 0
+map Os 3
+map Or 2
+map Oq 1
+map Ov 6
+map Ou 5
+map Ot 4
+map Oy 9
+map Ox 8
+map Ow 7
+map OM 
+map Ol ,
+map Ok +
+map Om -
+map Oj *
+map Oo :
 map [3~ x
 let s:cpo_save=&cpo
 set cpo&vim
@@ -8,6 +53,47 @@ nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cWORD>")
 nnoremap <M-F8> :call NextColor(0)
 nnoremap <S-F8> :call NextColor(-1)
 nnoremap <F8> :call NextColor(1)
+map! OE <Insert>
+map! O5D <S-Left>
+map! O5C <S-Right>
+map! O5B <PageDown>
+map! O5A <PageUp>
+map! O2D <S-Left>
+map! O2C <S-Right>
+map! O2B <PageDown>
+map! O2A <PageUp>
+map! O5F <End>
+map! O5H <Home>
+map! O2F <End>
+map! O2H <Home>
+map! OF <End>
+map! OH <Home>
+map! [E <Insert>
+map! [D <Left>
+map! [C <Right>
+map! [B <Down>
+map! [A <Up>
+map! [4~ <End>
+map! [1~ <Home>
+map! [F <End>
+map! [H <Home>
+map! On .
+map! Op 0
+map! Os 3
+map! Or 2
+map! Oq 1
+map! Ov 6
+map! Ou 5
+map! Ot 4
+map! Oy 9
+map! Ox 8
+map! Ow 7
+map! OM 
+map! Ol ,
+map! Ok +
+map! Om -
+map! Oj *
+map! Oo :
 map! [3~ <Del>
 map! [6;3~ <PageDown>
 map! [5;3~ <PageUp>
@@ -53,7 +139,6 @@ set runtimepath=~/.vim,~/.vim/bundle/Vundle.vim,~/.vim/bundle/seabird,~/.vim/bun
 set shiftwidth=4
 set showmatch
 set tabstop=4
-set window=37
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
@@ -63,7 +148,6 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
 endif
 set shortmess=aoO
 badd +1 Go-Game.lisp
-badd +1 alpha-beta-go.lisp
 argglobal
 silent! argdel *
 argadd Go-Game.lisp
@@ -177,192 +261,119 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-1,106fold
-109,137fold
-139,174fold
-176,184fold
-186,208fold
-210,215fold
-217,230fold
-241,249fold
-251,259fold
-261,266fold
-268,280fold
-282,294fold
-296,322fold
-324,330fold
-232,332fold
-355,396fold
-398,410fold
-418,428fold
-430,440fold
-442,452fold
-334,460fold
-462,469fold
-471,480fold
-482,504fold
-506,543fold
-545,583fold
-108,583fold
-586,600fold
-602,613fold
-615,625fold
-627,637fold
-639,645fold
-647,674fold
-676,714fold
-716,778fold
-780,809fold
-811,831fold
-833,869fold
-871,926fold
-928,956fold
-585,956fold
-984,992fold
-994,1010fold
-1012,1058fold
-1062,1077fold
-1081,1093fold
-1094,1107fold
-1108,1141fold
-959,1141fold
-1157,1195fold
-1212,1250fold
-1143,1256fold
-1273,1275fold
-1278,1290fold
-1310,1328fold
-1330,1353fold
-1356,1367fold
-1258,1379fold
-1401,1402fold
-1403,1414fold
-1415,1420fold
-1400,1421fold
-1430,1468fold
-1469,1480fold
-1381,1483fold
-1485,1489fold
-1504,1528fold
-1530,1533fold
-1553,1564fold
-1565,1594fold
-1535,1595fold
-1600,1626fold
-1491,1629fold
-958,1629fold
-1632,1636fold
-1639,1648fold
-1650,1691fold
-1693,1726fold
-1728,1748fold
-1750,1777fold
-1638,1777fold
-1780,1798fold
-1800,1851fold
-1853,1874fold
-1876,1899fold
-1901,1924fold
-1926,1954fold
-1956,1987fold
-1989,2017fold
-1779,2017fold
-2020,2059fold
-2061,2086fold
-2088,2119fold
-2121,2150fold
-2152,2186fold
-2188,2210fold
-2019,2210fold
-2213,2228fold
-2230,2253fold
-2255,2259fold
-2212,2259fold
-2261,2287fold
-2289,2304fold
-1631,2304fold
+17,47fold
+49,62fold
+64,84fold
+86,104fold
+1,104fold
+107,135fold
+137,186fold
+188,196fold
+198,220fold
+222,227fold
+229,242fold
+244,344fold
+346,425fold
+427,434fold
+436,445fold
+447,469fold
+471,508fold
+510,548fold
+106,548fold
+551,565fold
+567,578fold
+580,590fold
+592,602fold
+604,610fold
+612,638fold
+640,676fold
+678,739fold
+741,770fold
+772,792fold
+794,830fold
+832,885fold
+887,915fold
+550,915fold
+918,1098fold
+1100,1213fold
+1215,1336fold
+1338,1423fold
+1425,1429fold
+1431,1569fold
+917,1569fold
+1572,1588fold
+1591,1632fold
+1634,1667fold
+1669,1689fold
+1691,1718fold
+1590,1718fold
+1721,1739fold
+1741,1792fold
+1794,1815fold
+1817,1840fold
+1842,1865fold
+1867,1895fold
+1897,1928fold
+1930,1958fold
+1720,1958fold
+1961,2000fold
+2002,2027fold
+2029,2060fold
+2062,2091fold
+2093,2127fold
+2129,2151fold
+1960,2151fold
+2154,2169fold
+2171,2196fold
+2198,2221fold
+2223,2227fold
+2153,2227fold
+2229,2257fold
+2259,2274fold
+2276,2283fold
+1571,2283fold
+1
+normal! zo
 1
 normal! zc
-108
+106
 normal! zo
-232
-normal! zo
-232
+106
 normal! zc
-334
+550
 normal! zo
-334
+550
 normal! zc
-108
+917
+normal! zo
+917
 normal! zc
-585
+1571
 normal! zo
-585
+1590
+normal! zo
+1590
 normal! zc
-958
+1720
 normal! zo
-959
-normal! zo
-1012
-normal! zo
-1108
-normal! zo
-1143
-normal! zo
-1212
-normal! zo
-1143
+1720
 normal! zc
-1258
+1960
 normal! zo
-1356
-normal! zo
-1258
+1960
 normal! zc
-1381
+2153
 normal! zo
-1400
-normal! zo
-1400
+2153
 normal! zc
-1381
+1571
 normal! zc
-1491
-normal! zo
-1535
-normal! zo
-1535
-normal! zc
-1600
-normal! zo
-1491
-normal! zc
-1631
-normal! zo
-1638
-normal! zo
-1638
-normal! zc
-1779
-normal! zo
-1779
-normal! zc
-2019
-normal! zo
-2019
-normal! zc
-2212
-normal! zo
-2212
-normal! zc
-2261
-normal! zo
-let s:l = 1022 - ((38 * winheight(0) + 26) / 52)
+let s:l = 1214 - ((1213 * winheight(0) + 26) / 52)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1022
-normal! 023|
+1214
+normal! 0
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
