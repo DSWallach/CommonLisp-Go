@@ -50,19 +50,19 @@
         (multiplier 0)
         )
 
-    (cond 
-      ((< (length (gg-move-history game)) 5)
+    (cond
+      ((< (length (gg-move-history game)) 4)
+       (setq multiplier 16))
+      ((< (length (gg-move-history game)) 8)
+       (setq multiplier 8))
+      ((< (length (gg-move-history game)) 12)
        (setq multiplier 4))
-      ((< (length (gg-move-history game)) 10)
-       (setq multiplier 3))
-      ((< (length (gg-move-history game)) 15)
+      ((< (length (gg-move-history game)) 16)
        (setq multiplier 2))
-      ((< (length (gg-move-history game)) 20)
-       (setq multiplier 1))
       (t
        (setq multiplier 0))
       )
-    
+
     ;; Calc black's score
     (dolist (group b-groups)
       ;; Add 1/2 of the liberties and all the territory 
@@ -213,12 +213,12 @@
         (format str "~A |" row)
         (format str " ~A |" row))
       (dotimes (col *board-length*)
-        (let* ((p (svref board (find-pos row col)))
+        (let* ((p (svref board (row-col->pos row col)))
                )
           (if (= 0 p) 
             (format str " - ")
             (if verbose? 
-              (let ((pos (find-group (find-pos row col) game))
+              (let ((pos (find-group (row-col->pos row col) game))
                     )
                 ;; Black
                 (cond

@@ -12,7 +12,7 @@
 (defun put-piece! (game pos)
 
   (let* ((new-group nil)
-         (vec (find-row-col pos))
+         (vec (vector (pos->row pos) (pos->col pos)))
          (row (svref vec 0))
          (col (svref vec 1))
          (player (gg-whose-turn? game))
@@ -38,7 +38,7 @@
       ((add-piece! ; (GROUP), Add the piece at row col to group
          (group)
          ;; Destructively modify the group
-         (push (find-pos row col) 
+         (push (row-col->pos row col)
                (group-pieces group))
          ;; Update area
          (calc-new-area! group row col)
@@ -51,7 +51,7 @@
                )
            (dolist (p (group-pieces group))
              ;; Get the row/col of the piece
-             (setq vec (find-row-col p))
+             (setq vec (vector (pos->row pos) (pos->col pos)))
              ;; If the new piece at (row, col) is to the right or left of the piece
              (when (or (and (= (svref vec 0) row)
                             (or (= (svref vec 1) (- col 1))
@@ -240,10 +240,10 @@
     (cond
       ((= *board-size* pos)
        ;; Push the pass
-       (push (vector pos 0 0) 
+       (push (vector pos 0 0)
              (gg-move-history game)))
 
-      ;; Otherwise Put their piece at pos 
+      ;; Otherwise Put their piece at pos
       (t ;; Track if any groups were merged in this round
         (let ((groups-merged nil)
               (group nil)
@@ -519,7 +519,7 @@
       ;; At the opening only allow decent opening moves
       (cond 
         ;; If the game has just begun
-        ((> 8 (length (gg-move-history game)))
+        ((> 16 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 2))
            (when (> row 1)
              (dotimes (col (- *board-length* 2))
@@ -528,7 +528,7 @@
                  (push (find-pos row col) moves))))))
 
         ;; More lenient in the mid game
-        ((> 16 (length (gg-move-history game)))
+        ((> 24 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 1))
            (when (> row 0)
              (dotimes (col (- *board-length* 1))
@@ -556,7 +556,7 @@
               (check-board? pos board *check-above*)
               (check-board? pos board *check-below*))
         ;; Add the move to legal-moves
-        (unless 
+        (unless
           (push pos valid-moves)
           )
         ;; Otherwise check if it would merge with a group
@@ -633,8 +633,10 @@
              (undo-move! game)
              (unless (equal-board? new-board old-board)
                (push move legal-moves))))
+
          ;; Return legal moves
-         legal-moves)
+         (sort legal-moves #'order-middle)
+               )
 
        ;; Otherwise return the valid moves
-       valid-moves)))
+         (sort valid-moves #'order-middle))))

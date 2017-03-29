@@ -15,6 +15,7 @@
 (defconstant *board-length* 9)
 (defconstant *board-size* (* *board-length* 
                              *board-length*)) 
+(defconstant *board-middle* (- (/ *board-length* 2) 1))
 
 ;; For compiling
 (defun cl (filename)
@@ -99,11 +100,41 @@
         )
     (vector row col)))
 
+(defun maker (lof)
+  (mapcar #'cl lof))
+
+;; MACROS
 (defmacro row-col->pos (row col)
   `(+ (* *board-length* row) col))
 
 (defmacro pos->row (pos)
-  `(floor (/pos *board-length*)))
+  `(floor (/ pos *board-length*)))
 
-(defmacro pos-col (pos)
+(defmacro pos->col (pos)
   `(mod pos *board-length*))
+
+(defun pos->middle-dist (pos)
+  (+ (abs (- (pos->col pos) *board-middle*))
+     (abs (- (pos->row pos) *board-middle*)))
+  )
+
+(defun order-middle (pos-one pos-two)
+  (let* ((pos pos-one)
+        (dist-one (pos->middle-dist pos-one))
+        (dist-two 0)
+        )
+    (setq pos pos-two)
+    (setq dist-two (pos->middle-dist pos))
+  (if (< pos-one pos-two)
+    t
+    nil)
+  ))
+
+
+;; Compile and load all files
+(maker '("Go-Game"
+         "Group"
+         "Game-Playing"
+         "alpha-beta-go"
+         "Testing-Go"
+         ))

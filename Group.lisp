@@ -56,11 +56,11 @@
 ;; --------------------------------------
 ;;  Initializes a group with a piece at ROW, COL
 (defun init-group (row col)
-  (make-group :pieces (list (find-pos row col)) 
-              :area (vector row col row col) 
+  (make-group :pieces (list (row-col->pos row col))
+              :area (vector row col row col)
               :territory 0))
 
-;;  CALC-AREA!: GROUP 
+;;  CALC-AREA!: GROUP
 ;; ----------------------------------
 (defun calc-area! (group)
   (let ((min-row *board-length*)
@@ -70,7 +70,7 @@
         (vec nil))
 
     (dolist (pos (group-pieces group))
-      (setq vec (find-row-col pos))
+      (setq vec (vector (pos->row pos) (pos->col pos)))
 
       ;; Update min/max row
       (when (< (svref vec 0) min-row)
@@ -165,7 +165,7 @@
           ;; Check each row 
           (when (and (<= min-col col) (>= max-col col))
             ;; Check the board
-            (case (svref board (find-pos row col)) 
+            (case (svref board (row-col->pos row col))
               ;; If it's player's piece, set flag
               ;; If the player's flag is set
               (player (when player?  
