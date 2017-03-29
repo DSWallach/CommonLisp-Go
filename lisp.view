@@ -1,0 +1,348 @@
+let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
+argglobal
+edit ~/Documents/GitHub/CommonLisp-Go/Go-Game.lisp
+setlocal keymap=
+setlocal noarabic
+setlocal autoindent
+setlocal backupcopy=
+setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
+setlocal bufhidden=
+setlocal buflisted
+setlocal buftype=
+setlocal nocindent
+setlocal cinkeys=0{,0},0),:,0#,!^F,o,O,e
+setlocal cinoptions=
+setlocal cinwords=if,else,while,do,for,switch
+setlocal colorcolumn=
+setlocal comments=:;;;,:;;,sr:#|,mb:|,ex:|#,:;
+setlocal commentstring=;%s
+setlocal complete=.,w,b,u,t,i
+setlocal concealcursor=
+setlocal conceallevel=0
+setlocal completefunc=
+setlocal nocopyindent
+setlocal cryptmethod=
+setlocal nocursorbind
+setlocal nocursorcolumn
+setlocal nocursorline
+setlocal define=^\\s*(def\\k*
+setlocal dictionary=
+setlocal nodiff
+setlocal equalprg=
+setlocal errorformat=
+setlocal expandtab
+if &filetype != 'lisp'
+setlocal filetype=lisp
+endif
+setlocal fixendofline
+setlocal foldcolumn=0
+setlocal foldenable
+setlocal foldexpr=0
+setlocal foldignore=#
+setlocal foldlevel=1
+setlocal foldmarker={{{,}}}
+setlocal foldmethod=manual
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldtext=foldtext()
+setlocal formatexpr=
+setlocal formatoptions=croql
+setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
+setlocal formatprg=
+setlocal grepprg=
+setlocal iminsert=0
+setlocal imsearch=0
+setlocal include=
+setlocal includeexpr=
+setlocal indentexpr=
+setlocal indentkeys=0{,0},:,0#,!^F,o,O,e
+setlocal noinfercase
+setlocal iskeyword=38,42,43,45,47-58,60-62,64-90,97-122,_,+,-,*,/,%,<,=,>,:,$,?,!,@-@,94
+setlocal keywordprg=
+setlocal nolinebreak
+setlocal lisp
+setlocal lispwords=
+setlocal nolist
+setlocal makeencoding=
+setlocal makeprg=
+setlocal matchpairs=(:),{:},[:]
+setlocal modeline
+setlocal modifiable
+setlocal nrformats=octal,hex
+setlocal number
+setlocal numberwidth=4
+setlocal omnifunc=
+setlocal path=
+setlocal nopreserveindent
+setlocal nopreviewwindow
+setlocal quoteescape=\\
+setlocal noreadonly
+setlocal norelativenumber
+setlocal norightleft
+setlocal rightleftcmd=search
+setlocal noscrollbind
+setlocal shiftwidth=4
+setlocal noshortname
+setlocal signcolumn=auto
+setlocal nosmartindent
+setlocal softtabstop=0
+setlocal nospell
+setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
+setlocal spellfile=
+setlocal spelllang=en
+setlocal statusline=
+setlocal suffixesadd=
+setlocal swapfile
+setlocal synmaxcol=3000
+if &syntax != 'lisp'
+setlocal syntax=lisp
+endif
+setlocal tabstop=4
+setlocal tagcase=
+setlocal tags=
+setlocal textwidth=0
+setlocal thesaurus=
+setlocal noundofile
+setlocal undolevels=-123456
+setlocal nowinfixheight
+setlocal nowinfixwidth
+setlocal wrap
+setlocal wrapmargin=0
+silent! normal! zE
+1,106fold
+109,137fold
+139,174fold
+176,184fold
+186,208fold
+210,215fold
+217,230fold
+241,249fold
+251,259fold
+261,266fold
+268,280fold
+282,294fold
+296,322fold
+324,330fold
+232,332fold
+355,396fold
+398,410fold
+418,428fold
+430,440fold
+442,452fold
+334,460fold
+462,469fold
+471,480fold
+482,504fold
+506,543fold
+545,583fold
+108,583fold
+586,600fold
+602,613fold
+615,625fold
+627,637fold
+639,645fold
+647,673fold
+675,711fold
+713,774fold
+776,805fold
+807,827fold
+829,865fold
+867,922fold
+924,952fold
+585,952fold
+978,986fold
+988,1004fold
+1006,1038fold
+1042,1057fold
+1061,1073fold
+1074,1087fold
+1088,1120fold
+955,1120fold
+1135,1173fold
+1190,1228fold
+1122,1234fold
+1250,1252fold
+1255,1266fold
+1286,1304fold
+1306,1328fold
+1331,1342fold
+1236,1354fold
+1375,1376fold
+1377,1388fold
+1389,1394fold
+1374,1395fold
+1404,1433fold
+1434,1445fold
+1356,1448fold
+1450,1454fold
+1469,1493fold
+1495,1498fold
+1518,1529fold
+1530,1559fold
+1500,1560fold
+1565,1591fold
+1456,1594fold
+954,1594fold
+1604,1613fold
+1615,1656fold
+1658,1691fold
+1693,1713fold
+1715,1742fold
+1745,1763fold
+1765,1816fold
+1818,1839fold
+1841,1864fold
+1866,1889fold
+1891,1919fold
+1921,1952fold
+1954,1982fold
+1985,2024fold
+2026,2051fold
+2053,2084fold
+2086,2115fold
+2117,2151fold
+2153,2175fold
+2178,2193fold
+2195,2218fold
+2220,2224fold
+2226,2252fold
+2254,2269fold
+108
+normal! zo
+232
+normal! zo
+241
+normal! zo
+251
+normal! zo
+261
+normal! zo
+268
+normal! zo
+282
+normal! zo
+296
+normal! zo
+324
+normal! zo
+334
+normal! zo
+355
+normal! zo
+398
+normal! zo
+418
+normal! zo
+430
+normal! zo
+442
+normal! zo
+506
+normal! zo
+585
+normal! zo
+627
+normal! zo
+647
+normal! zo
+675
+normal! zo
+713
+normal! zo
+867
+normal! zo
+954
+normal! zo
+955
+normal! zo
+1006
+normal! zo
+1088
+normal! zo
+1122
+normal! zo
+1135
+normal! zo
+1236
+normal! zo
+1255
+normal! zo
+1331
+normal! zo
+1356
+normal! zo
+1374
+normal! zo
+1374
+normal! zc
+1404
+normal! zo
+1456
+normal! zo
+1500
+normal! zo
+1500
+normal! zc
+1565
+normal! zo
+1456
+normal! zc
+1604
+normal! zc
+1615
+normal! zc
+1658
+normal! zc
+1693
+normal! zc
+1715
+normal! zc
+1745
+normal! zc
+1765
+normal! zc
+1818
+normal! zc
+1841
+normal! zc
+1866
+normal! zc
+1891
+normal! zc
+1921
+normal! zc
+1954
+normal! zc
+1985
+normal! zc
+2026
+normal! zc
+2053
+normal! zc
+2086
+normal! zc
+2117
+normal! zc
+2153
+normal! zc
+2178
+normal! zc
+2195
+normal! zc
+2220
+normal! zc
+2226
+normal! zc
+2254
+normal! zc
+let s:l = 2254 - ((76 * winheight(0) + 23) / 47)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+2254
+normal! 0
+let &so = s:so_save | let &siso = s:siso_save
+doautoall SessionLoadPost
+" vim: set ft=vim :
