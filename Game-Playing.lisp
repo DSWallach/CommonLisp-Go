@@ -635,8 +635,9 @@
                (push move legal-moves))))
 
          ;; Return legal moves
-         (sort legal-moves #'order-middle)
+         legal-moves;;(sort legal-moves #'order-middle)
                )
 
        ;; Otherwise return the valid moves
-         (sort valid-moves #'order-middle))))
+         valid-moves;;(sort valid-moves #'order-middle)
+         )))

@@ -22,3 +22,11 @@ TO IMPLEMENT IN GO
 - Evaluate each player's estimated score (DONE)
 - Create static evaluation function for use with alpha beta (DONE)
 - Rigorous evalutation for end game (DONE)
+
+=============================================================================
+
+Convert to Monte Carlo Tree Search
+- Change board representation to a hashable integer
+- ...
+
+- Rapid Action Evaluation (RAVE) from monte-carlo handout

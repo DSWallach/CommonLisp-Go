@@ -42,7 +42,7 @@
 ;;      updated with the most recent score-estimates
 (defun eval-subtotals! (game)
   (let ((b-score 0)
-        (w-score (gg-komi game)) 
+        (w-score (gg-komi game))
         (b-captures (svref (gg-captures game) *black*))
         (w-captures (svref (gg-captures game) *white*))
         (b-groups (svref (gg-groups game) *black*))
@@ -55,36 +55,70 @@
        (setq multiplier 16))
       ((< (length (gg-move-history game)) 8)
        (setq multiplier 8))
-      ((< (length (gg-move-history game)) 12)
+      ((< (length (gg-move-history game)) 10)
        (setq multiplier 4))
-      ((< (length (gg-move-history game)) 16)
+      ((< (length (gg-move-history game)) 12)
        (setq multiplier 2))
       (t
-       (setq multiplier 0))
+        (setq multiplier 0))
       )
 
     ;; Calc black's score
     (dolist (group b-groups)
       ;; Add 1/2 of the liberties and all the territory 
       ;; to the score
-      (setq b-score (+ b-score 
-                       (group-territory group) 
-                      (* multiplier (group-liberties group))
-                       )))
+      (if (= (group-liberties group) 1)
+        (setq w-score
+              (+ w-score
+                 (length (group-pieces group))))
+        (setq b-score
+              (+ b-score
+                 (* (group-territory group)
+                    (length (group-pieces group)))
+                 (* multiplier
+                    (group-liberties group))
+                 ))))
+
     (dolist (capd b-captures)
       (setq b-score (+ b-score (length (group-pieces capd)))))
 
     ;; Calc white's score
     (dolist (group w-groups)
-      (setq w-score (+ w-score 
-                       (group-territory group) 
-                      (* multiplier (group-liberties group))
-                       )))
+      (if (= (group-liberties group) 1)
+        (setq b-score
+              (+ b-score
+                 (length (group-pieces group))))
+        (setq w-score
+              (+ w-score
+                 (group-territory group) 
+                 (* multiplier (group-liberties group))
+                 ))))
 
-      (dolist (capd w-captures)
-        (setq w-score (+ w-score (length (group-pieces capd)))))
-      ;; Update the game struct
-      (setf (gg-subtotals game) (vector b-score w-score))))
+    (dolist (capd w-captures)
+      (setq w-score (+ w-score (length (group-pieces capd)))))
+
+    (when (> (length (gg-move-history game))
+             0)
+      (if (= (gg-whose-turn? game) *white*)
+        (setq b-score
+              (+ b-score
+                 (ceiling (- *board-middle*
+                             (pos->middle-dist
+                               (svref (first (gg-move-history game))
+                                      0))))))
+        (setq w-score
+              (+ w-score
+                 (ceiling (- *board-middle*
+                               (pos->middle-dist
+                                 (svref (first (gg-move-history game))
+                                        0))))))
+          )
+        )
+
+    ;; Update the game struct
+    (setf (gg-subtotals game) (vector b-score w-score))
+
+    ))
 
 ;;  DEEP-COPY-LIST : L(ist) COPY-FUNC
 ;; ------------------------------
@@ -145,8 +179,8 @@
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
-(defun print-go (game str depth 
-                      &optional (verbose? nil) (groups? nil) (boards? nil))
+(defun print-go (game str depth
+                      &optional (verbose? t) (groups? t) (boards? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))

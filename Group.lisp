@@ -131,7 +131,7 @@
 ;; Calculate the area of the square with 
 ;; dimensions defined by area. Subtract one for the
 ;; space taken up by the piece.
-(defun calc-territory! (group board player)
+(defun calc-territory! (group board player vert?)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let* ((area (group-area group))
         (min-row (svref area 0))
@@ -147,49 +147,97 @@
     ;; This variable is used as a case
     ;; for the switch (case) block
     (declare (ignore opponent))
+    (if (> 3 (length (group-pieces group)))
+      (setq total (group-liberties group))
+      ;; Alternate scanning horizontilly and verticley 
+      ;; every two turns
+      (if vert?
+        ;; Scan horizontally 
+        (dotimes (row *board-length*)
+          (when (and (<= min-row row) (>= max-row row))
+            ;; when a wall is reached 
+            (when (or (= 0 row) (= (- *board-length* 1) row)) 
+              ;; set the player's flag
+              (setq player? t))
 
-    ;; For the area of the group 
-    (dotimes (row *board-length*)
-      (when (and (<= min-row row) (>= max-row row))
-        ;; When a wall is reached 
-        (when (or (= 0 row) (= (- *board-length* 1) row)) 
-          ;; Set the player's flag
-          (setq player? t))
+            ;; check each column 
+            (dotimes (col *board-length*)
+              ;; when a wall is reached 
+              (when (or (=(- *board-length* 1) col) (= 0 col))
+                ;; set the player's flag
+                (setq player? t))
+              ;; check each row 
+              (when (and (<= min-col col) (>= max-col col))
+                ;; check the board
+                (case (svref board (row-col->pos row col))
+                  ;; if it's player's piece, set flag
+                  ;; if the player's flag is set
+                  (player (when player?  
+                            ;; add territory to the total
+                            (setq total (+ total territory))
+                            ;; reset territory
+                            (setq territory 0))
+                          ;; set player flag
+                          (setq player? t))
 
-        ;; Check each column 
+                  ;; if it's an opponent's piece, remove flag, clear territory
+                  (opponent (setq player? nil)
+                            (setq territory 0))
+                  ;; if the space is open
+                  ;; if the player's flag is set and 
+                  (0 (when player? (setq territory (+ 1 territory)))))))
+
+            ;; if the player;s flag is set
+            (when player? 
+              ;; update total
+              (setq total (+ total territory))
+              ;; reset territory
+              (setq territory 0))))
+
+
+        ;; Scan vertically
         (dotimes (col *board-length*)
-          ;; When a wall is reached 
-          (when (or (=(- *board-length* 1) col) (= 0 col))
-            ;; Set the player's flag
-            (setq player? t))
-          ;; Check each row 
           (when (and (<= min-col col) (>= max-col col))
-            ;; Check the board
-            (case (svref board (row-col->pos row col))
-              ;; If it's player's piece, set flag
-              ;; If the player's flag is set
-              (player (when player?  
-                        ;; Add territory to the total
-                        (setq total (+ total territory))
-                        ;; Reset territory
-                        (setq territory 0))
-                      ;; Set player flag
-                      (setq player? t))
+            ;; when a wall is reached 
+            (when (or (= 0 col) (= (- *board-length* 1) col)) 
+              ;; set the player's flag
+              (setq player? t))
 
-              ;; If it's an opponent's piece, remove flag, clear territory
-              (opponent (setq player? nil)
-                        (setq territory 0))
-              ;; If the space is open
-              ;; If the player's flag is set and 
-              (0 (when player? (setq territory (+ 1 territory)))))))
+            ;; check each column 
+            (dotimes (row *board-length*)
+              ;; when a wall is reached 
+              (when (or (=(- *board-length* 1) col) (= 0 col))
+                ;; set the player's flag
+                (setq player? t))
+              ;; check each row 
+              (when (and (<= min-row row) (>= max-row row))
+                ;; check the board
+                (case (svref board (row-col->pos row col))
+                  ;; if it's player's piece, set flag
+                  ;; if the player's flag is set
+                  (player (when player?  
+                            ;; add territory to the total
+                            (setq total (+ total territory))
+                            ;; reset territory
+                            (setq territory 0))
+                          ;; set player flag
+                          (setq player? t))
 
-        ;; If the player;s flag is set
-        (when player? 
-          ;; Update total
-          (setq total (+ total territory))
-          ;; Reset territory
-          (setq territory 0))))
+                  ;; if it's an opponent's piece, remove flag, clear territory
+                  (opponent (setq player? nil)
+                            (setq territory 0))
+                  ;; if the space is open
+                  ;; if the player's flag is set and 
+                  (0 (when player? (setq territory (+ 1 territory)))))))
 
+            ;; if the player;s flag is set
+            (when player? 
+              ;; update total
+              (setq total (+ total territory))
+              ;; reset territory
+              (setq territory 0))))
+        )
+      )
     ;; Update the territory
     (setf (group-territory group) total)))
 
@@ -348,7 +396,13 @@
   ;; Recompute liberties 
   (calc-liberties! group (gg-board game))
   ;; Recompute Territory
-  (calc-territory! group (gg-board game) (gg-whose-turn? game))
+  (calc-territory! group (gg-board game) (gg-whose-turn? game)
+                   (or (= 0 (mod (length (gg-move-history game))
+                                 4))
+                       (= 0 (mod (length (gg-move-history game))
+                                 3))
+                       )
+                   )
   )
 
 ;;  GROUP-REMOVE! : GROUP POS GAME
