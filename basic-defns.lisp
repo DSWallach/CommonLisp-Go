@@ -12,10 +12,32 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 9)
-(defconstant *board-size* (* *board-length* 
-                             *board-length*)) 
-(defconstant *board-middle* (- (/ *board-length* 2) 1))
+(defconstant *board-length* 13)
+(defconstant *board-size* (* *board-length*
+                             *board-length*))
+(defconstant *board-middle*
+             (- (/ *board-length* 2) 1))
+(defconstant *opening-moves*
+             (list (find-pos 3 3)
+                   (find-pos 2 3)
+                   (find-pos 2 2)
+                   (find-pos 3 2)
+
+                   (find-pos (- *board-length* 4) (- *board-length* 4))
+                   (find-pos 2 (- *board-length* 4))
+                   (find-pos 2 2)
+                   (find-pos (- *board-length* 4) 2)
+
+                   (find-pos (- *board-length* 4) (- *board-length* 4))
+                   (find-pos (- *board-length* 3) (- *board-length* 4))
+                   (find-pos (- *board-length* 3) (- *board-length* 3))
+                   (find-pos (- *board-length* 4) (- *board-length* 3))
+
+                   (find-pos 3 3)
+                   (find-pos (- *board-length* 3) 3)
+                   (find-pos (- *board-length* 3) (- *board-length* 3))
+                   (find-pos 3 (- *board-length* 3))
+                   ))
 
 ;; For compiling
 (defun cl (filename)
@@ -104,14 +126,14 @@
   (mapcar #'cl lof))
 
 ;; MACROS
-(defmacro row-col->pos (row col)
-  `(+ (* *board-length* row) col))
+(defmacro row-col->pos (,row ,col)
+  `(+ (* *board-length* ,row) ,col))
 
 (defmacro pos->row (pos)
-  `(floor (/ pos *board-length*)))
+  `(floor (/ ,pos *board-length*)))
 
 (defmacro pos->col (pos)
-  `(mod pos *board-length*))
+  `(mod ,pos *board-length*))
 
 (defun pos->middle-dist (pos)
   (+ (abs (- (pos->col pos) *board-middle*))
@@ -132,9 +154,11 @@
 
 
 ;; Compile and load all files
-(maker '("Go-Game"
-         "Group"
-         "Game-Playing"
-         "alpha-beta-go"
-         "Testing-Go"
-         ))
+(defun make ()
+  (maker '("basic-defns"
+           "go-game"
+           "group"
+           "game-playing"
+           "alpha-beta-go"
+           "testing"
+           )))

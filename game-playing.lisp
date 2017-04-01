@@ -12,7 +12,8 @@
 (defun put-piece! (game pos)
 
   (let* ((new-group nil)
-         (vec (vector (pos->row pos) (pos->col pos)))
+         (vec (vector (pos->row pos)
+                      (pos->col pos)))
          (row (svref vec 0))
          (col (svref vec 1))
          (player (gg-whose-turn? game))
@@ -38,7 +39,7 @@
       ((add-piece! ; (GROUP), Add the piece at row col to group
          (group)
          ;; Destructively modify the group
-         (push (row-col->pos row col)
+         (push (row-col->pos row col) 
                (group-pieces group))
          ;; Update area
          (calc-new-area! group row col)
@@ -49,7 +50,7 @@
          (group)
          (let ((vec nil)
                )
-           (dolist (p (group-pieces group))
+           (dolist (pos (group-pieces group))
              ;; Get the row/col of the piece
              (setq vec (vector (pos->row pos) (pos->col pos)))
              ;; If the new piece at (row, col) is to the right or left of the piece
@@ -92,7 +93,8 @@
        )
 
       ;; Put the piece on the board 
-      (setf (svref (gg-board game) pos) (+ 1 player))
+      (setf (svref (gg-board game) pos) 
+            (+ 1 player))
       ;; If there are no groups 
       (if (null (svref (gg-groups game) player)) 
         ;; Make a new group 
@@ -240,10 +242,10 @@
     (cond
       ((= *board-size* pos)
        ;; Push the pass
-       (push (vector pos 0 0)
+       (push (vector pos 0 0) 
              (gg-move-history game)))
 
-      ;; Otherwise Put their piece at pos
+      ;; Otherwise Put their piece at pos 
       (t ;; Track if any groups were merged in this round
         (let ((groups-merged nil)
               (group nil)
@@ -423,21 +425,22 @@
 (defun pull-piece! (game move)
   ;; The player of the previous turn is the opponent this turn
   (let* ((player (gg-whose-turn? game))
-         (opponent (- 1 player)) 
+         (opponent (- 1 player))
          (pos (svref move 0))
-         (group (pop (svref (gg-groups game) opponent)))
+         (group (pop (svref (gg-groups game)
+                            opponent)))
          )
 
     (labels (
              (history-test? (pos move)
                             (= pos (svref move 0)))
-             (group-order? 
+             (group-order?
                (group-one group-two)
                ;; So the compiler doesn't complain
-               (when (< (position (first (group-pieces group-one)) 
+               (when (< (position (first (group-pieces group-one))
                                   (gg-move-history game)
-                                  :test #'history-test?) 
-                        (position (first (group-pieces group-two)) 
+                                  :test #'history-test?)
+                        (position (first (group-pieces group-two))
                                   (gg-move-history game)
                                   :test #'history-test?))
 
@@ -475,7 +478,7 @@
            ;; Add the group back into opponent's groups with the 
            ;; correct ordering
            (setf (svref (gg-groups game) opponent)
-                 (merge 'list 
+                 (merge 'list
                         (svref (gg-groups game) opponent)
                         (sort new-groups #'group-order?)
                         #'group-order?
@@ -501,7 +504,12 @@
 ;; ------------------------------
 ;;  Basic wrapper for DO-MOVE!
 (defun play-move! (game row col)
-  (do-move! game (find-pos row col)))
+  (do-move! game (row-col->pos row col)))
+
+;;  LEGAL-MOVE?
+;; -------------------------------
+(defmacro legal-move? (game pos)
+    `(= 0 (svref (gg-board game) pos)))
 
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
@@ -517,24 +525,29 @@
     ;;
     (if fast? 
       ;; At the opening only allow decent opening moves
-      (cond 
+      (cond
         ;; If the game has just begun
-        ((> 16 (length (gg-move-history game)))
-         (dotimes (row (- *board-length* 2))
-           (when (> row 1)
-             (dotimes (col (- *board-length* 2))
-               (when (and (> col 1) 
-                          (= 0 (svref (gg-board game) (find-pos row col))))
-                 (push (find-pos row col) moves))))))
+        ((> 8 (length (gg-move-history game)))
+         (dolist (pos *opening-moves*)
+           (when (legal-move? game pos)
+             (push pos valid-moves)
+             )
+           ))
+       ; (dotimes (row (- *board-length* 2))
+       ;   (when (> row 1)
+       ;     (dotimes (col (- *board-length* 2))
+       ;       (when (and (> col 1) 
+       ;                  (= 0 (svref (gg-board game) (row-col->pos row col))))
+       ;         (push (row-col->pos row col) moves))))))
 
         ;; More lenient in the mid game
-        ((> 24 (length (gg-move-history game)))
+        ((> 16 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 1))
            (when (> row 0)
              (dotimes (col (- *board-length* 1))
                (when (and (> col 0) 
-                          (= 0 (svref (gg-board game) (find-pos row col))))
-                 (push (find-pos row col) moves))))))
+                          (= 0 (svref (gg-board game) (row-col->pos row col))))
+                 (push (row-col->pos row col) moves))))))
 
 
         (t (dotimes (pos *board-size*)
@@ -556,7 +569,7 @@
               (check-board? pos board *check-above*)
               (check-board? pos board *check-below*))
         ;; Add the move to legal-moves
-        (unless
+        (unless 
           (push pos valid-moves)
           )
         ;; Otherwise check if it would merge with a group
@@ -633,11 +646,8 @@
              (undo-move! game)
              (unless (equal-board? new-board old-board)
                (push move legal-moves))))
-
          ;; Return legal moves
-         legal-moves;;(sort legal-moves #'order-middle)
-               )
+         legal-moves)
 
        ;; Otherwise return the valid moves
-         valid-moves;;(sort valid-moves #'order-middle)
-         )))
+       valid-moves)))
