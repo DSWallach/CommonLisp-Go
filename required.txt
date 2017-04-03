@@ -1,0 +1,2 @@
+mgl-gpr: libRmath, glibc-devel, libffi, gsl(-devel) 
+
