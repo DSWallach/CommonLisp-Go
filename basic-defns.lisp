@@ -13,6 +13,7 @@
 (defconstant *black* 0)
 (defconstant *white* 1)
 (defconstant *board-length* 9)
+(defconstant *group-dist* 2)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
@@ -190,6 +191,6 @@
            "group"
            "game-playing"
            "alpha-beta-go"
-           "mcts-dsw"
+           "mcts-go"
            "testing"
            )))

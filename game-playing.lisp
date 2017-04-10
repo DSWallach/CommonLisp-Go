@@ -55,12 +55,12 @@
              (setq vec (vector (pos->row pos) (pos->col pos)))
              ;; If the new piece at (row, col) is to the right or left of the piece
              (when (or (and (= (svref vec 0) row)
-                            (or (= (svref vec 1) (- col 1))
-                                (= (svref vec 1) (+ col 1))))
+                            (or (= (svref vec 1) (- col *group-dist*))
+                                (= (svref vec 1) (+ col *group-dist*))))
                        ;; Or if it is above or below the piece
                        (and (= (svref vec 1) col)
-                            (or (= (svref vec 0) (- row 1))
-                                (= (svref vec 0) (+ row 1)))))
+                            (or (= (svref vec 0) (- row *group-dist*))
+                                (= (svref vec 0) (+ row *group-dist*)))))
                ;; Return true
                (return-from find-group t)))))
 
