@@ -75,10 +75,10 @@
               (+ (stats-num-potential-moves statty) (length moves)))
 
         ;; Do each move
-        (dolist (move moves)
+        (dotimes (i (length moves))
 
           ;; Modify the game state 
-          (do-move! g move debug?) 
+          (do-move! g (svref moves i) debug?) 
 
           ;; Compute the node's value
           (setq node-val (compute-max 
@@ -160,10 +160,10 @@
               (+ (stats-num-potential-moves statty) (length moves)))
 
         ;; Do each move
-        (dolist (move moves)
+        (dotimes (i (length moves))
 
           ;; Modify the game state 
-          (do-move! g move debug?) 
+          (do-move! g (svref moves i) debug?) 
 
           ;; Compute the node's value
           (setq node-val (compute-min 
@@ -214,9 +214,9 @@
           (+ (stats-num-potential-moves statty) (length moves)))
 
     ;; Do each move
-    (dolist (move moves)
+    (dotimes (i (length moves))
 
-      (do-move! g move)
+      (do-move! g (svref moves i))
 
       ;; Get the score
       (setq current-score (compute-min g 1 alpha beta statty cutoff-depth debug?)) 
@@ -229,7 +229,7 @@
       (when (> current-score best-score)
 
         ;; Update the variables
-        (setq best-so-far move)
+        (setq best-so-far (svref moves i))
         (setq best-score current-score)))
 
     ;; Print out the final alpha of the root node

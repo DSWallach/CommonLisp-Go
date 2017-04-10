@@ -208,9 +208,8 @@
                      ;; Mark the group's position
                      (setf (group-last-pos group) i)
                      ;; Add it to the list with placement information
-                     (push (nth i groups) capture-list))
-                   )
-                 
+                     (push (nth i groups) capture-list)))
+
                  ;; Capture each group in the list
                  (dolist (c-group capture-list)
 
@@ -288,7 +287,8 @@
     (setf (gg-whose-turn? game) 
           (- 1 player))
 
-    )))
+    ;; Return the game
+    game)))
 
 ;;  UNDO-MOVE! : GAME
 ;; ----------------------------------------
@@ -511,6 +511,21 @@
 (defmacro legal-move? (game pos)
     `(= 0 (svref (gg-board game) pos)))
 
+
+(defmacro default-policy (game)
+  `(let ((moves nil)
+         (rand 0)
+         )
+     (dotimes (i 1000000)
+       (setq moves (legal-moves ,game))
+       (setq rand (random (length moves)))
+       (do-move! ,game (svref moves rand))
+       (when (game-over? ,game)
+         (return)))
+     (sqrt (abs (- (svref (gg-subtotals ,game) *white*)
+                   (svref (gg-subtotals ,game) *black*)
+                   )))))
+
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
 ;;  INPUT:  GAME, A go game struct
@@ -518,7 +533,7 @@
 
 (defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list *board-size*)); Passing is always legal
-        (valid-moves nil)
+        (valid-moves (list *board-size*))
         (moves nil) 
         (board (gg-board game))
         )
@@ -552,8 +567,7 @@
 
         (t (dotimes (pos *board-size*)
              (when (= 0 (svref (gg-board game) pos))
-               (push pos moves))))
-        )
+               (push pos moves)))))
 
       ;; Allow all moves
       (dotimes (pos *board-size*)
@@ -619,8 +633,7 @@
               (pull-piece! game (vector pos 0 merged))
               (setf (gg-whose-turn? game)
                     (- 1 (gg-whose-turn? game)))
-              )
-            ))))
+              )))))
 
      ;; If necessary...
      (if (and (gg-ko? game) 
@@ -647,7 +660,7 @@
              (unless (equal-board? new-board old-board)
                (push move legal-moves))))
          ;; Return legal moves
-         legal-moves)
+         (make-array (length legal-moves) :initial-contents legal-moves))
 
        ;; Otherwise return the valid moves
-       valid-moves)))
+       (make-array (length valid-moves) :initial-contents valid-moves))))

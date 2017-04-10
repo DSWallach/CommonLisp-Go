@@ -6,7 +6,7 @@
 
 ;;;;; GO-GAME STRUCT/FUNCS 
 ;;  GO-GAME struct
-(defstruct (go-game;; (:print-function print-go)
+(defstruct (go-game (:print-function print-go)
                     (:conc-name gg-))
   ;; The board is a simple vector. Positions on the
   ;; board are referenced using the go-position function 
@@ -34,6 +34,11 @@
   (board-history nil) 
   (game-history nil)
   )
+;;  MAKE-HASH-KEY-FROM-GAME : GAME
+;; ---------------------------------
+;; The hash key is the current state of the board.
+(defun make-hash-key-from-game (game)
+  (gg-board game))
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
@@ -50,26 +55,26 @@
         (multiplier 0)
         )
 
-    (cond 
-      ((< (length (gg-move-history game)) 5)
-       (setq multiplier 4))
-      ((< (length (gg-move-history game)) 10)
-       (setq multiplier 3))
-      ((< (length (gg-move-history game)) 15)
-       (setq multiplier 2))
-      ((< (length (gg-move-history game)) 20)
-       (setq multiplier 1))
-      (t
-       (setq multiplier 0))
-      )
-    
+  ; (cond 
+  ;   ((< (length (gg-move-history game)) 5)
+  ;    (setq multiplier 4))
+  ;   ((< (length (gg-move-history game)) 10)
+  ;    (setq multiplier 3))
+  ;   ((< (length (gg-move-history game)) 15)
+  ;    (setq multiplier 2))
+  ;   ((< (length (gg-move-history game)) 20)
+  ;    (setq multiplier 1))
+  ;   (t
+  ;    (setq multiplier 0))
+  ;   )
+
     ;; Calc black's score
     (dolist (group b-groups)
       ;; Add 1/2 of the liberties and all the territory 
       ;; to the score
       (setq b-score (+ b-score 
                        (group-territory group) 
-                      (* multiplier (group-liberties group))
+                      ;;(* multiplier (group-liberties group))
                        )))
     (dolist (capd b-captures)
       (setq b-score (+ b-score (length (group-pieces capd)))))
@@ -78,7 +83,7 @@
     (dolist (group w-groups)
       (setq w-score (+ w-score 
                        (group-territory group) 
-                      (* multiplier (group-liberties group))
+                     ;; (* multiplier (group-liberties group))
                        )))
 
       (dolist (capd w-captures)

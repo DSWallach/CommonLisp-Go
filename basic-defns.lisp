@@ -12,32 +12,11 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 13)
+(defconstant *board-length* 9)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
              (- (/ *board-length* 2) 1))
-(defconstant *opening-moves*
-             (list (find-pos 3 3)
-                   (find-pos 2 3)
-                   (find-pos 2 2)
-                   (find-pos 3 2)
-
-                   (find-pos (- *board-length* 4) (- *board-length* 4))
-                   (find-pos 2 (- *board-length* 4))
-                   (find-pos 2 2)
-                   (find-pos (- *board-length* 4) 2)
-
-                   (find-pos (- *board-length* 4) (- *board-length* 4))
-                   (find-pos (- *board-length* 3) (- *board-length* 4))
-                   (find-pos (- *board-length* 3) (- *board-length* 3))
-                   (find-pos (- *board-length* 4) (- *board-length* 3))
-
-                   (find-pos 3 3)
-                   (find-pos (- *board-length* 3) 3)
-                   (find-pos (- *board-length* 3) (- *board-length* 3))
-                   (find-pos 3 (- *board-length* 3))
-                   ))
 
 ;; For compiling
 (defun cl (filename)
@@ -62,6 +41,7 @@
 (defconstant *check-below* 3)
 
 ;; Load Alpha/Beta AI
+(cl "mcts-go")
 (cl "alpha-beta-go")
 
 ;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
@@ -126,7 +106,7 @@
   (mapcar #'cl lof))
 
 ;; MACROS
-(defmacro row-col->pos (,row ,col)
+(defmacro row-col->pos (row col)
   `(+ (* *board-length* ,row) ,col))
 
 (defmacro pos->row (pos)
@@ -140,6 +120,27 @@
      (abs (- (pos->row pos) *board-middle*)))
   )
 
+(defconstant *opening-moves*
+             (list (row-col->pos 3 3)
+                   (row-col->pos 2 3)
+                   (row-col->pos 2 2)
+                   (row-col->pos 3 2)
+
+                   (row-col->pos (- *board-length* 4) (- *board-length* 4))
+                   (row-col->pos 2 (- *board-length* 4))
+                   (row-col->pos 2 2)
+                   (row-col->pos (- *board-length* 4) 2)
+
+                   (row-col->pos (- *board-length* 4) (- *board-length* 4))
+                   (row-col->pos (- *board-length* 3) (- *board-length* 4))
+                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
+                   (row-col->pos (- *board-length* 4) (- *board-length* 3))
+
+                   (row-col->pos 3 3)
+                   (row-col->pos (- *board-length* 3) 3)
+                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
+                   (row-col->pos 3 (- *board-length* 3))
+                   ))
 (defun order-middle (pos-one pos-two)
   (let* ((pos pos-one)
         (dist-one (pos->middle-dist pos-one))
@@ -153,6 +154,35 @@
   ))
 
 
+(defun ab-vs-mc (whose-monte? depth num-sims c)
+  (let ((g (init-game)))
+    (cond 
+      ((= *black* whose-monte?)
+       (while (not (game-over? g))
+              (cond
+                ((eq (gg-whose-turn? g) *black*)
+                 (format t "BLACK'S TURN!~%")
+                 (format t "~A~%" 
+                         (do-move! g (uct-search g num-sims c))))
+                (t
+                  (format t "WHITE'S TURN!~%")
+                  (format t "~A~%"
+                          (do-move! g (compute-move g depth))))))
+       )
+      ;; Otherwise white get monte-carlo-search
+      (t
+       (while (not (game-over? g))
+              (cond
+                ((eq (gg-whose-turn? g) *black*)
+                 (format t "BLACK'S TURN!~%")
+                 (format t "~A~%" 
+                         (do-move! g (compute-move g depth))))
+                (t
+                  (format t "WHITE'S TURN!~%")
+                  (format t "~A~%"
+                          (do-move! g (uct-search g num-sims c))))))
+       ))))
+
 ;; Compile and load all files
 (defun make ()
   (maker '("basic-defns"
@@ -160,5 +190,6 @@
            "group"
            "game-playing"
            "alpha-beta-go"
+           "mcts-dsw"
            "testing"
            )))
