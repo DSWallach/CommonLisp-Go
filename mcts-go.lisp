@@ -398,9 +398,9 @@
       (start-scheduler)
 
       (dotimes (i num-sims)
-      ;; Create a process and start it running 
-      (process-run-function #'sim-ops orig-game c)
-      )
+        ;; Create a process and start it running 
+        (process-run-function #'sim-ops orig-game c)
+        )
       )
     ;; Otherwise perform the operations sequentially
     (t
