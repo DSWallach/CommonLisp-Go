@@ -181,6 +181,45 @@
     (cond 
       ;; Use threaded implementation of move selection
       (use-threads
+        
+        ;; Compare all the potential moves
+        (dotimes (i (length scores))
+          ;; If there isn't gonan be problems dividing by 0
+          (if (and (< 0 node-visits)
+                   (< 0 (svref visits i)))
+            ;; Calculate the monte-carlo value
+            (setq new_q (* c  (sqrt (/ (log node-visits)
+                                       (/ (svref visits i)
+                                          node-visits)))))
+            (setq new_q 0))
+          ;; Set the value, adding or subtracting depending on the player
+          (cond
+            ;; If it's black the best score is the highest
+            ((= player *black*)
+             (setf (svref scores i)
+                   (+ (svref scores i)
+                      new_q))
+             (when (< max-so-far (svref scores i))
+               (setq max-so-far (svref scores i))
+               (setq best-move-so-far i)))
+
+            (t ; If it's white the best score is the lowest
+              (setf (svref scores i)
+                    (- (svref scores i)
+                       new_q))
+              (when (> max-so-far (svref scores i))
+                (setq max-so-far (svref scores i))
+                (setq best-move-so-far i)))))
+
+        ;; Update the scores in the node
+        (setf (mc-node-veck-scores nodey) scores)
+        ;; Update the visits to the chosen move
+        (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
+              (+ 1 (svref visits best-move-so-far)))
+        ;; Increment the number of visits to this node
+        (setf (mc-node-num-visits nodey)
+              (+ 1 (mc-node-num-visits nodey)))
+
         )
       ;; Use non threaded selection
       (t 
@@ -227,8 +266,6 @@
     best-move-so-far))
 
 
-
-
 ;;  SIM-TREE : GAME TREE C
 ;; --------------------------------------
 ;;  INPUTS:  GAME, a game struct
@@ -273,14 +310,13 @@
       ;; Otherwise the state does already exist so use select-move
       (setq m_t (select-move (gethash (make-hash-key-from-game game)
                                       (mc-tree-hashy tree)) c))
-      (format t "Availible Moves ~A~%" moves)
+
       ;; Do the move
       (do-move! game (svref moves m_t))
       ;; Add it to the move list
       (setq state-move-list
             (append state-move-list (list m_t)))
-      (format t "Must pass Player ~A Oppo ~A~%" (must-pass? game (gg-whose-turn? game)) 
-              (must-pass? game (- (gg-whose-turn? game))))
+
       ;; When the game is over break out of the loop
       (when (game-over? game) 
         (return-from sim-tree state-move-list)))
@@ -329,39 +365,66 @@
       (setf (svref (mc-node-veck-scores node-holder) move)
             (- result (svref (mc-node-veck-scores node-holder) move))))))
 
+
+
+;; For use by each thread of uct-search
+(defmacro sim-ops (orig-game c)
+  `(let ((state-move-list nil)
+        (tree (new-mc-tree ,orig-game))
+        (z 0)
+        (game nil))
+    ;; Make a copy of the game state
+    (setq game (deep-copy-go ,orig-game))
+    ;; Run sim-tree
+    (setq state-move-list (sim-tree game tree ,c use-threads))
+    ;; Run default
+    (setq z (sim-default game))
+    ;; Run backup
+    (backup (mc-tree-hashy tree) state-move-list z)
+    tree))
+
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
 ;; -------------------------------------------------------
 ;;  INPUTS:  ORIG-GAME, a game struct
 ;;           NUM-SIMS, a positive integer
 ;;           C, the exploration/exploitation parameter
 ;;  OUTPUT:  The best move according to monte-carlo tree search.
-(defun uct-search (orig-game num-sims c &optional (return-tree nil))
-  (let ((state-move-list nil)
-        (tree (new-mc-tree orig-game))
-        (z 0)
-        (game nil))
-    (dotimes (i num-sims)
-      ;; Make a copy of the game state
-      (setq game (deep-copy-go orig-game))
-      ;; Run sim-tree
-      (setq state-move-list (sim-tree game tree c))
-      ;; Run default
-      (setq z (sim-default game))
-      ;; Run backup
-      (backup (mc-tree-hashy tree) state-move-list z))
+(defun uct-search (orig-game num-sims c &optional 
+                             (return-tree nil) (use-threads nil))
+  (cond
+    ;; Use threaded implementation
+    (use-threads 
+      ;; Enable MP
+      (start-scheduler)
 
-    (format t "Move ~A~%" (svref (legal-moves orig-game) 
-           (select-move (gethash (make-hash-key-from-game orig-game)
-                                 (mc-tree-hashy tree)) c)))
+      (dotimes (i num-sims)
+      ;; Create a process and start it running 
+      (process-run-function)
+      ))
+    ;; Otherwise perform the operations sequentially
+    (t
+      (let ((state-move-list nil)
+            (tree (new-mc-tree orig-game))
+            (z 0)
+            (game nil))
+        (dotimes (i num-sims)
+          ;; Make a copy of the game state
+          (setq game (deep-copy-go orig-game))
+          ;; Run sim-tree
+          (setq state-move-list (sim-tree game tree c use-threads))
+          ;; Run default
+          (setq z (sim-default game))
+          ;; Run backup
+          (backup (mc-tree-hashy tree) state-move-list z))
+        )
+      ;; For testing
+      (when return-tree 
+        (return-from uct-search tree))
 
-    ;; For testing
-    (when return-tree 
-      (return-from uct-search tree))
-
-    ;; Select the best move
-    (svref (legal-moves orig-game) 
-           (select-move (gethash (make-hash-key-from-game orig-game)
-                                 (mc-tree-hashy tree)) c))))
+      ;; Select the best move
+      (svref (legal-moves orig-game) 
+             (select-move (gethash (make-hash-key-from-game orig-game)
+                                   (mc-tree-hashy tree)) c))))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------
