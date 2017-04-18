@@ -399,8 +399,9 @@
 
       (dotimes (i num-sims)
       ;; Create a process and start it running 
-      (process-run-function)
-      ))
+      (process-run-function #'sim-ops orig-game c)
+      )
+      )
     ;; Otherwise perform the operations sequentially
     (t
       (let ((state-move-list nil)
@@ -424,7 +425,8 @@
       ;; Select the best move
       (svref (legal-moves orig-game) 
              (select-move (gethash (make-hash-key-from-game orig-game)
-                                   (mc-tree-hashy tree)) c))))
+                                   (mc-tree-hashy tree)) c)))
+    ))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------

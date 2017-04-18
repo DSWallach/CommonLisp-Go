@@ -10,6 +10,8 @@
 ;; Tell the interpreter that we're using the MultiProcessing package
 (use-package :mp)
 
+(eval-when (compile load eval) (require :smputil))
+
 ;;  GLOBAL CONSTANTS
 
 ;; Game Properties 
