@@ -7,6 +7,9 @@
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
+;; Tell the interpreter that we're using the MultiProcessing package
+(use-package :mp)
+
 ;;  GLOBAL CONSTANTS
 
 ;; Game Properties 
@@ -155,7 +158,9 @@
   ))
 
 
-(defun ab-vs-mc (whose-monte? depth num-sims c)
+(defun ab-vs-mc (whose-monte? depth num-sims c &optional 
+                              (return-after nil) (use-threads nil)
+                              )
   (let ((g (init-game)))
     (cond 
       ((= *black* whose-monte?)
@@ -168,7 +173,13 @@
                 (t
                   (format t "WHITE'S TURN!~%")
                   (format t "~A~%"
-                          (do-move! g (compute-move g depth))))))
+                          (do-move! g (compute-move g depth)))))
+              (when (and return-after
+                         (< return-after (length (gg-move-history g)))
+                         )
+                (return-from ab-vs-mc g)
+                )
+              )
        )
       ;; Otherwise white get monte-carlo-search
       (t

@@ -79,6 +79,55 @@
     (insert-new-node game new-tree root-key)
     new-tree))
 
+
+;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
+;; -------------------------------------
+;;  INPUT: TREE-ONE,TREE-TWO, two montecarlo tree structs with the same root node
+;;  OUTPUT: NEW-TREE, TREE-ONE destructively modified to include the information 
+;;                    from TREE-TWO
+(defun merge-mc-trees! (tree-one tree-two)
+  (let ((table-one (mc-tree-hashy tree-one))
+        (table-two (mc-tree-hashy tree-two))
+        (node-holder nil)
+        )
+    ;; Define a function for use by maphash
+    (labels ((merge-into-tree-one 
+               (key value)
+               ;; If the key already exists in table
+               (cond
+
+                 ;; store it in node holder
+                 ((setq node-holder (gethash key table-one))
+
+                  ;; Update the number of visits information
+                  (setf (mc-node-num-visits node-holder)
+                        (+ (mc-node-num-visits node-holder)
+                           (mc-node-num-visits value)))
+
+                  ;; Update the visits to each move
+                  (dotimes (i (length (mc-node-veck-visits node-holder)))
+                    (setf (svref (mc-node-veck-visits) i)
+                          (+ (svref (mc-node-veck-visits node-holder) i)
+                             (svref (mc-node-veck-visits value) i))))
+
+                  ;; Update the scores of each move
+                  (dotimes (i (length (mc-node-veck-scores node-holder)))
+                    (setf (svref (mc-node-veck-scores) i)
+                          (+ (svref (mc-node-veck-scores node-holder) i)
+                             (svref (mc-node-veck-scores value) i))))
+                  )
+                  ;; Otherwise if the key doesn't exist
+                  (t
+                    ;; Add the key, value pair from table-two
+                    (setf (get-hash key table-one) value)
+                    )))
+             )
+
+      ;; Apply the label
+      (maphash merge-into-tree-one table-two)
+      ;; Assign tree-one the updated hashtable and return it
+      (setf (mc-tree-hashy tree-one) table-one))))
+
 ;;  INSERT-NEW-NODE : GAME TREE KEY
 ;; -----------------------------------------
 ;;  INPUTS:  GAME, a game struct
@@ -105,7 +154,7 @@
 
 ;; Methods should be whatever functions in the go-game
 ;; file that are called by the montecarlo tree search
-(defun select-move (nodey c)
+(defun select-move (nodey c &optional (use-threads t))
   ;; (format t "Selecet Move~%")
   (let ((scores (mc-node-veck-scores nodey))
         (visits (mc-node-veck-visits nodey))
@@ -116,46 +165,56 @@
         (new_q 0)
         )
 
-    ;; Compare all the potential moves
-    (dotimes (i (length scores))
-      ;; If there isn't gonan be problems dividing by 0
-      (if (and (< 0 node-visits)
-               (< 0 (svref visits i)))
-        ;; Calculate the monte-carlo value
-        (setq new_q (* c  (sqrt (/ (log node-visits)
-                                   (/ (svref visits i)
-                                      node-visits)))))
-        (setq new_q 0))
-      ;; Set the value, adding or subtracting depending on the player
-      (cond
-        ;; If it's black the best score is the highest
-        ((= player *black*)
-         (setf (svref scores i)
-               (+ (svref scores i)
-                  new_q))
-         (when (< max-so-far (svref scores i))
-           (setq max-so-far (svref scores i))
-           (setq best-move-so-far i)))
+    (cond 
+      ;; Use threaded implementation of move selection
+      (use-threads
+        )
+      ;; Use non threaded selection
+      (t 
+        ;; Compare all the potential moves
+        (dotimes (i (length scores))
+          ;; If there isn't gonan be problems dividing by 0
+          (if (and (< 0 node-visits)
+                   (< 0 (svref visits i)))
+            ;; Calculate the monte-carlo value
+            (setq new_q (* c  (sqrt (/ (log node-visits)
+                                       (/ (svref visits i)
+                                          node-visits)))))
+            (setq new_q 0))
+          ;; Set the value, adding or subtracting depending on the player
+          (cond
+            ;; If it's black the best score is the highest
+            ((= player *black*)
+             (setf (svref scores i)
+                   (+ (svref scores i)
+                      new_q))
+             (when (< max-so-far (svref scores i))
+               (setq max-so-far (svref scores i))
+               (setq best-move-so-far i)))
 
-        (t ; If it's white the best score is the lowest
-          (setf (svref scores i)
-                (- (svref scores i)
-                   new_q))
-          (when (> max-so-far (svref scores i))
-            (setq max-so-far (svref scores i))
-            (setq best-move-so-far i)))))
+            (t ; If it's white the best score is the lowest
+              (setf (svref scores i)
+                    (- (svref scores i)
+                       new_q))
+              (when (> max-so-far (svref scores i))
+                (setq max-so-far (svref scores i))
+                (setq best-move-so-far i)))))
 
-    ;; Update the scores in the node
-    (setf (mc-node-veck-scores nodey) scores)
-    ;; Update the visits to the chosen move
-    (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
-          (+ 1 (svref visits best-move-so-far)))
-    ;; Increment the number of visits to this node
-    (setf (mc-node-num-visits nodey)
-          (+ 1 (mc-node-num-visits nodey)))
+        ;; Update the scores in the node
+        (setf (mc-node-veck-scores nodey) scores)
+        ;; Update the visits to the chosen move
+        (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
+              (+ 1 (svref visits best-move-so-far)))
+        ;; Increment the number of visits to this node
+        (setf (mc-node-num-visits nodey)
+              (+ 1 (mc-node-num-visits nodey)))
 
+        ))
     ;; Return the best move found
     best-move-so-far))
+
+
+
 
 ;;  SIM-TREE : GAME TREE C
 ;; --------------------------------------
