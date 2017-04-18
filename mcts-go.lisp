@@ -3,7 +3,6 @@
 ;;  FILE:  mcts-template.lisp
 ;;  NAME: David Wallach
 ;; ========================================
-
 ;;  Calls the following domain dependent methods
 ;; ----------------------------------------------------
 ;;     COPY-GAME
