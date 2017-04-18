@@ -651,6 +651,29 @@
                test-two 
                test-three))))
 
+
+;; TEST-MERGE-TREES
+(defun test-merge-trees ()
+  (format t "Begin Setup~%")
+  (let* ((tree1 (uct-search (init-game) 10 2 t))
+         (game (ab-vs-mc *black* 2 10 2 10))
+         (tree2 (uct-search game 10 2 t))
+         (tree-copy (copy-mc-tree tree1))
+         (test-tree (merge-mc-trees! tree1 tree2))
+         )
+    (labels ((check-entry (key value)
+                          (unless (gethash key test-tree)
+                            (format t "Key: ~A, Value: ~A missing from test tree~%" key value)
+                            (return-from test-merge-trees nil))
+                          t)
+             )
+      (format t "Begin Test~%")
+      (maphash #'check-entry (mc-tree-hashy tree1))
+      (maphash #'check-entry (mc-tree-hashy tree2))
+        (format t "Test Passed~%")
+        )
+      ))
+
 ;;  TEST-ROBUST 
 ;; ------------------------------
 ;;  Testing the robustness of the game system

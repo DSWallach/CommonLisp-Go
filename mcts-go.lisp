@@ -55,6 +55,19 @@
   root-key
   )
 
+(defun copy-mc-tree (tree)
+  (let ((newTree (make-mc-tree 
+                   :root-key (mc-tree-root-key tree)))
+        )
+    (labels 
+      ((add-to-tree 
+         (key value)
+         (setf (gethash key (mc-tree-hashy newTree)) value))
+       )
+      (maphash #'add-to-tree (mc-tree-hashy tree)))
+    newTree))
+
+
 (defun hash-print (key value)
   (format t "Key: ~A, Value: ~A~%" key value))
 
@@ -119,12 +132,12 @@
                   ;; Otherwise if the key doesn't exist
                   (t
                     ;; Add the key, value pair from table-two
-                    (setf (get-hash key table-one) value)
+                    (setf (gethash key table-one) value)
                     )))
              )
 
       ;; Apply the label
-      (maphash merge-into-tree-one table-two)
+      (maphash #'merge-into-tree-one table-two)
       ;; Assign tree-one the updated hashtable and return it
       (setf (mc-tree-hashy tree-one) table-one))))
 
@@ -154,7 +167,7 @@
 
 ;; Methods should be whatever functions in the go-game
 ;; file that are called by the montecarlo tree search
-(defun select-move (nodey c &optional (use-threads t))
+(defun select-move (nodey c &optional (use-threads nil))
   ;; (format t "Selecet Move~%")
   (let ((scores (mc-node-veck-scores nodey))
         (visits (mc-node-veck-visits nodey))
@@ -322,7 +335,7 @@
 ;;           NUM-SIMS, a positive integer
 ;;           C, the exploration/exploitation parameter
 ;;  OUTPUT:  The best move according to monte-carlo tree search.
-(defun uct-search (orig-game num-sims c)
+(defun uct-search (orig-game num-sims c &optional (return-tree nil))
   (let ((state-move-list nil)
         (tree (new-mc-tree orig-game))
         (z 0)
@@ -340,6 +353,11 @@
     (format t "Move ~A~%" (svref (legal-moves orig-game) 
            (select-move (gethash (make-hash-key-from-game orig-game)
                                  (mc-tree-hashy tree)) c)))
+
+    ;; For testing
+    (when return-tree 
+      (return-from uct-search tree))
+
     ;; Select the best move
     (svref (legal-moves orig-game) 
            (select-move (gethash (make-hash-key-from-game orig-game)
