@@ -3,10 +3,14 @@
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
 
+
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
-  (require :smputil)
+ (require :smputil) ;; Load Allegro mutlithreading
+  (require :asdf)    ;; Load asdf package manager
+  (require :process)
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+
 
 (defun ttest (num)
   (uct-search (init-game) num 2 t t)
@@ -17,8 +21,9 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 9)
+(defconstant *board-length* 13)
 (defconstant *group-dist* 2)
+(defconstant *num-cores* 16)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
@@ -86,6 +91,8 @@
 
 (defun pg (d1 d2)
   (play-game (init-game) d1 d2 t))
+
+
 
 (defun copy-vector (in-vec)
   (let ((out-vec (make-array (length in-vec)))
@@ -185,6 +192,10 @@
 
 ;; Compile and load all files
 (defun make ()
+  ;; Load the alexandria system (required by bordeaux-threads
+  (asdf:load-system 'alexandria)
+  ;; Load bordeaux-threads
+  (asdf:load-system 'bordeaux-threads)
   (maker '("basic-defns"
            "go-game"
            "group"
