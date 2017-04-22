@@ -658,7 +658,6 @@
   (let* ((tree1 (uct-search (init-game) 10 2 t))
          (game (ab-vs-mc *black* 2 10 2 10))
          (tree2 (uct-search game 10 2 t))
-         (tree-copy (copy-mc-tree tree1))
          (test-tree (merge-mc-trees! tree1 tree2))
          )
     (labels ((check-entry (key value)

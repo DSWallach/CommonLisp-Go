@@ -509,7 +509,7 @@
 ;;  LEGAL-MOVE?
 ;; -------------------------------
 (defmacro legal-move? (game pos)
-    `(= 0 (svref (gg-board game) pos)))
+    `(= 0 (svref (gg-board ,game) ,pos)))
 
 
 (defmacro default-policy (game)

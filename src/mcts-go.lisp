@@ -1,29 +1,8 @@
 ;; ========================================
 ;;  CMPU-365, Spring 2017
-;;  FILE:  mcts-template.lisp
+;;  FILE:  mcts-go.lisp
 ;;  NAME: David Wallach
 ;; ========================================
-;;  Calls the following domain dependent methods
-;; ----------------------------------------------------
-;;     COPY-GAME
-;;     LEGAL-MOVES  --  returns VECTOR of legal moves
-;;     MAKE-HASH-KEY-FROM-GAME
-;;     WHOSE-TURN -- returns *BLACK* or *WHITE*
-;;     GAME-OVER? -- 
-;;     DEFAULT-POLICY  --  returns random legal move
-;;     DO-MOVE!
-
-;;  Defines the following functions:
-;; ----------------------------------------------------------
-;;     GET-ROOT-NODE
-;;     NEW-MC-TREE
-;;     INSERT-NEW-NODE
-;;     SIM-TREE
-;;     SIM-DEFAULT
-;;     BACKUP
-;;     UCT-SEARCH
-;;     COMPETE
-;;     SELECT-MOVE
 
 
 ;;  MC-NODE struct : KEY WHOSE-TURN NUM-VISITS VECK-MOVES VECK-VISITS VECK-SCORES 
@@ -54,12 +33,12 @@
   root-key
   )
 
-(defun copy-mc-tree (tree)
-  (let ((newTree (make-mc-tree 
+(defun deep-copy-mc-tree (tree)
+  (let ((newTree (make-mc-tree
                    :root-key (mc-tree-root-key tree)))
         )
-    (labels 
-      ((add-to-tree 
+    (labels
+      ((add-to-tree
          (key value)
          (setf (gethash key (mc-tree-hashy newTree)) value))
        )
@@ -72,7 +51,7 @@
 
 
 (defun print-mc-tree (tree str depth)
-  (declare (ignore depth))
+  (declare (ignore depth) (ignore str))
   (maphash #'hash-print (mc-tree-hashy tree)))
 
 ;;  GET-ROOT-NODE : GAME
@@ -118,13 +97,13 @@
 
                   ;; Update the visits to each move
                   (dotimes (i (length (mc-node-veck-visits node-holder)))
-                    (setf (svref (mc-node-veck-visits) i)
+                    (setf (svref (mc-node-veck-visits node-holder) i)
                           (+ (svref (mc-node-veck-visits node-holder) i)
                              (svref (mc-node-veck-visits value) i))))
 
                   ;; Update the scores of each move
                   (dotimes (i (length (mc-node-veck-scores node-holder)))
-                    (setf (svref (mc-node-veck-scores) i)
+                    (setf (svref (mc-node-veck-scores node-holder) i)
                           (+ (svref (mc-node-veck-scores node-holder) i)
                              (svref (mc-node-veck-scores value) i))))
                   )
@@ -367,20 +346,50 @@
 
 
 ;; For use by each thread of uct-search
-(defmacro sim-ops (orig-game c)
+(defmacro sim-ops-mac (orig-game c orig-tree tree-lock)
   `(let ((state-move-list nil)
-        (tree (new-mc-tree ,orig-game))
         (z 0)
-        (game nil))
+        (game nil)
+        (tree (deep-copy-mc-tree orig-tree))
+        )
     ;; Make a copy of the game state
     (setq game (deep-copy-go ,orig-game))
     ;; Run sim-tree
-    (setq state-move-list (sim-tree game tree ,c use-threads))
+    (setq state-move-list (sim-tree game tree ,c))
     ;; Run default
     (setq z (sim-default game))
     ;; Run backup
     (backup (mc-tree-hashy tree) state-move-list z)
-    tree))
+
+    ;; Lock the tree
+    (sharable-lock-lock :exclusive ,tree-lock)
+    ;; Merge the threads copy back into the main tree
+    (merge-mc-trees! ,orig-tree tree)
+    ;; Release the lock
+    (sharable-lock-unlock)))
+
+;; For use by each thread of uct-search
+(defun sim-ops (orig-game c orig-tree tree-lock)
+  (let ((state-move-list nil)
+        (z 0)
+        (game nil)
+        (tree (deep-copy-mc-tree orig-tree))
+        )
+    ;; Make a copy of the game state
+    (setq game (deep-copy-go orig-game))
+    ;; Run sim-tree
+    (setq state-move-list (sim-tree game tree c))
+    ;; Run default
+    (setq z (sim-default game))
+    ;; Run backup
+    (backup (mc-tree-hashy tree) state-move-list z)
+
+    ;; Lock the tree
+    (sharable-lock-lock :exclusive tree-lock)
+    ;; Merge the threads copy back into the main tree
+    (merge-mc-trees! orig-tree tree)
+    ;; Release the lock
+    (sharable-lock-unlock :exclusive tree-lock)))
 
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
 ;; -------------------------------------------------------
@@ -393,14 +402,20 @@
   (cond
     ;; Use threaded implementation
     (use-threads 
-      ;; Enable MP
-      (start-scheduler)
+      ;; Create the shared-lock for the game tree
+      (let ((tree (new-mc-tree orig-game))
+            (tree-lock (make-sharable-lock :name "Tree-Lock"
+                                           :max-shared num-sims))
+            )
 
-      (dotimes (i num-sims)
-        ;; Create a process and start it running 
-        (process-run-function #'sim-ops orig-game c)
-        )
-      )
+        ;; Enable MP
+        (start-scheduler)
+
+        (dotimes (i num-sims)
+          ;; Create a process and start it running with the tree
+          (process-run-function "Tree-Process" #'sim-ops orig-game c tree tree-lock)
+
+          )))
     ;; Otherwise perform the operations sequentially
     (t
       (let ((state-move-list nil)
@@ -411,12 +426,11 @@
           ;; Make a copy of the game state
           (setq game (deep-copy-go orig-game))
           ;; Run sim-tree
-          (setq state-move-list (sim-tree game tree c use-threads))
+          (setq state-move-list (sim-tree game tree c))
           ;; Run default
           (setq z (sim-default game))
           ;; Run backup
           (backup (mc-tree-hashy tree) state-move-list z))
-        )
       ;; For testing
       (when return-tree 
         (return-from uct-search tree))
@@ -425,6 +439,7 @@
       (svref (legal-moves orig-game) 
              (select-move (gethash (make-hash-key-from-game orig-game)
                                    (mc-tree-hashy tree)) c)))
+        )
     ))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
@@ -445,7 +460,7 @@
        ((eq (gg-whose-turn? g) *black*)
 	(format t "BLACK'S TURN!~%")
 	(format t "~A~%" 
-		(do-move! g (uct-search g black-num-sims black-c))))
+		(do-move! g (uct-search g black-num-sims black-c nil t))))
        (t
 	(format t "WHITE'S TURN!~%")
 	(format t "~A~%"

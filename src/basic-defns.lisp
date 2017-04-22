@@ -147,17 +147,6 @@
                    (row-col->pos (- *board-length* 3) (- *board-length* 3))
                    (row-col->pos 3 (- *board-length* 3))
                    ))
-(defun order-middle (pos-one pos-two)
-  (let* ((pos pos-one)
-        (dist-one (pos->middle-dist pos-one))
-        (dist-two 0)
-        )
-    (setq pos pos-two)
-    (setq dist-two (pos->middle-dist pos))
-  (if (< pos-one pos-two)
-    t
-    nil)
-  ))
 
 
 (defun ab-vs-mc (whose-monte? depth num-sims c &optional 

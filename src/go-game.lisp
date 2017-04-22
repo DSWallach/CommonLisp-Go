@@ -52,7 +52,6 @@
         (w-captures (svref (gg-captures game) *white*))
         (b-groups (svref (gg-groups game) *black*))
         (w-groups (svref (gg-groups game) *white*))
-        (multiplier 0)
         )
 
   ; (cond 
@@ -313,7 +312,7 @@
 
     ;; Check the equality of the move history
     (when (mismatch move-history-0 move-history-1 :test #'equalp)
-      (format print-to "Move Histories are not equal~% ~A~% ~A ~%"
+      (format print-to "Move Histories are not equal~% ~A~%"
               (mismatch move-history-0 move-history-1 :test #'equalp))
       (return-from equal-go? nil))
 
