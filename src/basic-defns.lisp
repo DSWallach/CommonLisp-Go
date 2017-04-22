@@ -4,13 +4,13 @@
 (setq compiler:tail-call-non-self-merge-switch t) 
 
 ;; Tell the copiler to speed things up
-(eval-when (compile)
+(eval-when (compile load eval)
+  (require :smputil)
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
-;; Tell the interpreter that we're using the MultiProcessing package
-(use-package :mp)
-
-(eval-when (compile load eval) (require :smputil))
+(defun ttest (num)
+  (uct-search (init-game) num 2 t t)
+  )
 
 ;;  GLOBAL CONSTANTS
 
@@ -46,9 +46,6 @@
 (defconstant *check-above* 2)
 (defconstant *check-below* 3)
 
-;; Load Alpha/Beta AI
-(cl "mcts-go")
-(cl "alpha-beta-go")
 
 ;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
 ;; ---------------------------------------------

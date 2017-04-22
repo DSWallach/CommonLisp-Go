@@ -27,7 +27,8 @@
 
 ;;  MC-TREE : HASHY ROOT-KEY
 ;; --------------------------
-(defstruct (mc-tree (:print-function print-mc-tree))
+(defstruct (mc-tree (:print-function print-mc-tree)
+                    (:include synchronizing-structure))
   ;; hash-table:  key = compact repn of state, value = mc-node
   (hashy (make-hash-table :test #'equal))
   root-key
@@ -384,12 +385,11 @@
     ;; Run backup
     (backup (mc-tree-hashy tree) state-move-list z)
 
-    ;; Lock the tree
-    (sharable-lock-lock :exclusive tree-lock)
-    ;; Merge the threads copy back into the main tree
-    (merge-mc-trees! orig-tree tree)
-    ;; Release the lock
-    (sharable-lock-unlock :exclusive tree-lock)))
+    ;; This is a critical section
+    (with-locked-structure (orig-tree)
+                           ;; Merge the threads copy back into the main tree
+                           (merge-mc-trees! orig-tree tree))))
+
 
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
 ;; -------------------------------------------------------
@@ -404,16 +404,16 @@
     (use-threads 
       ;; Create the shared-lock for the game tree
       (let ((tree (new-mc-tree orig-game))
-            (tree-lock (make-sharable-lock :name "Tree-Lock"
-                                           :max-shared num-sims))
+            (name nil)
             )
 
         ;; Enable MP
-        (start-scheduler)
+        ;;(start-scheduler)
 
         (dotimes (i num-sims)
+          (setq name (write-to-string i)) 
           ;; Create a process and start it running with the tree
-          (process-run-function "Tree-Process" #'sim-ops orig-game c tree tree-lock)
+          (mp:process-run-function name #'sim-ops orig-game c tree tree-lock)
 
           )))
     ;; Otherwise perform the operations sequentially
