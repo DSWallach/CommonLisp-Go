@@ -370,12 +370,13 @@
     (sharable-lock-unlock)))
 
 ;; For use by each thread of uct-search
-(defun sim-ops (orig-game c orig-tree tree-lock)
+(defun sim-ops (orig-game c orig-tree times barrier)
   (let ((state-move-list nil)
         (z 0)
         (game nil)
         (tree (deep-copy-mc-tree orig-tree))
         )
+    (dotimes (i times)
     ;; Make a copy of the game state
     (setq game (deep-copy-go orig-game))
     ;; Run sim-tree
@@ -383,12 +384,35 @@
     ;; Run default
     (setq z (sim-default game))
     ;; Run backup
-    (backup (mc-tree-hashy tree) state-move-list z)
+    (backup (mc-tree-hashy tree) state-move-list z))
 
     ;; This is a critical section
     (with-locked-structure (orig-tree)
                            ;; Merge the threads copy back into the main tree
-                           (merge-mc-trees! orig-tree tree))))
+                           (merge-mc-trees! orig-tree tree))
+    ;; Pass through the barrier to signal the thread is done 
+    (mp:barrier-pass-through barrier)
+    ))
+
+
+(defun uct-search-from-thread (orig-game nums-sims c final-barrier)
+  ;; Create the shared-lock for the game tree
+  (let ((tree (new-mc-tree orig-game))
+        (name nil)
+        (barrier (mp:make-barrier (+ *num-cores* 1)))
+        )
+
+    ;; Enable MP
+    ;;(start-scheduler)
+
+    (dotimes (i *num-cores*)
+      (setq name (write-to-string i))
+      ;; Create a process and start it running with the tree
+      (mp:process-run-function name #'sim-ops orig-game c tree (/ num-sims *num-cores*) barrier))
+    ;; Wait for all the threads to finish 
+    (mp:barrier-wait barrier)
+    (mp:barrier-pass-through final-barrier)
+    ))
 
 
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
@@ -402,20 +426,21 @@
   (cond
     ;; Use threaded implementation
     (use-threads 
-      ;; Create the shared-lock for the game tree
+
       (let ((tree (new-mc-tree orig-game))
             (name nil)
+            (barrier (mp:make-barrier (+ *num-cores* 1)))
             )
 
         ;; Enable MP
-        ;;(start-scheduler)
 
-        (dotimes (i num-sims)
-          (setq name (write-to-string i)) 
+        (dotimes (i *num-cores*)
+          (setq name (write-to-string i))
           ;; Create a process and start it running with the tree
-          (mp:process-run-function name #'sim-ops orig-game c tree tree-lock)
-
-          )))
+          (mp:process-run-function name #'sim-ops orig-game c tree (/ num-sims *num-cores*) barrier))
+        ;; Wait until all the threads are finished
+        (mp:barrier-wait barrier)
+        ))
     ;; Otherwise perform the operations sequentially
     (t
       (let ((state-move-list nil)

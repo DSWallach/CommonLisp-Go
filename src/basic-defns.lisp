@@ -12,8 +12,8 @@
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
-(defun ttest (num)
-  (uct-search (init-game) num 2 t t)
+(defun ttest (num threads?)
+  (uct-search (init-game) num 2 nil threads?)
   )
 
 ;;  GLOBAL CONSTANTS
