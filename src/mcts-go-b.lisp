@@ -5,6 +5,15 @@
 ;; ========================================
 
 
+(defun pg22()
+
+  (pg 2 2))
+
+(defun pg33 ()
+  (pg 3 3))
+
+
+
 ;;  MC-NODE struct : KEY WHOSE-TURN NUM-VISITS VECK-MOVES VECK-VISITS VECK-SCORES 
 ;; -------------------
 (defstruct (mc-node (:print-function print-mc-node))
@@ -27,11 +36,11 @@
 
 ;;  MC-TREE : HASHY ROOT-KEY
 ;; --------------------------
-(defstruct (mc-tree (:print-function print-mc-tree)
-                    (:include synchronizing-structure))
+(defstruct (mc-tree (:print-function print-mc-tree))
   ;; hash-table:  key = compact repn of state, value = mc-node
   (hashy (make-hash-table :test #'equal))
   root-key
+  lock 
   )
 
 (defun deep-copy-mc-tree (tree)
@@ -46,13 +55,13 @@
       (maphash #'add-to-tree (mc-tree-hashy tree)))
     newTree))
 
-
 (defun hash-print (key value)
   (format t "Key: ~A, Value: ~A~%" key value))
 
-
 (defun print-mc-tree (tree str depth)
-  (declare (ignore depth) (ignore str))
+  (declare (ignore depth))
+  (format str "Root-Key: ~A~%" (mc-tree-root-key tree))
+  (format str "Lock: ~A~%" (mc-tree-lock tree))
   (maphash #'hash-print (mc-tree-hashy tree)))
 
 ;;  GET-ROOT-NODE : GAME
@@ -67,10 +76,11 @@
 ;;  OUTPUT:  A new MC tree whose root state is derived from GAME.
 (defun new-mc-tree (game)
   (let* ((root-key (make-hash-key-from-game game))
-         (new-tree (make-mc-tree :root-key root-key)))
+         (new-tree (make-mc-tree :root-key root-key
+                                 :lock (bordeaux-threads:make-lock (write-to-string root-key))
+                                 )))
     (insert-new-node game new-tree root-key)
     new-tree))
-
 
 ;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
 ;; -------------------------------------
@@ -374,7 +384,7 @@
   (let ((state-move-list nil)
         (z 0)
         (game nil)
-        (tree (deep-copy-mc-tree orig-tree))
+        (orig-tree (deep-copy-mc-tree orig-tree))
         )
     ;; Make a copy of the game state
     (setq game (deep-copy-go orig-game))
@@ -391,6 +401,10 @@
                            (merge-mc-trees! orig-tree tree))))
 
 
+
+
+
+
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
 ;; -------------------------------------------------------
 ;;  INPUTS:  ORIG-GAME, a game struct
@@ -402,19 +416,51 @@
   (cond
     ;; Use threaded implementation
     (use-threads 
+
       ;; Create the shared-lock for the game tree
-      (let ((tree (new-mc-tree orig-game))
+      (let ((orig-tree (new-mc-tree orig-game))
             (name nil)
             )
+        ;; Function to be run by each thread
+        (labels ((run-simulation 
+                   ()
+           ;;        (bordeaux-threads:thread-yield)
+                   (let ((state-move-list nil)
+                         (z 0)
+                         (game nil)
+                         (tree (deep-copy-mc-tree orig-tree))
+                         )
+                     (dotimes (k 10)
+                       ;; Make a copy of the game state
+                       (setq game (deep-copy-go orig-game))
+                       ;; Run sim-tree
+                       (setq state-move-list (sim-tree game tree c))
+                       ;; Run default
+                       (setq z (sim-default game))
+                       ;; Run backup
+                       (backup (mc-tree-hashy tree) state-move-list z)
+                       )
 
-        ;; Enable MP
-        ;;(start-scheduler)
+                     ;; This is a critical section, so acquire the mc-tree-lock
+                     (bordeaux-threads:acquire-lock (mc-tree-lock orig-tree))
 
-        (dotimes (i num-sims)
-          (setq name (write-to-string i)) 
-          ;; Create a process and start it running with the tree
-          (mp:process-run-function name #'sim-ops orig-game c tree tree-lock)
+                     (format t "Lock Acquired by thread ~A~%" (bordeaux-threads:current-thread))
+                     ;; Merge the thread's modified copy 
+                     ;; of the tree back into the main tree
+                     (merge-mc-trees! orig-tree tree)
+                     ;;(format t "Lock released by thread ~A" (bordeaux-threads:current-thread))
+                     ;; Critical section complete, release the lock
+                     (bordeaux-threads:release-lock (mc-tree-lock orig-tree))))
+                 (generate-threads 
+                   ()
+                   (dotimes (i *num-cores*)
+                     (bordeaux-threads:make-thread #'run-simulation :name (write-to-string i))))
+                 )
 
+          (dotimes (j (/ num-sims *num-cores*))
+            (bordeaux-threads:make-thread #'generate-threads :name "Main Thread")
+            (bordeaux-threads:thread-yield)
+            )
           )))
     ;; Otherwise perform the operations sequentially
     (t
@@ -422,6 +468,7 @@
             (tree (new-mc-tree orig-game))
             (z 0)
             (game nil))
+        (mp:start-scheduler)
         (dotimes (i num-sims)
           ;; Make a copy of the game state
           (setq game (deep-copy-go orig-game))
