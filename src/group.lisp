@@ -7,7 +7,9 @@
 ;;  is added to their score estimate
 (defstruct (group (:print-function print-group)
                   )
-  (alive? nil)
+  (alive? -1) ;; Possible values: 1 = definitely alive
+              ;;                  0 = definitely dead
+              ;;                 -1 = indeterminate at current time
   (pieces ())
   (area (vector 0 0 0 0))
   (liberties 0)
@@ -59,6 +61,141 @@
   (make-group :pieces (list (row-col->pos row col))
               :area (vector row col row col)
               :territory 0))
+
+
+;;  EYE-AT? : BOARD PLAYER POSN
+;; --------------------------
+;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
+;;         -1, if these is space for an eye for PLAYER centered at POSN
+;;         0, if there is neither an eye nor space for an eye
+(defmacro eye-at? (posn board player opponent player-counter oppo-counter)
+  ;; Check the surrounding spaces for eye shape
+  `((case (svref ,board (+ ,posn 1))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (- ,posn 1))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (+ ,posn (- *board-length* 1)))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (- ,posn (- *board-length* 1)))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (+ ,posn *board-length*))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (- ,posn *board-length*))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (+ ,posn (+ *board-length* 1)))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+    (case (svref ,board (- ,posn (+ *board-length* 1)))
+      (,player (+ 1 ,player-counter))
+      (,opponent (+ 1 ,opponent-counter)))
+
+    (cond 
+      ;; If the player has at least 7/8 there's a true eye
+      ((> ,player-counter 6) 1)
+      ;; If the opponent has more than 1 there's no room for
+      ;; an eye
+      ((> ,oppo-counter 1) 0)
+      ;; Otherwise there's room for an eye
+      (t -1))))
+
+;;  TOP-EDGE-EYE-AT? : BOARD PLAYER POSN
+;; --------------------------
+;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
+;;         -1, if these is space for an eye for PLAYER centered at POSN
+;;         0, if there is neither an eye nor space for an eye
+(defmacro eye-at? (posn board player opponent player-counter oppo-counter)
+  ;; Check the surrounding spaces for eye shape
+  `(
+    ;; If an error is thrown we're at the end of the 
+    ;; board which counts as a piece for player
+    (unless (ignore-errors 
+              (case (svref ,board (+ ,posn 1))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (- ,posn 1))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (+ ,posn (- *board-length* 1)))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (- ,posn (- *board-length* 1)))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (+ ,posn *board-length*))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (- ,posn *board-length*))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (+ ,posn (+ *board-length* 1)))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+    (unless (ignore-errors 
+              (case (svref ,board (- ,posn (+ *board-length* 1)))
+                (,player (+ 1 ,player-counter))
+                (,opponent (+ 1 ,opponent-counter)))) 
+      (,player (+ 1 ,player-counter)))
+
+    (cond 
+      ;; If the player has at least 7/8 there's a true eye
+      ((> ,player-counter 6) 1)
+      ;; If the opponent has more than 1 there's no room for
+      ;; an eye
+      ((> ,oppo-counter 1) 0)
+      ;; Otherwise there's room for an eye
+      (t -1))))
+
+;;  GROUP-NUM-EYES : GROUP GAME
+;; ------------------------------
+(defmacro group-num-eyes (group game)
+  `(let* ((area (group-area ,group))
+          (board (gg-board ,game))
+          (player (gg-whose-turn? ,game))
+          (min-row (svref area 0))
+          (min-col (svref area 1))
+          (max-row (svref area 2))
+          (max-col (svref area 3))
+          )
+     
+     ))
+
+
+;;  CALC-LIFE! : GROUP GAME
+;; ------------------------
+(defun calc-life! (group game)
+  ;; For a group to be alive it needs two eyes
+  (when (< 1 (group-num-eyes group game)) 
+    (setf (group-alive? group) 1)
+    (return-from calc-life!))
+
+  ;; For a group to become alive it needs
+  ;; space for two eyes
+  (when (group-has-eyespace? group game)
+    (setf (group-alive? group) -1)
+    (return-from calc-life!))
+
+  ;; Otherwise the group is dead
+  (setf (group-alive? group) 0)
+  )
 
 ;;  CALC-AREA!: GROUP 
 ;; ----------------------------------
@@ -131,7 +268,7 @@
 ;; Calculate the area of the square with 
 ;; dimensions defined by area. Subtract one for the
 ;; space taken up by the piece.
-(defun calc-territory! (group game board player)
+(defun calc-territory! (group game)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let* ((area (group-area group))
          (board (gg-board game))
@@ -156,53 +293,55 @@
         ;; When a wall is reached 
         (when (or (= 0 row) (= (- *board-length* 1) row)) 
           ;; Set the player's flag
-	  (setq player? t))
+          (setq player? t))
 
-	;; Check each column 
-	(dotimes (col *board-length*)
-	  ;; When a wall is reached 
-	  (when (or (=(- *board-length* 1) col) (= 0 col))
-	    ;; Set the player's flag
-	    (setq player? t))
-	  ;; Check each row 
-	  (when (and (<= min-col col) 
-		     (>= max-col col))
-	    ;; Check the board
-	    (case (svref board (row-col->pos row col)) 
-	      ;; If it's player's piece, set flag
-	      ;; If the player's flag is set
-	      (player (when player?  
-			;; Add territory to the total
-			(setq total (+ total territory))
-			;; Reset territory
-			(setq territory 0))
-		      ;; Set player flag
-		      (setq player? t))
+        ;; Check each column 
+        (dotimes (col *board-length*)
+          ;; When a wall is reached 
+          (when (or (=(- *board-length* 1) col) (= 0 col))
+            ;; Set the player's flag
+            (setq player? t))
+          ;; Check each row 
+          (when (and (<= min-col col) 
+                     (>= max-col col))
+            ;; Check the board
+            (case (svref board (row-col->pos row col)) 
+              ;; If it's player's piece, set flag
+              ;; If the player's flag is set
+              (player (when player?  
+                        ;; Add territory to the total
+                        (setq total (+ total territory))
+                        ;; Reset territory
+                        (setq territory 0))
+                      ;; Set player flag
+                      (setq player? t))
 
-	      ;; If it's an opponent's piece, and 
-	      (opponent (cond
-			  ;; If that piece is part of a group 
-			  ;; that's alive remove flag, clear territory
-			  ((group-alive? (find-group (row-col->pos row col)))
-			   (setq player? nil)
-			   (setq territory 0)
-			   )
-			  ;; If the group is dead, treat it as 
-			  ;; territory
-			  (t (when player? (setq territory (+ 1 territory))))))
-	      ;; If the space is open
-	      ;; If the player's flag is set and 
-	      (0 (when player? (setq territory (+ 1 territory)))))))
+              ;; If it's an opponent's piece, and 
+              (opponent (cond
+                          ;; If that piece is part of a group 
+                          ;; that's alive remove flag, clear territory
+                          ((group-alive? (find-group (row-col->pos row col) game))
+                           (setq player? nil)
+                           (setq territory 0)
+                           )
+                          ;; If the group is dead, treat it as 
+                          ;; territory
+                          (t (when player? (setq territory 
+                                                 (+ 1 territory))))))
 
-	;; If the player;s flag is set
-          (when player? 
-            ;; Update total
-            (setq total (+ total territory))
-            ;; Reset territory
-            (setq territory 0))))
+              ;; If the space is open
+              ;; If the player's flag is set and 
+              (0 (when player? (setq territory (+ 1 territory)))))))
 
-      ;; Update the territory
-      (setf (group-territory group) total)))
+        ;; If the player;s flag is set
+        (when player? 
+          ;; Update total
+          (setq total (+ total territory))
+          ;; Reset territory
+          (setq territory 0))))
+
+    ;; Update the territory
+    (setf (group-territory group) total)))
 
 ;;  CALC-LIBERTIES! : GROUP BOARD
 ;; -------------------------
@@ -355,12 +494,19 @@
 ;;  Update a group's liberties and territory
 (defun update-group! (group game)
   ;; Recompure Area
-;;  (calc-area! group)
+  ;; This is done when a new piece is added 
+  ;; as that's the only time it'll change
+  ;;; (calc-area! group)
+
+  ;; Unless the group is already alive
+  (unless (= 1 (group-alive? group))
+    ;; Recompute its life status
+    (calc-life! group game))
   ;; Recompute liberties 
   (calc-liberties! group (gg-board game))
   ;; Recompute Territory
-  (calc-territory! group game)
-  )
+  (calc-territory! group game))
+
 
 ;;  GROUP-REMOVE! : GROUP POS GAME
 ;; -------------------------------
