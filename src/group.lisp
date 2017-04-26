@@ -156,45 +156,45 @@
         ;; When a wall is reached 
         (when (or (= 0 row) (= (- *board-length* 1) row)) 
           ;; Set the player's flag
-          (setq player? t))
+	  (setq player? t))
 
-        ;; Check each column 
-        (dotimes (col *board-length*)
-          ;; When a wall is reached 
-          (when (or (=(- *board-length* 1) col) (= 0 col))
-            ;; Set the player's flag
-            (setq player? t))
-          ;; Check each row 
-          (when (and (<= min-col col) 
-                     (>= max-col col))
-            ;; Check the board
-            (case (svref board (row-col->pos row col)) 
-              ;; If it's player's piece, set flag
-              ;; If the player's flag is set
-              (player (when player?  
-                        ;; Add territory to the total
-                        (setq total (+ total territory))
-                        ;; Reset territory
-                        (setq territory 0))
-                      ;; Set player flag
-                      (setq player? t))
+	;; Check each column 
+	(dotimes (col *board-length*)
+	  ;; When a wall is reached 
+	  (when (or (=(- *board-length* 1) col) (= 0 col))
+	    ;; Set the player's flag
+	    (setq player? t))
+	  ;; Check each row 
+	  (when (and (<= min-col col) 
+		     (>= max-col col))
+	    ;; Check the board
+	    (case (svref board (row-col->pos row col)) 
+	      ;; If it's player's piece, set flag
+	      ;; If the player's flag is set
+	      (player (when player?  
+			;; Add territory to the total
+			(setq total (+ total territory))
+			;; Reset territory
+			(setq territory 0))
+		      ;; Set player flag
+		      (setq player? t))
 
-              ;; If it's an opponent's piece, and 
-              (opponent (cond
-                          ;; If that piece is part of a group 
-                          ;; that's alive remove flag, clear territory
-                          ((group-alive? (find-group (row-col->pos row col)))
-                           (setq player? nil)
-                           (setq territory 0)
-                           )
-                          ;; If the group is dead, treat it as 
-                          ;; territory
-                          (t (when player? (setq territory (+ 1 territory)))))
-                        ;; If the space is open
-                        ;; If the player's flag is set and 
-                        (0 (when player? (setq territory (+ 1 territory)))))))
+	      ;; If it's an opponent's piece, and 
+	      (opponent (cond
+			  ;; If that piece is part of a group 
+			  ;; that's alive remove flag, clear territory
+			  ((group-alive? (find-group (row-col->pos row col)))
+			   (setq player? nil)
+			   (setq territory 0)
+			   )
+			  ;; If the group is dead, treat it as 
+			  ;; territory
+			  (t (when player? (setq territory (+ 1 territory))))))
+	      ;; If the space is open
+	      ;; If the player's flag is set and 
+	      (0 (when player? (setq territory (+ 1 territory)))))))
 
-          ;; If the player;s flag is set
+	;; If the player;s flag is set
           (when player? 
             ;; Update total
             (setq total (+ total territory))
