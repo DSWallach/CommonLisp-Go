@@ -370,49 +370,38 @@
     (sharable-lock-unlock)))
 
 ;; For use by each thread of uct-search
-(defun sim-ops (orig-game c orig-tree times barrier)
-  (let ((state-move-list nil)
-        (z 0)
-        (game nil)
-        (tree (deep-copy-mc-tree orig-tree))
-        )
-    (dotimes (i times)
-    ;; Make a copy of the game state
-    (setq game (deep-copy-go orig-game))
-    ;; Run sim-tree
-    (setq state-move-list (sim-tree game tree c))
-    ;; Run default
-    (setq z (sim-default game))
-    ;; Run backup
-    (backup (mc-tree-hashy tree) state-move-list z))
+(defun sim-ops (orig-game c orig-tree total-sim tree-array id barrier)
+  (let* ((state-move-list nil)
+         (z 0)
+         (game nil)
+         (tree (svref tree-array id)) ; Get the tree created for this thread
+         (times (random total-sim))   ; Add some randomness so the threads aren't all 
+                                      ; trying to update the main tree at once
+         (second-round (- total-sim times))
+         )
+    (dotimes (j 2)
+      (dotimes (i times)
+        ;; Make a copy of the game state
+        (setq game (deep-copy-go orig-game))
+        ;; Run sim-tree
+        (setq state-move-list (sim-tree game tree c))
+        ;; Run default
+        (setq z (sim-default game))
+        ;; Run backup
+        (backup (mc-tree-hashy tree) state-move-list z))
 
-    ;; This is a critical section
-    (with-locked-structure (orig-tree)
-                           ;; Merge the threads copy back into the main tree
-                           (merge-mc-trees! orig-tree tree))
+      ;; This is a critical section
+      (with-locked-structure (orig-tree)
+                             ;; Merge the threads copy back into the main tree
+                             (merge-mc-trees! orig-tree tree))
+
+      ;; This is non-critical as each thread modifies only its own tree
+      (merge-mc-trees! (svref tree-array id) tree)
+      ;; Update the number of simulations to run
+      (setq times second-round)
+      )
     ;; Pass through the barrier to signal the thread is done 
-    (mp:barrier-pass-through barrier)
-    ))
-
-
-(defun uct-search-from-thread (orig-game nums-sims c final-barrier)
-  ;; Create the shared-lock for the game tree
-  (let ((tree (new-mc-tree orig-game))
-        (name nil)
-        (barrier (mp:make-barrier (+ *num-cores* 1)))
-        )
-
-    ;; Enable MP
-    ;;(start-scheduler)
-
-    (dotimes (i *num-cores*)
-      (setq name (write-to-string i))
-      ;; Create a process and start it running with the tree
-      (mp:process-run-function name #'sim-ops orig-game c tree (/ num-sims *num-cores*) barrier))
-    ;; Wait for all the threads to finish 
-    (mp:barrier-wait barrier)
-    (mp:barrier-pass-through final-barrier)
-    ))
+    (mp:barrier-pass-through barrier)))
 
 
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
@@ -427,20 +416,27 @@
     ;; Use threaded implementation
     (use-threads 
 
-      (let ((tree (new-mc-tree orig-game))
-            (name nil)
-            (barrier (mp:make-barrier (+ *num-cores* 1)))
-            )
+      (let* ((tree (new-mc-tree orig-game))
+             (tree-array (make-array *num-cores* :initial-element (deep-copy-mc-tree tree)))
+             (name nil)
+             (barrier (mp:make-barrier (+ *num-cores* 1)))
+             )
 
-        ;; Enable MP
-
+        ;; Spawn the threads
         (dotimes (i *num-cores*)
           (setq name (write-to-string i))
           ;; Create a process and start it running with the tree
-          (mp:process-run-function name #'sim-ops orig-game c tree (/ num-sims *num-cores*) barrier))
+          (mp:process-run-function name #'sim-ops orig-game c tree 
+                                   ;; Add some variance in the number of sims for each thread so they don't complete all once
+                                   (/ num-sims *num-cores*)
+                                   tree-array i barrier))
         ;; Wait until all the threads are finished
         (mp:barrier-wait barrier)
-        ))
+
+        ;; Select the best move
+        (svref (legal-moves orig-game) 
+               (select-move (gethash (make-hash-key-from-game orig-game)
+                                     (mc-tree-hashy tree)) c))))
     ;; Otherwise perform the operations sequentially
     (t
       (let ((state-move-list nil)
@@ -456,15 +452,15 @@
           (setq z (sim-default game))
           ;; Run backup
           (backup (mc-tree-hashy tree) state-move-list z))
-      ;; For testing
-      (when return-tree 
-        (return-from uct-search tree))
+        ;; For testing
+        (when return-tree 
+          (return-from uct-search tree))
 
-      ;; Select the best move
-      (svref (legal-moves orig-game) 
-             (select-move (gethash (make-hash-key-from-game orig-game)
-                                   (mc-tree-hashy tree)) c)))
-        )
+        ;; Select the best move
+        (svref (legal-moves orig-game) 
+               (select-move (gethash (make-hash-key-from-game orig-game)
+                                     (mc-tree-hashy tree)) c)))
+      )
     ))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
@@ -478,15 +474,16 @@
 ;;    for both players according to the specified parameters.
 
 (defun compete
-    (black-num-sims black-c white-num-sims white-c)
+    (black-num-sims black-c white-num-sims white-c 
+                    &optional (black-threads? nil)(white-threads? nil))
   (let ((g (init-game)))
     (while (not (game-over? g))
       (cond
        ((eq (gg-whose-turn? g) *black*)
 	(format t "BLACK'S TURN!~%")
 	(format t "~A~%" 
-		(do-move! g (uct-search g black-num-sims black-c nil t))))
+		(do-move! g (uct-search g black-num-sims black-c nil black-threads?))))
        (t
 	(format t "WHITE'S TURN!~%")
 	(format t "~A~%"
-		(do-move! g (uct-search g white-num-sims white-c))))))))
+		(do-move! g (uct-search g white-num-sims white-c nil white-threads?))))))))

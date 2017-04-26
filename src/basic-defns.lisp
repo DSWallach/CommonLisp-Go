@@ -9,6 +9,7 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
+  (sys:resize-areas :new 4000000000) ;; Allocate extra memory to minize garbage collection
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
@@ -21,8 +22,8 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 13)
-(defconstant *group-dist* 2)
+(defconstant *board-length* 9)
+(defconstant *group-dist* 1)
 (defconstant *num-cores* 16)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
@@ -193,9 +194,9 @@
 ;; Compile and load all files
 (defun make ()
   ;; Load the alexandria system (required by bordeaux-threads
-  (asdf:load-system 'alexandria)
+  ;;(asdf:load-system 'alexandria)
   ;; Load bordeaux-threads
-  (asdf:load-system 'bordeaux-threads)
+  ;;(asdf:load-system 'bordeaux-threads)
   (maker '("basic-defns"
            "go-game"
            "group"

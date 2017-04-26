@@ -126,23 +126,25 @@
     
     ))
 
-;;  CALC-TERRITORY!: GROUP BOARD PLAYER
+;;  CALC-TERRITORY!: GROUP game BOARD PLAYER
 ;; -------------------------------------
 ;; Calculate the area of the square with 
 ;; dimensions defined by area. Subtract one for the
 ;; space taken up by the piece.
-(defun calc-territory! (group board player)
+(defun calc-territory! (group game board player)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let* ((area (group-area group))
-        (min-row (svref area 0))
-        (min-col (svref area 1))
-        (max-row (svref area 2))
-        (max-col (svref area 3))
-        (territory 0)
-        (opponent (- 1 player))
-        (player? nil)
-        (total 0)
-        )
+         (board (gg-board game))
+         (player (gg-whose-turn? game))
+         (min-row (svref area 0))
+         (min-col (svref area 1))
+         (max-row (svref area 2))
+         (max-col (svref area 3))
+         (territory 0)
+         (opponent (- 1 player))
+         (player? nil)
+         (total 0)
+         )
 
     ;; This variable is used as a case
     ;; for the switch (case) block
@@ -163,7 +165,8 @@
             ;; Set the player's flag
             (setq player? t))
           ;; Check each row 
-          (when (and (<= min-col col) (>= max-col col))
+          (when (and (<= min-col col) 
+                     (>= max-col col))
             ;; Check the board
             (case (svref board (row-col->pos row col)) 
               ;; If it's player's piece, set flag
@@ -176,22 +179,30 @@
                       ;; Set player flag
                       (setq player? t))
 
-              ;; If it's an opponent's piece, remove flag, clear territory
-              (opponent (setq player? nil)
-                        (setq territory 0))
-              ;; If the space is open
-              ;; If the player's flag is set and 
-              (0 (when player? (setq territory (+ 1 territory)))))))
+              ;; If it's an opponent's piece, and 
+              (opponent (cond
+                          ;; If that piece is part of a group 
+                          ;; that's alive remove flag, clear territory
+                          ((group-alive? (find-group (row-col->pos row col)))
+                           (setq player? nil)
+                           (setq territory 0)
+                           )
+                          ;; If the group is dead, treat it as 
+                          ;; territory
+                          (t (when player? (setq territory (+ 1 territory)))))
+                        ;; If the space is open
+                        ;; If the player's flag is set and 
+                        (0 (when player? (setq territory (+ 1 territory)))))))
 
-        ;; If the player;s flag is set
-        (when player? 
-          ;; Update total
-          (setq total (+ total territory))
-          ;; Reset territory
-          (setq territory 0))))
+          ;; If the player;s flag is set
+          (when player? 
+            ;; Update total
+            (setq total (+ total territory))
+            ;; Reset territory
+            (setq territory 0))))
 
-    ;; Update the territory
-    (setf (group-territory group) total)))
+      ;; Update the territory
+      (setf (group-territory group) total)))
 
 ;;  CALC-LIBERTIES! : GROUP BOARD
 ;; -------------------------
@@ -348,7 +359,7 @@
   ;; Recompute liberties 
   (calc-liberties! group (gg-board game))
   ;; Recompute Territory
-  (calc-territory! group (gg-board game) (gg-whose-turn? game))
+  (calc-territory! group game)
   )
 
 ;;  GROUP-REMOVE! : GROUP POS GAME
