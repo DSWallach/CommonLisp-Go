@@ -62,140 +62,143 @@
               :area (vector row col row col)
               :territory 0))
 
-
 ;;  EYE-AT? : BOARD PLAYER POSN
 ;; --------------------------
 ;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
 ;;         -1, if these is space for an eye for PLAYER centered at POSN
 ;;         0, if there is neither an eye nor space for an eye
-(defmacro eye-at? (posn board player opponent player-counter oppo-counter)
+(defmacro eye-at? (posn board player opponent player-counter opponent-counter eye-case)
   ;; Check the surrounding spaces for eye shape
-  `((case (svref ,board (+ ,posn 1))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (- ,posn 1))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (+ ,posn (- *board-length* 1)))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (- ,posn (- *board-length* 1)))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (+ ,posn *board-length*))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (- ,posn *board-length*))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (+ ,posn (+ *board-length* 1)))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-    (case (svref ,board (- ,posn (+ *board-length* 1)))
-      (,player (+ 1 ,player-counter))
-      (,opponent (+ 1 ,opponent-counter)))
-
-    (cond 
-      ;; If the player has at least 7/8 there's a true eye
-      ((> ,player-counter 6) 1)
-      ;; If the opponent has more than 1 there's no room for
-      ;; an eye
-      ((> ,oppo-counter 1) 0)
-      ;; Otherwise there's room for an eye
-      (t -1))))
-
-;;  TOP-EDGE-EYE-AT? : BOARD PLAYER POSN
-;; --------------------------
-;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
-;;         -1, if these is space for an eye for PLAYER centered at POSN
-;;         0, if there is neither an eye nor space for an eye
-(defmacro eye-at? (posn board player opponent player-counter oppo-counter)
-  ;; Check the surrounding spaces for eye shape
-  `(
+  `(when t
     ;; If an error is thrown we're at the end of the 
     ;; board which counts as a piece for player
     (unless (ignore-errors 
-              (case (svref ,board (+ ,posn 1))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when (setq ,eye-case (svref ,board (+ ,posn 1)))
+                (case ,eye-case
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (- ,posn 1))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (- ,posn 1)))
+                (case ,eye-case 
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (+ ,posn (- *board-length* 1)))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (+ ,posn (- *board-length* 1))))
+                (case ,eye-case 
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (- ,posn (- *board-length* 1)))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (- ,posn (- *board-length* 1))))
+                (case ,eye-case 
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (+ ,posn *board-length*))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (+ ,posn *board-length*)))
+                (case ,eye-case
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (- ,posn *board-length*))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (- ,posn *board-length*)))
+                (case ,eye-case
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (+ ,posn (+ *board-length* 1)))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (+ ,posn (+ *board-length* 1))))
+                (case ,eye-case 
+                  (,player (incf ,player-counter))
+                  (,opponent (incf ,opponent-counter))))) 
+      (incf ,player-counter))
     (unless (ignore-errors 
-              (case (svref ,board (- ,posn (+ *board-length* 1)))
-                (,player (+ 1 ,player-counter))
-                (,opponent (+ 1 ,opponent-counter)))) 
-      (,player (+ 1 ,player-counter)))
+              (when  (setq ,eye-case (svref ,board (- ,posn (+ *board-length* 1)))))
+              (case ,eye-case
+                (,player (incf ,player-counter))
+                (,opponent (incf ,opponent-counter)))) 
+      (incf ,player-counter))
 
     (cond 
       ;; If the player has at least 7/8 there's a true eye
       ((> ,player-counter 6) 1)
       ;; If the opponent has more than 1 there's no room for
       ;; an eye
-      ((> ,oppo-counter 1) 0)
+      ((> ,opponent-counter 1) 0)
       ;; Otherwise there's room for an eye
       (t -1))))
-
-;;  GROUP-NUM-EYES : GROUP GAME
-;; ------------------------------
-(defmacro group-num-eyes (group game)
-  `(let* ((area (group-area ,group))
-          (board (gg-board ,game))
-          (player (gg-whose-turn? ,game))
-          (min-row (svref area 0))
-          (min-col (svref area 1))
-          (max-row (svref area 2))
-          (max-col (svref area 3))
-          )
-     
-     ))
-
 
 ;;  CALC-LIFE! : GROUP GAME
 ;; ------------------------
 (defun calc-life! (group game)
-  ;; For a group to be alive it needs two eyes
-  (when (< 1 (group-num-eyes group game)) 
-    (setf (group-alive? group) 1)
-    (return-from calc-life!))
+  (let* ((area (group-area group))
+         (board (gg-board game))
+         (player (gg-whose-turn? game))
+         (opponent (- 1 player))
+         (min-row (- (svref area 0) 2))
+         (min-col (- (svref area 1) 2))
+         (max-row (+ (svref area 2) 2))
+         (max-col (+ (svref area 3) 2))
+         (player-counter 0)
+         (opponent-counter 0)
+         (num-eyes 0)
+         (possible-eyes 0)
+         (eye-case 0)
+         (posn 0)
+         )
+    ;; It is used in a case block
+    (declare (ignore opponent))
 
-  ;; For a group to become alive it needs
-  ;; space for two eyes
-  (when (group-has-eyespace? group game)
-    (setf (group-alive? group) -1)
-    (return-from calc-life!))
+    ;; Ensure non of the values go out of bounds
+    (when (< min-row 0)
+      (setq min-row 0))
+    (when (< min-col 0)
+      (setq min-col 0))
 
-  ;; Otherwise the group is dead
-  (setf (group-alive? group) 0)
-  )
+    (when (> max-row *board-length*)
+      (setq max-row *board-length*))
+    (when (> max-col *board-length*)
+      (setq max-col *board-length*))
+
+    ;; Check the area of the group
+    ;; positions on all sides
+    (dotimes (row max-row)
+      (dotimes (col max-col)
+        (when (and (>= row min-row)
+                   (>= col min-col))
+          (setq posn (svref board (row-col->pos row col)))
+          (when (= 0 posn)
+            (setq eye-case
+                  (eye-at? posn
+                           board
+                           player
+                           opponent
+                           player-counter
+                           opponent-counter
+                           eye-case))
+            ;; Reset counters
+            (setq player-counter 0)
+            (setq opponent-counter 0)
+            ;; Record eye status
+            (case eye-case
+              (1 (incf num-eyes))
+              (-1 (incf possible-eyes)))))
+
+        ;; If the group has two true eyes
+        (when (< 1 num-eyes)
+          ;; Set the group to alive
+          (setf (group-alive? group) 1)
+          ;; And return
+          (return-from calc-life!))))
+
+    ;; If there isn't room for two eyes
+    (when (> 1 possible-eyes)
+      ;; The group is dead
+      (setf (group-alive? group) 0))
+    ;; Otherwise the group's life remains uncertain
+    ))
 
 ;;  CALC-AREA!: GROUP 
 ;; ----------------------------------
@@ -269,6 +272,8 @@
 ;; dimensions defined by area. Subtract one for the
 ;; space taken up by the piece.
 (defun calc-territory! (group game)
+  ;; Dead groups have no territory
+  (if (group-alive? group)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let* ((area (group-area group))
          (board (gg-board game))
@@ -342,6 +347,9 @@
 
     ;; Update the territory
     (setf (group-territory group) total)))
+
+  ;; Set to 0
+  (setf (group-territory group) 0))
 
 ;;  CALC-LIBERTIES! : GROUP BOARD
 ;; -------------------------
@@ -502,6 +510,7 @@
   (unless (= 1 (group-alive? group))
     ;; Recompute its life status
     (calc-life! group game))
+
   ;; Recompute liberties 
   (calc-liberties! group (gg-board game))
   ;; Recompute Territory

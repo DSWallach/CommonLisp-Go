@@ -1,0 +1,85 @@
+
+;;         0, if there is neither an eye nor space for an eye
+(defmacro eye-at? (posn board player opponent player-counter opponent-counter eye-case)
+  ;; Check the surrounding spaces for eye shape
+  `(
+    ;; If an error is thrown we're at the end of the 
+    ;; board which counts as a piece for player
+    (unless (ignore-errors 
+              (cond
+                ((= ,player (svref ,board (+ ,posn 1))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (+ ,posn 1))) 
+                 (incf ,opponent-counter))
+                (t nil)))
+      (incf ,player-counter))
+
+    (unless (ignore-errors
+              (cond
+                ((= ,player (svref ,board (- ,posn 1))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (- ,posn 1))) 
+                 (incf ,opponent-counter))
+                (t nil))) 
+      (incf ,player-counter))
+    (unless (ignore-errors 
+              (cond
+                ((= ,player (svref ,board (+ ,posn 8))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (+ ,posn 8))) 
+                 (incf ,opponent-counter))
+                (t nil)))
+      (incf ,player-counter))
+
+    (unless (ignore-errors
+              (cond
+                ((= ,player (svref ,board (- ,posn 8))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (- ,posn 8))) 
+                 (incf ,opponent-counter))
+                (t nil))) 
+      (incf ,player-counter))
+    (unless (ignore-errors 
+              (cond
+                ((= ,player (svref ,board (+ ,posn 9))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (+ ,posn 9))) 
+                 (incf ,opponent-counter))
+                (t nil)))
+      (incf ,player-counter))
+
+    (unless (ignore-errors
+              (cond
+                ((= ,player (svref ,board (- ,posn 9))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (- ,posn 9))) 
+                 (incf ,opponent-counter))
+                (t nil))) 
+      (incf ,player-counter))
+    (unless (ignore-errors 
+              (cond
+                ((= ,player (svref ,board (+ ,posn 10))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (+ ,posn 10))) 
+                 (incf ,opponent-counter))
+                (t nil)))
+      (incf ,player-counter))
+
+    (unless (ignore-errors
+              (cond
+                ((= ,player (svref ,board (- ,posn 10))) 
+                 (incf ,player-counter))
+                ((= ,opponent (svref ,board (- ,posn 10))) 
+                 (incf ,opponent-counter))
+                (t nil))) 
+      (incf ,player-counter))
+
+    (cond 
+      ;; If the player has at least 7/8 there's a true eye
+      ((> ,player-counter 6) 1)
+      ;; If the opponent has more than 1 there's no room for
+      ;; an eye
+      ((> ,opponent-counter 1) 0)
+      ;; Otherwise there's room for an eye
+      (t -1))))
+

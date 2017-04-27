@@ -9,7 +9,7 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
-  (sys:resize-areas :new 4000000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 4000000000 :old 2000) ;; Allocate extra memory to minize garbage collection
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
@@ -165,7 +165,7 @@
                 ((eq (gg-whose-turn? g) *black*)
                  (format t "BLACK'S TURN!~%")
                  (format t "~A~%" 
-                         (do-move! g (uct-search g num-sims c))))
+                         (do-move! g (uct-search g num-sims c return-after use-threads))))
                 (t
                   (format t "WHITE'S TURN!~%")
                   (format t "~A~%"

@@ -54,41 +54,37 @@
         (w-groups (svref (gg-groups game) *white*))
         )
 
-  ; (cond 
-  ;   ((< (length (gg-move-history game)) 5)
-  ;    (setq multiplier 4))
-  ;   ((< (length (gg-move-history game)) 10)
-  ;    (setq multiplier 3))
-  ;   ((< (length (gg-move-history game)) 15)
-  ;    (setq multiplier 2))
-  ;   ((< (length (gg-move-history game)) 20)
-  ;    (setq multiplier 1))
-  ;   (t
-  ;    (setq multiplier 0))
-  ;   )
-
     ;; Calc black's score
     (dolist (group b-groups)
-      ;; Add 1/2 of the liberties and all the territory 
-      ;; to the score
-      (setq b-score (+ b-score 
-                       (group-territory group) 
-                      ;;(* multiplier (group-liberties group))
-                       )))
+      ;; If the group's alive add it's territory 
+      ;; to black's score
+      (if (group-alive? group)
+        (setq b-score (+ b-score 
+                         (group-territory group)))
+        ;; Otherwise add the pieces to white's score
+        (setq w-score (+ w-score 
+                         (length (group-pieces group))))))
+
+    ;; Add black's captures to their score
     (dolist (capd b-captures)
-      (setq b-score (+ b-score (length (group-pieces capd)))))
+      (setq b-score (+ b-score 
+                       (length (group-pieces capd)))))
+
 
     ;; Calc white's score
     (dolist (group w-groups)
-      (setq w-score (+ w-score 
-                       (group-territory group) 
-                     ;; (* multiplier (group-liberties group))
-                       )))
+      (if (group-alive? group)
+        (setq w-score (+ w-score 
+                         (group-territory group) 
+                         ;; (* multiplier (group-liberties group))
+                         ))
+        (setq b-score (+ b-score 
+                         (length (group-pieces group))))))
 
-      (dolist (capd w-captures)
-        (setq w-score (+ w-score (length (group-pieces capd)))))
-      ;; Update the game struct
-      (setf (gg-subtotals game) (vector b-score w-score))))
+    (dolist (capd w-captures)
+      (setq w-score (+ w-score (length (group-pieces capd)))))
+    ;; Update the game struct
+    (setf (gg-subtotals game) (vector b-score w-score))))
 
 ;;  DEEP-COPY-LIST : L(ist) COPY-FUNC
 ;; ------------------------------

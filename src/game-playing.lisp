@@ -561,7 +561,8 @@
            (when (> row 0)
              (dotimes (col (- *board-length* 1))
                (when (and (> col 0) 
-                          (= 0 (svref (gg-board game) (row-col->pos row col))))
+                          (= 0 (svref (gg-board game) 
+                                      (row-col->pos row col))))
                  (push (row-col->pos row col) moves))))))
 
 
@@ -583,9 +584,8 @@
               (check-board? pos board *check-above*)
               (check-board? pos board *check-below*))
         ;; Add the move to legal-moves
-        (unless 
-          (push pos valid-moves)
-          )
+        (push pos valid-moves)
+
         ;; Otherwise check if it would merge with a group
         ;; or capture a group. Making it legal
         (let ((merged (put-piece! game pos))
@@ -593,9 +593,8 @@
               )
           (cond 
             ;; When the move is part of a living group
-            ((< 0 (calc-liberties! (first (svref (gg-groups game)
-                                                (gg-whose-turn? game)))
-                                  (gg-board game)))
+            ((group-alive? (first (svref (gg-groups game)
+                                         (gg-whose-turn? game))))
              ;; Restore the game state
              (setf (gg-whose-turn? game)
                    (- 1 (gg-whose-turn? game)))
@@ -632,35 +631,35 @@
                     (- 1 (gg-whose-turn? game)))
               (pull-piece! game (vector pos 0 merged))
               (setf (gg-whose-turn? game)
-                    (- 1 (gg-whose-turn? game)))
-              )))))
+                    (- 1 (gg-whose-turn? game))))))))
 
-     ;; If necessary...
-     (if (and (gg-ko? game) 
-              (< 3 (length (gg-board-history game))))
-       ;; Check for for infringement of the Ko rule
-       (unless (dolist (move valid-moves)
-           ;; Check that the board is not returning to 
-           ;; the state prior to your opponents last
-           ;; move. (Ko Rule)
+    ;; If necessary...
+    (if (and (gg-ko? game) 
+             (< 3 (length (gg-board-history game))))
+      ;; Check for for infringement of the Ko rule
+      (unless (dolist (move valid-moves)
+                ;; Check that the board is not returning to 
+                ;; the state prior to your opponents last
+                ;; move. (Ko Rule)
 
-           ;; Playing with fire
-           (let ((new-board nil)
-                 (old-board nil))
+                ;; Playing with fire
+                (let ((new-board nil)
+                      (old-board nil))
 
-             ;; Get the old board
-             (setq old-board (first (gg-board-history game)))
+                  ;; Get the old board
+                  (setq old-board (first (gg-board-history game)))
 
-             ;; Mod Game
-             (do-move! game move)
-             ;; Get board
-             (setq new-board (copy-vector (gg-board game)))
-             ;; Unmod game 
-             (undo-move! game)
-             (unless (equal-board? new-board old-board)
-               (push move legal-moves))))
-         ;; Return legal moves
-         (make-array (length legal-moves) :initial-contents legal-moves))
+                  ;; Mod Game
+                  (do-move! game move)
+                  ;; Get board
+                  (setq new-board (copy-vector (gg-board game)))
+                  ;; Unmod game 
+                  (undo-move! game)
+                  (unless (equal-board? new-board old-board)
+                    (push move legal-moves))))
+        ;; Return legal moves
+        (make-array (length legal-moves) :initial-contents legal-moves))
 
-       ;; Otherwise return the valid moves
-       (make-array (length valid-moves) :initial-contents valid-moves))))
+      ;; Otherwise return the valid moves
+      (make-array (length valid-moves) :initial-contents valid-moves)
+      )))
