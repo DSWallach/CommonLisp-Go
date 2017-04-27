@@ -26,8 +26,13 @@
 (defconstant *white* 1)
 (defconstant *board-length* 9)
 (defconstant *group-dist* 1)
+<<<<<<< HEAD
 (defconstant *num-cores* 16)
 (defconstant *mc-rounds* 4)
+=======
+(defconstant *num-cores* 48)
+(defconstant *merge-rounds* 4)
+>>>>>>> e48499828804847ded4dc960ffcf6ec8caf9eddd
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
