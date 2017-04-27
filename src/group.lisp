@@ -178,6 +178,9 @@
                            player-counter
                            opponent-counter
                            eye-case))
+            ;; When there is an eye
+            ;; update the player's eyes
+            (setf (svref (svref (gg-eyes game) player) posn) eye-case)
             ;; Reset counters
             (setq player-counter 0)
             (setq opponent-counter 0)
@@ -359,8 +362,8 @@
 ;;          nil, otherwise
 (defun calc-liberties! (group board)
   ;; If the group is definitely alive
-  (if (group-alive? group)
-    t ; Return T
+  ;;(if (= 1 (group-alive? group))
+   ;; t ; Return T
     ;; Otherwise check it's life
     (let ((libs 0)
           )
@@ -380,7 +383,8 @@
 
       ;; Update the group's liberties
       (setf (group-liberties group) libs)
-      )))
+      ))
+;;)
 
 ;;  CAPTURE-GROUP! : GROUP GAME
 ;; ---------------------------------

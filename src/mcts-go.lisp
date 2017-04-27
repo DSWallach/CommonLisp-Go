@@ -420,16 +420,8 @@
              (tree-array (make-array *num-cores* :initial-element (deep-copy-mc-tree tree)))
              (name nil)
              (barrier (mp:make-barrier (+ *num-cores* 1)))
-             (sims-per-thread (/ num-sims *num-cores*))
+             (sims-per-thread (floor (/ num-sims *num-cores*)))
              )
-        ;; Ensure that each thread is given a natural number for its number
-        ;; of simulations
-        (when (< 0 (mod num-sims *num-cores*))
-          (setq sims-per-thread 
-                ;; Add the difference between num-cores and the remainder
-                (+ (- *num-cores* 
-                      (mod num-sims *num-cores*))
-                   (/ num-sims *num-cores*))))
         ;; Spawn the threads
         (dotimes (i *num-cores*)
           (setq name (write-to-string i))

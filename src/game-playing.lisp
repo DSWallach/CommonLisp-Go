@@ -578,60 +578,66 @@
     ;; Check for suicidal play, not allowed under Chinese or
     ;; Japanese rules so it's not allowed here.
     (dolist (pos moves)
-      ;; If there is a space adjacent to the move, it's not suicidal
-      (if (or (check-board? pos board *check-left*)
-              (check-board? pos board *check-right*)
-              (check-board? pos board *check-above*)
-              (check-board? pos board *check-below*))
-        ;; Add the move to legal-moves
-        (push pos valid-moves)
 
-        ;; Otherwise check if it would merge with a group
-        ;; or capture a group. Making it legal
-        (let ((merged (put-piece! game pos))
-              (hold-libs 0)
-              )
-          (cond 
-            ;; When the move is part of a living group
-            ((group-alive? (first (svref (gg-groups game)
-                                         (gg-whose-turn? game))))
-             ;; Restore the game state
-             (setf (gg-whose-turn? game)
-                   (- 1 (gg-whose-turn? game)))
-             (pull-piece! game (vector pos 0 merged))
-             (setf (gg-whose-turn? game)
-                   (- 1 (gg-whose-turn? game)))
-             ;; It's valid
-             (push pos valid-moves))
-            ;; Otherwise
-            (t 
-              ;; Check if any opponents groups are captured
-              (dolist (group (svref (gg-groups game)
-                                    (- 1 (gg-whose-turn? game))))
-                ;; Store the previous liberties
-                (setq hold-libs (group-liberties group))
-                ;; Calculate new liberties
-                (calc-liberties! group (gg-board game))
-                ;; When a group is captured
-                (when (= 0 (group-liberties group))
-                  ;; The move is valid
-                  (push pos valid-moves)
-                  ;; Reset group's libs 
+      ;; Ensure it's not an eye
+      (when (= 0 (svref (svref (gg-eyes game) 
+                               (gg-whose-turn? game)) 
+                        pos))
+        ;; If there is a space adjacent to the move, it's not suicidal
+        (if (or (check-board? pos board *check-left*)
+                (check-board? pos board *check-right*)
+                (check-board? pos board *check-above*)
+                (check-board? pos board *check-below*))
+          ;; Add the move to legal-moves
+          (push pos valid-moves)
+
+          ;; Otherwise check if it would merge with a group
+          ;; or capture a group. Making it legal
+          (let ((merged (put-piece! game pos))
+                (hold-libs 0)
+                )
+            (cond 
+              ;; When the move is part of a living group
+              ((group-alive? (first (svref (gg-groups game)
+                                           (gg-whose-turn? game))))
+               ;; Restore the game state
+               (setf (gg-whose-turn? game)
+                     (- 1 (gg-whose-turn? game)))
+               (pull-piece! game (vector pos 0 merged))
+               (setf (gg-whose-turn? game)
+                     (- 1 (gg-whose-turn? game)))
+               ;; It's valid
+               (push pos valid-moves))
+              ;; Otherwise
+              (t 
+                ;; Check if any opponents groups are captured
+                (dolist (group (svref (gg-groups game)
+                                      (- 1 (gg-whose-turn? game))))
+                  ;; Store the previous liberties
+                  (setq hold-libs (group-liberties group))
+                  ;; Calculate new liberties
+                  (calc-liberties! group (gg-board game))
+
+                  ;; When a group is captured
+                  (when (= 0 (group-liberties group))
+                    ;; The move is valid
+                    (push pos valid-moves)
+                    ;; Reset group's libs 
+                    (setf (group-liberties group)
+                          hold-libs)
+                    ;; Break out of loop
+                    (return))
+
+                  ;; Reset group's libs
                   (setf (group-liberties group)
-                        hold-libs)
-                  ;; Break out of loop
-                  (return)
-                  )
-                ;; Reset group's libs
-                (setf (group-liberties group)
-                      hold-libs))
+                        hold-libs))
 
-              ;; Reset the game
-              (setf (gg-whose-turn? game)
-                    (- 1 (gg-whose-turn? game)))
-              (pull-piece! game (vector pos 0 merged))
-              (setf (gg-whose-turn? game)
-                    (- 1 (gg-whose-turn? game))))))))
+                ;; Reset the game
+                (setf (gg-whose-turn? game)
+                      (- 1 (gg-whose-turn? game)))
+                (pull-piece! game (vector pos 0 merged))
+                (setf (gg-whose-turn? game)
+                      (- 1 (gg-whose-turn? game)))))))))
 
     ;; If necessary...
     (if (and (gg-ko? game) 

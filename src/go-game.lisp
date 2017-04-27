@@ -26,6 +26,8 @@
   ;; Flag for ko
   (ko? nil)
   (subtotals (vector 0 0))
+  (eyes (vector (make-array *board-size* :initial-element 0)
+                (make-array *board-size* :initial-element 0)))
   ;; List of vectors #(a b c) where
   ;; a == row played at
   ;; b == col played at
@@ -107,6 +109,8 @@
         (w-groups (deep-copy-list (svref (gg-groups game) *white*) 'deep-copy-group))
         (b-subs (svref (gg-subtotals game) *black*))
         (w-subs (svref (gg-subtotals game) *white*))
+        (b-eyes (svref (gg-eyes game) *black*))
+        (w-eyes (svref (gg-eyes game) *white*))
         )
     (make-go-game :board (copy-seq (gg-board game)) 
                   :captures (vector b-caps w-caps)
@@ -116,6 +120,7 @@
                   :komi (gg-komi game)
                   :ko? (gg-ko? game)
                   :subtotals (vector b-subs w-subs)
+                  :eyes (vector b-eyes w-eyes)
                   :board-history (deep-copy-list (gg-board-history game) 'copy-vector)
                   :move-history (deep-copy-list (gg-move-history game) 'copy-seq)
                   )))
@@ -406,8 +411,7 @@
             (setq counter i))
           (return)
           )))
-    t
-))
+    t))
 
 ;;  CHECK-BOARD? : POS BOARD CHECK-WHERE?
 ;; ----------------------------------
@@ -445,7 +449,5 @@
         ;; Check if there is space to below 
         ((= 0 (svref board (+ pos *board-length*))) t)
         ;; Otherwise return nil
-        (t nil)))
-    )
-  )
+        (t nil)))))
 
