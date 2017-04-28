@@ -1,3 +1,5 @@
+(defconstant *num-cores* 16)
+
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
@@ -13,9 +15,12 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
-  (sys:resize-areas :new 3000000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 0) (safety 3) (space 3) (debug 3))))
+  (setf (sys:gsgc-switch :print) nil) 
+  (setf (sys:gc-parameter :helper-threads-requested) 8)
+  (setf (sys:gc-parameter :generation-spread) 25)
+  (declaim (optimize (speed 3) (safety 0) (space 3) (debug 0))))
 
 
 (defun ttest (num threads?)
@@ -29,7 +34,6 @@
 (defconstant *white* 1)
 (defconstant *board-length* 9)
 (defconstant *group-dist* 1)
-(defconstant *num-cores* 16)
 (defconstant *mc-rounds* 4)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
