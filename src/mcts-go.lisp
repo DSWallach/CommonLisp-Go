@@ -474,16 +474,19 @@
 ;;    for both players according to the specified parameters.
 
 (defun compete
-    (black-num-sims black-c white-num-sims white-c 
-                    &optional (black-threads? nil)(white-threads? nil))
+  (black-num-sims black-c white-num-sims white-c 
+                  &optional (black-threads? nil)(white-threads? nil))
   (let ((g (init-game)))
     (while (not (game-over? g))
-      (cond
-       ((eq (gg-whose-turn? g) *black*)
-	(format t "BLACK'S TURN!~%")
-	(format t "~A~%" 
-		(do-move! g (uct-search g black-num-sims black-c nil black-threads?))))
-       (t
-	(format t "WHITE'S TURN!~%")
-	(format t "~A~%"
-		(do-move! g (uct-search g white-num-sims white-c nil white-threads?))))))))
+           (cond
+             ((eq (gg-whose-turn? g) *black*)
+              (format t "BLACK'S TURN!~%")
+              ;;(format t "~A~%" 
+              (print-go 
+                (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) t nil t t nil))
+             (t
+               (format t "WHITE'S TURN!~%")
+               ;;(format t "~A~%"
+               (print-go
+                 (do-move! g (uct-search g white-num-sims white-c nil white-threads?))t nil t t nil))))))
+

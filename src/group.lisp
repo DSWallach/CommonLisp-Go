@@ -369,16 +369,16 @@
           )
       (dolist (p (group-pieces group))
         ;; Calculate the group's liberties
-        (when (check-board? p board *check-left*)
+        (when (= 0 (check-board p board *check-left*))
           (setq libs (+ libs 1)))
 
-        (when (check-board? p board *check-right*)
+        (when (= 0 (check-board p board *check-right*))
           (setq libs (+ libs 1)))
 
-        (when (check-board? p board *check-above*)
+        (when (= 0 (check-board p board *check-above*))
           (setq libs (+ libs 1)))
 
-        (when (check-board? p board *check-below*)
+        (when (= 0 (check-board p board *check-below*))
           (setq libs (+ libs 1))))
 
       ;; Update the group's liberties
@@ -511,9 +511,8 @@
   ;;; (calc-area! group)
 
   ;; Unless the group is already alive
-  (unless (= 1 (group-alive? group))
-    ;; Recompute its life status
-    (calc-life! group game))
+  ;; Recompute its life status
+  (calc-life! group game)
 
   ;; Recompute liberties 
   (calc-liberties! group (gg-board game))
