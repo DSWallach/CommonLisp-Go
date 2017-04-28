@@ -15,12 +15,12 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
-  (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
-  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (setf (sys:gsgc-switch :print) nil) 
-  (setf (sys:gc-parameter :helper-threads-requested) 8)
-  (setf (sys:gc-parameter :generation-spread) 25)
-  (declaim (optimize (speed 3) (safety 0) (space 3) (debug 0))))
+ ;; (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
+ ;; (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+ ;; (setf (sys:gsgc-switch :print) nil) 
+  ;;(setf (sys:gc-parameter :helper-threads-requested) 8)
+  ;;(setf (sys:gc-parameter :generation-spread) 25)
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
 (defun ttest (num threads?)

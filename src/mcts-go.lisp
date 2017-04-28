@@ -624,7 +624,7 @@
          ;; Create a process and start it running with the tree
          (mp:process-run-function name #'sim-ops orig-game c tree 
                                   ;; Add some variance in the number of sims for each thread so they don't complete all once
-                                  sims-per-thread
+                                  (* 2 i sims-per-thread)
                                   tree-array i barrier))
        ;; Wait until all the threads are finished
        (mp:barrier-wait barrier)
