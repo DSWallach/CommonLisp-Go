@@ -9,7 +9,7 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
-  (asdf:load-system 'cl-cuda) ;; Load CUDA library
+;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
   (sys:resize-areas :new 3000000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
@@ -26,13 +26,8 @@
 (defconstant *white* 1)
 (defconstant *board-length* 9)
 (defconstant *group-dist* 1)
-<<<<<<< HEAD
 (defconstant *num-cores* 16)
 (defconstant *mc-rounds* 4)
-=======
-(defconstant *num-cores* 48)
-(defconstant *merge-rounds* 4)
->>>>>>> e48499828804847ded4dc960ffcf6ec8caf9eddd
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
