@@ -34,7 +34,7 @@
 (defconstant *white* 1)
 (defconstant *board-length* 9)
 (defconstant *group-dist* 1)
-(defconstant *mc-rounds* 4)
+(defconstant *mc-rounds* 2)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*
