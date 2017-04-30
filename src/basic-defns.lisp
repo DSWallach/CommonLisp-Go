@@ -19,7 +19,7 @@
 
 
 (defun ttest (num threads?)
-  (uct-search (init-game) num 2 nil threads?)
+  (uct-search (init-game) num 4 nil threads?)
   )
 
 ;;  GLOBAL CONSTANTS
