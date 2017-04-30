@@ -1,26 +1,21 @@
-(defconstant *num-cores* 16)
+(defconstant *num-cores* 48)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
 
-;; Quickload systems
-(defun load-libs() 
-  (ql:quickload "cl-cuda") ;; Load CUDA library
-  (ql:quickload "mgl-mat"))
-
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
- ;; (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
- ;; (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
- ;; (setf (sys:gsgc-switch :print) nil) 
-  ;;(setf (sys:gc-parameter :helper-threads-requested) 8)
-  ;;(setf (sys:gc-parameter :generation-spread) 25)
-  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
+  ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  ;(setf (sys:gsgc-switch :print) nil) 
+  ;(setf (sys:gc-parameter :helper-threads-requested) 8)
+  ;(setf (sys:gc-parameter :generation-spread) 25)
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 3))))
 
 
 (defun ttest (num threads?)
