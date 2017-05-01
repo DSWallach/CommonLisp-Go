@@ -1,4 +1,4 @@
-(defconstant *num-cores* 8)
+(defconstant *num-cores* 2)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -14,7 +14,7 @@
   ;(setf (sys:gsgc-switch :print) nil) 
   ;(setf (sys:gc-parameter :helper-threads-requested) 8)
   ;(setf (sys:gc-parameter :generation-spread) 25)
-  (sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
+  ;(sys:resize-areas :new 3000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
@@ -27,7 +27,7 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 13)
+(defconstant *board-length* 9)
 (defconstant *group-dist* 1)
 (defconstant *mc-rounds* 2)
 (defconstant *board-size* (* *board-length*
