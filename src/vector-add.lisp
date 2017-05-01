@@ -37,7 +37,7 @@
 
 (defun main ()
   (let* ((dev-id 0)
-         (n 1024)
+         (n 4096)
          (threads-per-block 256)
          (blocks-per-grid (/ n threads-per-block)))
     (with-cuda (dev-id)
