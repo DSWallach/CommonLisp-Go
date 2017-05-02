@@ -1,9 +1,10 @@
+(defconstant *num-cores* 48)
+
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
 (ql:quickload "cl-cuda")
-
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
@@ -14,6 +15,7 @@
   (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
   (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
+
 
 
 (defun ttest (num threads?)
@@ -27,8 +29,7 @@
 (defconstant *white* 1)
 (defconstant *board-length* 9)
 (defconstant *group-dist* 1)
-(defconstant *num-cores* 16)
-(defconstant *mc-rounds* 4)
+(defconstant *mc-rounds* 2)
 (defconstant *board-size* (* *board-length*
                              *board-length*))
 (defconstant *board-middle*

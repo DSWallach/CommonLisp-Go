@@ -145,13 +145,27 @@
             (when (find pos (group-pieces group))
               (return-from find-group 
                            (group-territory group)))))
-    '-)))
+        '-)))
+
+;;  FIND-AND-RETURN-GROUP : POS GAME
+;; -------------------------------------
+;;  Used by PRINT-GO to find the group for each piece
+(defun find-and-return-group (pos game)
+  (let ((piece (svref (gg-board game) pos))
+        )
+    (when (< 0 piece)
+      (let* ((player (- piece 1)) 
+             (groups (svref (gg-groups game) player)))
+        (dolist (group groups)
+          (when (find pos (group-pieces group))
+            (return-from find-and-return-group 
+                         group)))))))
 
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
 (defun print-go (game str depth 
-                      &optional (verbose? nil) (groups? nil) (boards? nil))
+                      &optional (verbose? t) (groups? t) (boards? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))
@@ -413,41 +427,37 @@
           )))
     t))
 
-;;  CHECK-BOARD? : POS BOARD CHECK-WHERE?
+;;  CHECK-BOARD : POS BOARD CHECK-WHERE?
 ;; ----------------------------------
-;;  Check if the relevent space on the board is empty
-(defun check-board? (pos board check-where?)
-  (case check-where?
+;;  Check the staus of the relevant place on the
+;;  0 = empty
+;;  1 = *black*
+;;  2 = *white*
+;;  3 = board-edge
+(defmacro check-board (pos board check-where?)
+  `(case ,check-where?
     (0 ;;*check-left* 
       (cond
         ;; Check if it's on the left edge
-        ((= 0 (mod pos *board-length*)) nil)
-        ;; Check if there is space to the left
-        ((= 0 (svref board (- pos 1))) t)
-        ;; Otherwise return nil
-        (t nil)))
+        ((= 0 (mod ,pos *board-length*)) 3)
+        ;; Return the value of the ,position to the left
+        (t  (svref ,board (- ,pos 1)))))
     (1 ;;*check-right*
       (cond
         ;; Check if it's on the right edge
-        ((= (- *board-length* 1) (mod pos *board-length*)) nil)
+        ((= (- *board-length* 1) (mod ,pos *board-length*)) 3)
         ;; Check if there is space to the right
-        ((= 0 (svref board (+ pos 1))) t)
-        ;; Otherwise return nil
-        (t nil)))
+        (t  (svref ,board (+ ,pos 1)))))
     (2 ;;*check-above*
       (cond
         ;; Check if it's on the top edge
-        ((> *board-length* pos) nil)
+        ((> *board-length* ,pos) 3)
         ;; Check if there is space above 
-        ((= 0 (svref board (- pos *board-length*))) t)
-        ;; Otherwise return nil
-        (t nil)))
+        (t  (svref ,board (- ,pos *board-length*)))))
     (3 ;;*check-below*
       (cond
         ;; Check if it's on the bottom edge
-        ((<= (* (- *board-length* 1) *board-length*) pos) nil)
+        ((<= (* (- *board-length* 1) *board-length*) ,pos) 3)
         ;; Check if there is space to below 
-        ((= 0 (svref board (+ pos *board-length*))) t)
-        ;; Otherwise return nil
-        (t nil)))))
+        (t (svref ,board (+ ,pos *board-length*)))))))
 
