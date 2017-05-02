@@ -23,6 +23,13 @@
 (defconstant *num-blocks* 6)
 (defconstant *threads-per-block* 28)
 
+(defconstant *input-layer* 169)
+(defconstant *second-layer* 81)
+(defconstant *third-layer* 25)
+(defconstant *fourth-layer* 81)
+(defconstant *output-layer* 169)
+(defconstant *train-val-one* 1.7159)
+(defconstant *train-val-two* 0.66666667)
 
 ;; Convolutional Layers
 ;; Input:       169 (13 * 13)
@@ -33,10 +40,10 @@
 
 ;; Network definition : Using single precision floats b/c that's what GPUs are best at
 
-(defun random-init (data m n)
-  (dotimes (i m)
-    (dotimes (j n)
-    (setf (memory-block-aref data (* i j)) (random 1.0)))))
+
+(defun random-init (data n)
+ (dotimes (j n)
+  (setf (memory-block-aref data j) (random 1.0))))
 
 (defun verify-result (as bs cs m n)
   (dotimes (i m)
@@ -73,42 +80,82 @@
       (set (aref c i)
            (+ (aref a i) (aref b i))))))
 
-;; Example from cl-cuda github
-(defkernel nn-kernel (void ((a float*) (b float*) (c float*) (m int) (n int)))
-           (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
-                 (j (+ (* block-dim-y block-idx-y) thread-idx-y))
-                 )
-             (if (< i m) 
-               (if (< j n)
-               (set (aref c (* i j)) 
-                    (* (aref a (* i j))
-                       (aref b (* i j))))))))
+;;;; Based on the pseudo code by Jinfeng Liu and Lei Guo
 
-(defun make-matrix (rows cols)
-    (let ((new-mat (make-array `(,rows ,cols) :initial-element (random 1.0)))
-          )
-      new-mat))
+;;  K(KERNEL)-CALC-SECOND-LAYER : Kernel for Calculating the values for layer 2
+;; ------------------------------------------------
+;;  INPUT: gn1, Vector containing neuron values of the input layer
+;;         gw1, Vector containing the connection weights between
+;;              layer 1 and layer 2
+;;         gn-finish, Memory allocated in MAIN for storing layer 2
+;;  OUTPUT: gn-finish, Vector containing the neuron values of layer 2
 
-(defun tester () 
-  (verify-mat-mul (make-matrix 2048 2048) (make-matrix 2048 2048)))
+(defkernel k-calc-layer (void ((gn-start float*) 
+				      (gw-start float*) 
+				      (gn-finish float*) 
+				      (from-layer int) 
+				      (to-layer int)))
+ (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
+       (j (+ (* block-dim-x block-idx-y) thread-idx-y))
+       (bid block-idx-x)
+       (tx thread-idx-x)
+       (ty thread-idx-y)
+       (wt (+ (* thread-idx-y 2 from-layer)
+	    (* thread-idx-x 2)))
+      )
+  (if (< i from-layer)
+   (if (< j to-layer)
+    ;; Apply input vector to connection matrix
+    ;; Set each value in the vector of the second layer nodes 
+    (set (aref gn-finish (+ (* from-layer from-layer bid) (* ty j) tx))
+     ;; Not 100% sure what this does
+     (* 1.7159 
+      ;; Hyperbolic Tangent as the sigmoid function
+      (tanh (* 0.6666667 ; Same 
+	     (* (aref gn-start wt)
+	      (aref gw-start (* bid (+ i to-layer))))))))
+   ))
+))
 
-(defun main ()
-  (let* ((dev-id 0)
-         (m 4096)
-         (n 4096)
-         (threads-per-block 1024)
-         (blocks-per-grid (/ (* m n) threads-per-block)))
-    (with-cuda (dev-id)
-      (with-memory-blocks ((a 'float m n)
-                           (b 'float m n)
-                           (c 'float m n))
-        (random-init a m n)
-        (random-init b m n)
-        (sync-memory-block a :host-to-device)
-        (sync-memory-block b :host-to-device)
-        (nn-kernel a b c m n
-                        :grid-dim (list blocks-per-grid 1 1)
-                        :block-dim (list threads-per-block 1 1))
-        (sync-memory-block c :device-to-host)
-        (verify-result a b c m n)))))
 
+
+;; Run the network using the kernels defined above
+;; -----------------------------------------------
+(defun main()
+ (let* ((dev-id 0)
+	(n 4096)
+	(threads-per-block 256)
+	(blocks-per-grid (/ n threads-per-block)))
+  (with-cuda (dev-id)
+   (with-memory-blocks ((GN1 'float *input-layer*)
+			(GW1 'float (* *input-layer* *second-layer*))
+			(GN2 'float *second-layer*)
+			(GW2 'float (* *second-layer* *third-layer*))
+			(GN3 'float *third-layer*)
+			(GW3 'float (* *third-layer* *fourth-layer*))
+			(GN4 'float *fourth-layer*)
+			(GW4 'float (* *fourth-layer* *output-layer*))
+			(GN5 'float *output-layer*)
+		       )
+    (random-init GN1 *input-layer*)
+    (random-init GW1 (* *input-layer* *second-layer*))
+    ;; Move node layers and connection weights to the GPU
+    (sync-memory-block GN1 :host-to-device)
+    (sync-memory-block GW1 :host-to-device)
+    (sync-memory-block GN2 :host-to-device)
+    (sync-memory-block GW2 :host-to-device)
+    (sync-memory-block GN3 :host-to-device)
+    (sync-memory-block GW3 :host-to-device)
+    (sync-memory-block GN4 :host-to-device)
+    (sync-memory-block GW4 :host-to-device)
+    (sync-memory-block GN5 :host-to-device)
+
+    ;; Run computation
+    (k-calc-layer GN1 GW1 GN2 *input-layer* *second-layer*
+     :grid-dim (list blocks-per-grid 1 1)
+     :block-dim (list threads-per-block 1 1))
+	
+    (sync-memory-block GN2 :device-to-host)
+
+;    (verify-result a b c n)
+))))

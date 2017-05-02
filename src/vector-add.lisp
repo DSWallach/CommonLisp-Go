@@ -8,11 +8,11 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-examples.vector-add
+(defpackage vector-add
   (:use :cl
         :cl-cuda)
   (:export :main))
-(in-package :cl-cuda-examples.vector-add)
+(in-package :vector-add)
 
 (defun random-init (data n)
   (dotimes (i n)
