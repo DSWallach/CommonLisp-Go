@@ -2,6 +2,7 @@
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
+(ql:quickload "cl-cuda")
 
 
 ;; Tell the copiler to speed things up
@@ -10,9 +11,9 @@
   (require :asdf)    ;; Load asdf package manager
   (require :process)
 ;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
-  (sys:resize-areas :new 3000000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
 
 
 (defun ttest (num threads?)
@@ -55,6 +56,7 @@
            "game-playing"
            "alpha-beta-go"
            "mcts-go"
+           "nn-go"
            "testing"
            )))
 
