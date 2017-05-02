@@ -30,7 +30,7 @@
 (defstruct (mc-tree (:print-function print-mc-tree)
                     (:include synchronizing-structure))
   ;; hash-table:  key = compact repn of state, value = mc-node
-  (hashy (cl:make-hash-table :test #'equal)); :weak-keys t))
+  hashy 
   root-key
   )
 
@@ -64,12 +64,16 @@
 ;;  NEW-MC-TREE : GAME
 ;; ------------------------------------------------------------
 ;;  INPUT:   GAME, a game struct
-;;  OUTPUT:  A new MC tree whose root state is derived from GAME.
-(defun new-mc-tree (game)
-  (let* ((root-key (make-hash-key-from-game game))
-         (new-tree (make-mc-tree :root-key root-key)))
-    (insert-new-node game new-tree root-key)
-    new-tree))
+	;;  OUTPUT:  A new MC tree whose root state is derived from GAME.
+	(defun new-mc-tree (game &optional (num-sims 10000))
+	 (let* ((root-key (make-hash-key-from-game game))
+		(new-tree (make-mc-tree :root-key root-key
+			   :hashy (make-hash-table
+				   :test #'equal
+				   :size num-sims)))
+				  ); :weak-keys t)))))
+(insert-new-node game new-tree root-key)
+new-tree))
 
 
 ;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
@@ -78,45 +82,54 @@
 ;;  OUTPUT: NEW-TREE, TREE-ONE destructively modified to include the information 
 ;;                    from TREE-TWO
 (defun merge-mc-trees! (tree-one tree-two)
-  (let ((table-one (mc-tree-hashy tree-one))
-        (table-two (mc-tree-hashy tree-two))
-        (node-holder nil)
-        )
-    ;; Define a function for use by maphash
-    (labels ((merge-into-tree-one 
-               (key value)
-                 (unless (gethash key table-one)
+ ;(format t "Merge~%")
+ ;(time
+	 (let ((table-one (mc-tree-hashy tree-one))
+	       (table-two (mc-tree-hashy tree-two))
+	       (node-holder nil)
+	      )
+	  ;; Define a function for use by maphash
+	  (labels ((merge-into-tree-one 
+		    (key value)
+		    (unless (gethash key table-one)
 
-                    ;; Add the key, value pair from table-two
-                    (setf (gethash key table-one) value))))
+		     ;; Add the key, value pair from table-two
+		     (setf (gethash key table-one) value))))
 
-      ;; Apply the label
-      (maphash #'merge-into-tree-one table-two)
-      ;; Assign tree-one the updated hashtable and return it
-      (setf (mc-tree-hashy tree-one) table-one))))
+	   ;; Apply the label
+	   (maphash #'merge-into-tree-one table-two)
+	   ;; Assign tree-one the updated hashtable and return it
+	   (with-locked-structure (tree-one)
+	    (setf (mc-tree-hashy tree-one) table-one)
+	   ))))
+;)
 
 ;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
 ;; -------------------------------------
 ;;  INPUT: TREE-ONE,TREE-TWO, two montecarlo tree structs with the same root node
 ;;  OUTPUT: NEW-TREE, TREE-ONE destructively modified to exclude the information 
-;;                    from TREE-TWO
+	;;                    from TREE-TWO
 (defun prune-mc-trees! (tree-one tree-two)
-  (let ((table-one (mc-tree-hashy tree-one))
-        (table-two (mc-tree-hashy tree-two))
-        (node-holder nil)
-        )
-    ;; Define a function for use by maphash
-    (labels ((prune-into-tree-one 
-               (key value)
-                 (when (gethash key table-one)
+ ;(format t "Prune~%")
+ ;(time
+	 (let ((table-one (mc-tree-hashy tree-one))
+	       (table-two (mc-tree-hashy tree-two))
+	       (node-holder nil)
+	      )
+	  ;; Define a function for use by maphash
+	  (labels ((prune-into-tree-one 
+		    (key value)
+		    (when (gethash key table-one)
+		     ;; Remove the key, value pair from table-one
+		     (remhash key table-one))))
 
-                    ;; Remove the key, value pair from table-one
-                    (remhash key table-one))))
-
-      ;; Apply the label
-      (maphash #'prune-into-tree-one table-two)
-      ;; Assign tree-one the updated hashtable and return it
-      (setf (mc-tree-hashy tree-one) table-one))))
+	   ;; Apply the label
+	   (maphash #'prune-into-tree-one table-two)
+	   (with-locked-structure (tree-one)
+	    ;; Assign tree-one the updated hashtable and return it
+	    (setf (mc-tree-hashy tree-one) table-one))))
+  )
+;)
 
 ;;  INSERT-NEW-NODE : GAME TREE KEY
 ;; -----------------------------------------
@@ -126,14 +139,18 @@
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
 (defun insert-new-node (game tree key)
- ;; (format t "Insert new node~%")
-  (let* ((moves (legal-moves game))
-        (new-node (make-mc-node :key key
-                                :whose-turn (gg-whose-turn? game)
-                                :veck-moves moves
-                                :veck-visits (make-array (length moves) :initial-element 0)
-                                :veck-scores (make-array (length moves) :initial-element 0))))
-    (setf (gethash key (mc-tree-hashy tree)) new-node)
+  ;; (format t "Insert new node~%")
+  (let ((moves (legal-moves game))
+        (new-node nil))
+    (setq new-node (make-mc-node :key key
+                                 :whose-turn (gg-whose-turn? game)
+                                 :veck-moves moves
+                                 :veck-visits (make-array (length moves) :initial-element 0)
+                                 :veck-scores (make-array (length moves) :initial-element 0)))
+
+
+    (with-locked-structure (tree)
+                           (setf (gethash key (mc-tree-hashy tree)) new-node))
     new-node))
 
 ;;  SELECT-MOVE : NODEY C
@@ -268,7 +285,6 @@
             (append state-move-list (list s_t)))
       ;; If the state doesn't already exist
       (unless (gethash s_t (mc-tree-hashy tree) nil)
-
         (let ((cur-score 0)
               (best-score 0)
               (best-move 0)
@@ -282,7 +298,8 @@
               (setq best-score cur-score)))
           ;; Return the state-move list
           (return-from sim-tree (append state-move-list
-                                        (list best-move)))))
+                                        (list best-move)))       
+          ))
 
       ;; Otherwise the state does already exist so use select-move
       (setq m_t (select-move (gethash (make-hash-key-from-game game)
@@ -290,6 +307,7 @@
 
       ;; Do the move
       (do-move! game (svref moves m_t))
+
       ;; Add it to the move list
       (setq state-move-list
             (append state-move-list (list m_t)))
@@ -297,6 +315,7 @@
       ;; When the game is over break out of the loop
       (when (game-over? game) 
         (return-from sim-tree state-move-list)))
+
     ;; Once the game is over return the state-move list
     state-move-list))
 
@@ -320,10 +339,11 @@
 ;;              recently played out simulation
 ;;  OUTPUT:  doesn't matter
 ;;  SIDE EFFECT:  Updates the relevant nodes in the MC-TREE/HASHY
-(defun backup (hashy key-move-acc result)
+(defun backup (tree key-move-acc result)
   (let ((node-holder nil)
         (key nil)
         (move nil)
+        (hashy (mc-tree-hashy tree))
         )
     ;; Iterate through the list, two elements at a time
     (dotimes (i (/ (length key-move-acc) 2))
@@ -333,15 +353,21 @@
       (setq move (pop key-move-acc))
       ;; Get the matching node
       (setq node-holder (gethash key hashy))
+
       ;; Update N(S_t)
       (setf (mc-node-num-visits node-holder)
             (+ 1 (mc-node-num-visits node-holder)))
+
       ;; Update N(S_t, A_t)
       (setf (svref (mc-node-veck-visits node-holder) move)
             (+ 1 (svref (mc-node-veck-visits node-holder) move)))
       ;; Update Q(S_t, A_t)
       (setf (svref (mc-node-veck-scores node-holder) move)
-            (- result (svref (mc-node-veck-scores node-holder) move))))))
+            (- result (svref (mc-node-veck-scores node-holder) move)))
+
+    ;; Update the tree
+    (with-locked-structure (tree)
+                           (setf (gethash key (mc-tree-hashy tree)) node-holder)))))
 
 
 ;; For use by each thread of uct-search
@@ -383,33 +409,22 @@
 (defun sim-ops-new (orig-game c orig-tree total-sim id barrier)
   (let* ((state-move-list nil)
          (z 0)
-         (game nil)
-         (tree (new-mc-tree orig-game)) ; Get the tree created for this thread
-         (times (random total-sim)); (* (/ total-sim *num-cores*) id)))   ; Add some randomness so the threads aren't all 
-                                      ; trying to update the main tree at once
-         (second-round (- total-sim times))
-         )
-    (dotimes (j 2)
-      (dotimes (i times)
-        ;; Make a copy of the game state
-        (setq game (deep-copy-go orig-game))
-        ;; Run sim-tree
-        (setq state-move-list (sim-tree game tree c))
-        ;; Run default
-        (setq z (sim-default game))
-        ;; Run backup
-        (backup (mc-tree-hashy tree) state-move-list z))
+         (game nil))
 
-      ;; This is a critical section
-      (with-locked-structure (orig-tree)
-                             ;; Merge the threads copy back into the main tree
-                             (merge-mc-trees! orig-tree tree))
+    (dotimes (i total-sim)
+      ;; Make a copy of the game state
+      (setq game (deep-copy-go orig-game))
+      ;; Run sim-tree
+      (setq state-move-list (sim-tree game orig-tree c))
+    ; (append state-move-list (sim-tree game orig-tree c))
+    ; (append state-move-list (sim-tree game orig-tree c))
+    ; (append state-move-list (sim-tree game orig-tree c))
 
-      ;; This is non-critical as each thread modifies only its own tree
-      (merge-mc-trees! tree orig-tree)
-      ;; Update the number of simulations to run
-      (setq times second-round)
-      )
+      ;; Run default
+      (setq z (sim-default game))
+      ;; Run backup
+      (backup orig-tree state-move-list z))
+
     ;; Pass through the barrier to signal the thread is done 
     (mp:barrier-pass-through barrier)))
 
@@ -431,22 +446,19 @@
 
 
 
-
-
 ;; For use by each thread of uct-search
-(defun sim-ops-alt (orig-game c total-sims queue id barrier)
+(defun sim-ops-alt (orig-game c total-sims queue id barrier &optional (start-time nil) (time-limit nil))
   (let* ((state-move-list nil)
          (z 0)
          (game nil)
          (tree (new-mc-tree orig-game)) ; Get the tree created for this thread
          (tree-copy (new-mc-tree orig-game))
          (tree-holder nil)
-
-         (times (random total-sims (+ 1 id)))  ; Add some randomness so the threads aren't all 
+         (times (random total-sims ))  ; Add some randomness so the threads aren't all 
          ; trying to update the main tree at once
          (sims-so-far 0)
          )
-    (dotimes (j *mc-rounds*)
+    (dotimes (j 10000)
       (dotimes (i times)
         ;; Make a copy of the game state
         (setq game (deep-copy-go orig-game))
@@ -457,14 +469,11 @@
         ;; Run backup
         (backup (mc-tree-hashy tree) state-move-list z))
 
-      ;; Update the copy
-      ;(merge-mc-trees! tree-copy tree)
-
       (with-locked-structure (queue)
                              ;; If there aren't any queued trees
-                             (if (> 3 (length (tree-q-q queue)))
+                             (if (> 1 (length (tree-q-q queue)))
                                ;; Add your tree to the queue
-                               (push tree-copy (tree-q-q queue)))
+                               (push tree (tree-q-q queue)))
                              ;; Otherwise get the tree 
                              (setq tree-holder (pop (tree-q-q queue))))
 
@@ -473,13 +482,12 @@
         (merge-mc-trees! tree tree-holder)
 
 	;; Remove the duplicate entries
-	(prune-mc-trees! (tree-q-ref-tree queue) tree)
-        ;; Update the main tree
-        (with-locked-structure (queue)
-                               (merge-mc-trees! (tree-q-ref-tree queue) tree))
+	(prune-mc-trees! tree (tree-q-ref-tree queue))
+	(merge-mc-trees! (tree-q-ref-tree queue) tree)
 
         (setq tree-holder nil)
         )
+
       ;; Update tree from the main tree
       (merge-mc-trees! tree (tree-q-ref-tree queue))
 
@@ -494,74 +502,22 @@
         (setq times (random (- total-sims sims-so-far)))
 
         ;; On the last round do the remaining sims
-        (setq times (- total-sims sims-so-far))))
+	(setq times (- total-sims sims-so-far)))
+
+	;; If time is up, stop
+(when (and start-time time-limit)
+ (when (< (+ start-time time-limit) (get-internal-real-time))
+  (return))))
 
     ;; Pass through the barrier to signal the thread is done 
     (mp:barrier-pass-through barrier)))
+
 
 ;; For use by each thread of uct-search
 (defun sim-ops-alt-new (orig-game c total-sims queue id barrier)
-  (let* ((state-move-list nil)
-         (z 0)
-         (game nil)
-         (tree (new-mc-tree orig-game)) ; Get the tree created for this thread
-         (tree-copy (new-mc-tree orig-game))
-         (tree-holder nil)
-
-         (times (ceiling (/ (random total-sims) (- *mc-rounds* 1))))   ; Add some randomness so the threads aren't all 
-         ; trying to update the main tree at once
-         (sims-so-far 0)
-         )
-    (dotimes (j *mc-rounds*)
-      (dotimes (i times)
-        ;; Make a copy of the game state
-        (setq game (deep-copy-go orig-game))
-        ;; Run sim-tree
-        (setq state-move-list (sim-tree game tree c))
-        ;; Run default
-        (setq z (sim-default game))
-        ;; Run backup
-        (backup (mc-tree-hashy tree) state-move-list z))
-
-      ;; Update the copy
-      (merge-mc-trees! tree-copy tree)
-
-      (with-locked-structure (queue)
-                              ;; Add your tree to the queue
-                             (push tree-copy (tree-q-q queue))
-                             ;; If there are at least two trees on the q
-                             (when (< 1 (length (tree-q-q queue)))
-                               ;; Spawn a thread to merge and update them
-                               (mp:process-run-function (write-to-string (+ *num-cores* id)) #'maintain-tree-q  queue )))
-
-      ;; When the thread popped a tree
-;     (when tree-holder
-;       (merge-mc-trees! tree tree-holder)
-;       ;; Update the main tree
-;       (with-locked-structure (queue)
-;                              (merge-mc-trees! (tree-q-ref-tree queue) tree))
-
-;       (setq tree-holder nil)
-;       )
-      ;; Update tree from the main tree
-      (merge-mc-trees! tree (tree-q-ref-tree queue))
-
-      ;; Update info
-      (incf sims-so-far times)
-
-      ;; Except for the last round
-      (if (and (not (= total-sims sims-so-far)) 
-               (< j (- *mc-rounds* 1)))
-
-        ;; Get times for next round
-        (setq times (random (- total-sims sims-so-far)))
-
-        ;; On the last round do the remaining sims
-        (setq times (- total-sims sims-so-far))))
 
     ;; Pass through the barrier to signal the thread is done 
-    (mp:barrier-pass-through barrier)))
-
+    (mp:barrier-pass-through barrier))
 
 
 
@@ -583,139 +539,142 @@
       (with-locked-structure (queue)
                              (merge-mc-trees! (tree-q-q queue) tree1))))
 
-;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
-;; -------------------------------------------------------
-;;  INPUTS:  ORIG-GAME, a game struct
-;;           NUM-SIMS, a positive integer
-;;           C, the exploration/exploitation parameter
-;;  OUTPUT:  The best move according to monte-carlo tree search.
+	;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
+	;; -------------------------------------------------------
+	;;  INPUTS:  ORIG-GAME, a game struct
+	;;           NUM-SIMS, a positive integer
+	;;           C, the exploration/exploitation parameter
+	;;  OUTPUT:  The best move according to monte-carlo tree search.
 (defun uct-search (orig-game num-sims c &optional 
-                             (return-tree nil) (use-threads nil))
-  (cond
-    ;; Use threaded implementation
-    ((= 1 use-threads )
+			   (return-tree nil) 
+			   (use-threads nil)
+			   (stop-by-time 10000))
+	 (let ((start-time (get-internal-real-time))
+	      )
+	  (cond
+	   ;; Use threaded implementation
+	   ((= 1 use-threads )
 
-     (let* ((tree (new-mc-tree orig-game))
-            (tree-queue (new-tree-q tree))
-            (name nil)
-            ;; Wait for the uct threads and the tree-q maintainers
-            (barrier (mp:make-barrier (+ *num-cores* 1)))
-            (sims-per-thread (ceiling (/ num-sims *num-cores*)))
-            )
-       ;; Spawn the threads
-       (dotimes (i *num-cores*)
-         ;; Create a process and start it running with the tree
-         (mp:process-run-function (write-to-string i) #'sim-ops-new orig-game c tree 
-                                  (+ (random sims-per-thread) sims-per-thread) i barrier))
+	    (let* ((tree (new-mc-tree orig-game))
+		   (tree-queue (new-tree-q tree))
+		   (name nil)
+		   ;; Wait for the uct threads and the tree-q maintainers
+		   (barrier (mp:make-barrier (+ *num-cores* 1)))
+		   (sims-per-thread (ceiling (/ num-sims *num-cores*)))
+		  )
+	     ;; Spawn the threads
+	     (dotimes (i *num-cores*)
+	      ;; Create a process and start it running with the tree
+	      (mp:process-run-function (write-to-string i) #'sim-ops-new orig-game c tree 
+	       (+ (random sims-per-thread) sims-per-thread) i barrier))
 
-       ;; Wait until all the threads are finished
-       (mp:barrier-wait barrier)
-       (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
+	     ;; Wait until all the threads are finished
+	     (mp:barrier-wait barrier)
+	     (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
 
-       ;; Select the best move
-       (svref (legal-moves orig-game) 
-              (select-move (gethash (make-hash-key-from-game orig-game)
-			    (mc-tree-hashy tree))
-                                    (mc-tree-hashy tree) c))))
-    ;; Use threaded implementation
-    ((= 2 use-threads )
-     (let* ((tree (new-mc-tree orig-game))
-            (tree-array (make-array *num-cores* :initial-element (deep-copy-mc-tree tree)))
-            (name nil)
-            (barrier (mp:make-barrier (+ *num-cores* 1)))
-            (sims-per-thread (ceiling (/ num-sims *num-cores*)))
-            )
-       ;; Spawn the threads
-       (dotimes (i *num-cores*)
-         (setq name (write-to-string i))
-         ;; Create a process and start it running with the tree
-         (mp:process-run-function name #'sim-ops orig-game c tree 
-                                  ;; Add some variance in the number of sims for each thread so they don't complete all once
-                                  sims-per-thread
-                                  tree-array i barrier))
-       ;; Wait until all the threads are finished
-       (mp:barrier-wait barrier)
+	     ;; Select the best move
+	     (svref (legal-moves orig-game) 
+                (select-move (gethash (make-hash-key-from-game orig-game)
+                                      (mc-tree-hashy tree))
+                             (mc-tree-hashy tree) c))))
 
-       ;; Select the best move
-       (svref (legal-moves orig-game) 
-              (select-move (gethash (make-hash-key-from-game orig-game)
-                                    (mc-tree-hashy tree)) c))))
+       ;; Use threaded implementation
+       ((= 2 use-threads )
+        (let* ((tree (new-mc-tree orig-game))
+               ;;        (tree-array (make-array *num-cores* :initial-element (deep-copy-mc-tree tree)))
+               (name nil)
+               (barrier (mp:make-barrier (+ *num-cores* 1)))
+               (sims-per-thread (ceiling (/ num-sims *num-cores*)))
+               )
+          ;; Spawn the threads
+          (dotimes (i *num-cores*)
+            (setq name (write-to-string i))
+            ;; Create a process and start it running with the tree
+            (mp:process-run-function name #'sim-ops-new orig-game c tree 
+                                     ;; Add some variance in the number of sims for each thread so they don't complete all once
+                                     sims-per-thread i barrier))
+          ;; Wait until all the threads are finished
+          (mp:barrier-wait barrier)
 
-    ((= 3 use-threads)
+          (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
+          ;; Select the best move
+          (svref (legal-moves orig-game) 
+                 (select-move (gethash (make-hash-key-from-game orig-game)
+                                       (mc-tree-hashy tree)) c))))
 
-     (let* ((tree (new-mc-tree orig-game))
-            (tree-queue (new-tree-q tree))
-            (name nil)
-            ;; Wait for the uct threads and the tree-q maintainers
-            (barrier (mp:make-barrier (+ *num-cores* 1)))
-            (sims-per-thread (ceiling (/ num-sims *num-cores*)))
-            )
-       ;; Spawn the threads
-       (dotimes (i *num-cores*)
-         (setq name (write-to-string i))
-         ;; Create a process and start it running with the tree
-         (mp:process-run-function name #'sim-ops-alt orig-game c 
-                                  sims-per-thread tree-queue i barrier))
+       ((= 3 use-threads)
 
-       ;; Wait until all the threads are finished
-       (mp:barrier-wait barrier)
+        (let* ((tree (new-mc-tree orig-game))
+               (tree-queue (new-tree-q tree))
+               (name nil)
+               (time-limit 50)
+               ;; Wait for the uct threads and the tree-q maintainers
+               (barrier (mp:make-barrier (+ *num-cores* 1)))
+               (sims-per-thread (ceiling (/ num-sims *num-cores*)))
+               )
+          ;; Spawn the threads
+          (dotimes (i *num-cores*)
+            (setq name (write-to-string i))
+            ;; Create a process and start it running with the tree
+   (mp:process-run-function name #'sim-ops-alt orig-game c sims-per-thread tree-queue i barrier time-limit start-time))
 
-       (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy (tree-q-ref-tree tree-queue))))
+  ;; Wait until all the threads are finished
+  (mp:barrier-wait barrier)
 
-       ;; Select the best move
-       (svref (legal-moves orig-game) 
-              (select-move (gethash (make-hash-key-from-game orig-game) 
-                                    (mc-tree-hashy (tree-q-ref-tree tree-queue)) c)))))
+  (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy (tree-q-ref-tree tree-queue))))
 
-    ((= 4 use-threads)
+  ;; Select the best move
+  (svref (legal-moves orig-game) 
+   (select-move (gethash (make-hash-key-from-game orig-game) 
+		 (mc-tree-hashy (tree-q-ref-tree tree-queue)) c)))))
 
-     (let* ((tree (new-mc-tree orig-game))
-            (tree-queue (new-tree-q tree))
-            (name nil)
-            ;; Wait for the uct threads and the tree-q maintainers
-            (barrier (mp:make-barrier (+ *num-cores* 1)))
-            (sims-per-thread (ceiling (/ num-sims *num-cores*)))
-            )
-       ;; Spawn the threads
-       (dotimes (i *num-cores*)
-         (setq name (write-to-string i))
-         ;; Create a process and start it running with the tree
-         (mp:process-run-function name #'sim-ops-alt-new orig-game c 
-                                  sims-per-thread tree-queue i barrier))
+((= 4 use-threads)
 
-       ;; Wait until all the threads are finished
-       (mp:barrier-wait barrier)
+ (let* ((tree (new-mc-tree orig-game))
+	(tree-queue (new-tree-q tree))
+	(name nil)
+	;; Wait for the uct threads and the tree-q maintainers
+	(barrier (mp:make-barrier (+ *num-cores* 1)))
+	(sims-per-thread (ceiling (/ num-sims *num-cores*)))
+       )
+  ;; Spawn the threads
+  (dotimes (i *num-cores*)
+   (setq name (write-to-string i))
+   ;; Create a process and start it running with the tree
+   (mp:process-run-function name #'sim-ops-alt-new orig-game c 
+    sims-per-thread tree-queue i barrier))
 
-       ;; Select the best move
-       (svref (legal-moves orig-game) 
-              (select-move (gethash (make-hash-key-from-game orig-game)
-                                    (mc-tree-hashy tree)) c))))
-;; Otherwise perform the operations sequentially
-    (t
-      (let ((state-move-list nil)
-            (tree (new-mc-tree orig-game))
-            (z 0)
-            (game nil))
-        (dotimes (i num-sims)
-          ;; Make a copy of the game state
-          (setq game (deep-copy-go orig-game))
-          ;; Run sim-tree
-          (setq state-move-list (sim-tree game tree c))
-          ;; Run default
-          (setq z (sim-default game))
-          ;; Run backup
-          (backup (mc-tree-hashy tree) state-move-list z))
-        ;; For testing
-        (when return-tree 
-          (return-from uct-search tree))
+  ;; Wait until all the threads are finished
+  (mp:barrier-wait barrier)
 
-       (format t "Number of nodes ~A~%" (mc-tree-hashy tree))
-        ;; Select the best move
-        (svref (legal-moves orig-game) 
-               (select-move (gethash (make-hash-key-from-game orig-game)
-                                     (mc-tree-hashy tree)) c)))
-      )
-    ))
+  ;; Select the best move
+  (svref (legal-moves orig-game) 
+   (select-move (gethash (make-hash-key-from-game orig-game)
+		 (mc-tree-hashy tree)) c))))
+	;; Otherwise perform the operations sequentially
+	(t
+	 (let ((state-move-list nil)
+	       (tree (new-mc-tree orig-game))
+	       (z 0)
+	       (game nil))
+	  (dotimes (i num-sims)
+	   ;; Make a copy of the game state
+	   (setq game (deep-copy-go orig-game))
+	   ;; Run sim-tree
+	   (setq state-move-list (sim-tree game tree c))
+	   ;; Run default
+	   (setq z (sim-default game))
+	   ;; Run backup
+	   (backup tree state-move-list z))
+	  ;; For testing
+	  (when return-tree 
+	   (return-from uct-search tree))
+
+	  (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
+	  ;; Select the best move
+	  (svref (legal-moves orig-game) 
+	   (select-move (gethash (make-hash-key-from-game orig-game)
+			 (mc-tree-hashy tree)) c)))))))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------

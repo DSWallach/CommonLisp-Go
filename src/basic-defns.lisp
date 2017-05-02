@@ -1,4 +1,4 @@
-(defconstant *num-cores* 48)
+(defconstant *num-cores* 2)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -11,6 +11,7 @@
  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
+
 ;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
   (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
@@ -19,7 +20,7 @@
 
 
 (defun ttest (num threads?)
-  (uct-search (init-game) num 2 nil threads?)
+  (uct-search (init-game) num 4 nil threads?)
   )
 
 ;;  GLOBAL CONSTANTS
