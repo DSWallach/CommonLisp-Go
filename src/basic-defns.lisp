@@ -8,7 +8,7 @@
 
 
 ;; Make ACache accessible
-(defpackage :user (:use :db.allegrocache))
+;(defpackage :user (:use :db.allegrocache))
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
