@@ -6,9 +6,14 @@
 (setq compiler:tail-call-non-self-merge-switch t) 
 (ql:quickload "cl-cuda")
 
+
+;; Make ACache accessible
+(defpackage :user (:use :db.allegrocache))
+
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
- (require :smputil) ;; Load Allegro mutlithreading
+  ;; Require AllegroCache for storing networks
+  (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
 

@@ -7,13 +7,16 @@
 
 (defpackage nn-go
   (:use :cl
-        :cl-cuda)
+        :cl-cuda
+        :db.allegrocache
+        )
   (:export :verify-mat-mul)
   (:export nn-kernel)
   (:export vec-add-kernel)
   (:export :main)
   (:export :main-add)
   (:export :tester)
+  (:export :make)
   (:export mat1)
   (:export mat2))
 
@@ -29,8 +32,63 @@
 (defconstant *third-layer* 25)
 (defconstant *fourth-layer* 81)
 (defconstant *output-layer* 169)
+(defconstant *1-2-edges* (* *input-layer* *second-layer*))
+(defconstant *2-3-edges* (* *second-layer* *third-layer*))
+(defconstant *3-4-edges* (* *third-layer* *fourth-layer*))
+(defconstant *4-5-edges* (* *fourth-layer* *output-layer*))
 (defconstant *train-val-one* 1.7159)
 (defconstant *train-val-two* 0.66666667)
+
+(require :acache "acache-3.0.9.fasl")
+;; Open the file containing the most recent network
+(db.allegrocache:open-file-database "/home/david/GitHub/CommonLisp-Go/networks/go-network"
+                                    :if-does-not-exist :create
+                                    :if-exists :supersede
+                                    )
+
+
+
+;; Class for storing a network in AllegroCache
+(defclass neural-net ()
+  ((id :initarg :id :reader id :index :any-unique)
+  (gw1 :initarg :gw1 :reader gw1) ; Input to Second connections
+  (gw2 :initarg :gw2 :reader gw2) ; Second to Third connections
+  (gw3 :initarg :gw3 :reader gw3) ; Third to Fourth connections
+  (gw4 :initarg :gw4 :reader gw4)  ; Fourth to Output connections
+; (gn1) ; Input Layer
+; (gn2) ; Second Layer
+; (gn3) ; Third Layer
+; (gn4) ; Fourth Layer
+; (gn5) ; Output Layer
+   )
+  (:metaclass persistent-class))
+
+(defun make ()
+  (compile-file "nn-go")
+  (load "nn-go")
+  )
+
+
+(defun random-array (size)
+  (let ((new-array (make-array size))
+        )
+    (dotimes (i size)
+      (setf (aref new-array i) (random 1.0)))))
+
+;; Returns a randomly generated network
+(defun new-random-net (id)
+  (make-instance 'neural-net :id id
+                 :gw1 (random-array *1-2-edges*)
+                 :gw2 (random-array *2-3-edges*)
+                 :gw3 (random-array *3-4-edges*)
+                 :gw4 (random-array *4-5-edges*)
+                 ))
+
+
+;; Networks are accessed through prolog (it all comes back around!)
+;;
+;; (commit) writes the local changes to the file stored on disk
+;; (rollback) clears all changes since the last commit
 
 ;; Convolutional Layers
 ;; Input:       169 (13 * 13)
@@ -40,7 +98,6 @@
 ;; Output:      169 ; One output per board position
 
 ;; Network definition : Using single precision floats b/c that's what GPUs are best at
-
 
 (defun random-init (data n)
  (dotimes (j n)
