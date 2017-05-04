@@ -27,8 +27,8 @@
 (defconstant *threads-per-block* 28)
 (defconstant *learning-rate* 0.25)
 (defconstant *input-layer* 169)
-(defconstant *second-layer* 81)
-(defconstant *third-layer* 25)
+(defconstant *second-layer* 81) ; 9 * 9
+(defconstant *third-layer* 49)  ; 7 * 7
 (defconstant *fourth-layer* 81)
 (defconstant *output-layer* 169)
 (defconstant *1-2-edges* (* *input-layer* *second-layer*))
@@ -40,10 +40,10 @@
 
 (require :acache "acache-3.0.9.fasl")
 ;; Open the file containing the most recent network
-(db.allegrocache:open-file-database "../go-network"
-                                    :if-does-not-exist :create
-                                    :if-exists :supersede
-                                    )
+;(db.allegrocache:open-file-database "../go-nets"
+; :if-does-not-exist :create
+; :if-exists :supersede
+; )
 
 ;; Class for storing a network in AllegroCache
 (defclass neural-net ()
@@ -208,17 +208,17 @@
                                :grid-dim (list blocks-per-grid 1 1)
                                :block-dim (list threads-per-block 1 1))
                  ;; Calculate second layer
-                 (k-calc-layer GN2 GW2 GN3 *second-layer* *third-layer*
-                               :grid-dim (list blocks-per-grid 1 1)
-                               :block-dim (list threads-per-block 1 1))
-                 ;; Calculate third layer
-                 (k-calc-layer GN3 GW3 GN4 *third-layer* *fourth-layer*
-                               :grid-dim (list blocks-per-grid 1 1)
-                               :block-dim (list threads-per-block 1 1))
-                 ;; Calculate fourth layer
-                 (k-calc-layer GN4 GW4 GN5 *fourth-layer* *output-layer*
-                               :grid-dim (list blocks-per-grid 1 1)
-                               :block-dim (list threads-per-block 1 1))
+  ;              (k-calc-layer GN2 GW2 GN3 *second-layer* *third-layer*
+  ;                            :grid-dim (list blocks-per-grid 1 1)
+  ;                            :block-dim (list threads-per-block 1 1))
+  ;              ;; Calculate third layer
+  ;              (k-calc-layer GN3 GW3 GN4 *third-layer* *fourth-layer*
+  ;                            :grid-dim (list blocks-per-grid 1 1)
+  ;                            :block-dim (list threads-per-block 1 1))
+  ;              ;; Calculate fourth layer
+  ;              (k-calc-layer GN4 GW4 GN5 *fourth-layer* *output-layer*
+  ;                            :grid-dim (list blocks-per-grid 1 1)
+  ;                            :block-dim (list threads-per-block 1 1))
 
                  ;; THe outputs will be here
                  (sync-memory-block GN5 :device-to-host)
@@ -230,7 +230,7 @@
 ;; -----------------------------------------------
 ;; INPUTS : Network, an instance of the neural-net class
 ;;          Input, the input to the first layer of the neural network 
-(defun main (network input)
+(defun main (network)
   (let* ((dev-id 0)
          (n 4096)
          (threads-per-block 256)
@@ -248,7 +248,7 @@
                   (GW4 'float (slot-value network 'gw4))
                   )
                  (random-init GN1 *input-layer*)
-                 (random-init GW1 (* *input-layer* *second-layer*))
+                ; (random-init GW1 (* *input-layer* *second-layer*))
                  ;; Move node layers and connection weights to the GPU
                  (sync-memory-block GN1 :host-to-device)
                  (sync-memory-block GW1 :host-to-device)
