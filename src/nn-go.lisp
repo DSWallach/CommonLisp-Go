@@ -1,5 +1,4 @@
 ;; Convolutional Neural Network for 13x13 go.
-
 (ql:quickload "cl-cuda")
 
 ;; Package Definition
@@ -170,60 +169,22 @@
                  ))
              ))
 
+(defkernel k-calc-error (void ((gn-output float*)
+                               (desired-output float*)
+                               (layer-error float*)
+                               ))
+          (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
+                )
+            (set (aref layer-error i)
+                 ;; Tanh for the sigmoid function
+                 (tanh ())
+                 )
+            ))
 
 
-(defun train (network input desired-output)
-  (let* ((dev-id 0)
-         (n 4096)
-         (threads-per-block 256)
-         (blocks-per-grid (/ n treads-per-block)))
-    ;; Make the kernel calls
-    (with-cuda (dev-id)
-               (with-memory-blocks 
-                 ((GN1 'float *input-layer*)
-                  (GN2 'float *second-layer*)
-                  (GN3 'float *third-layer*)
-                  (GN4 'float *fourth-layer*)
-                  (GN5 'float *output-layer*)
-                  (GW1 'float (slot-value network 'gw1))
-                  (GW2 'float (slot-value network 'gw2))
-                  (GW3 'float (slot-value network 'gw3))
-                  (GW4 'float (slot-value network 'gw4))
-                  )
-                 (random-init GN1 *input-layer*)
-                 (random-init GW1 (* *input-layer* *second-layer*))
-                 ;; Move node layers and connection weights to the GPU
-                 (sync-memory-block GN1 :host-to-device)
-                 (sync-memory-block GW1 :host-to-device)
-                 (sync-memory-block GN2 :host-to-device)
-                 (sync-memory-block GW2 :host-to-device)
-                 (sync-memory-block GN3 :host-to-device)
-                 (sync-memory-block GW3 :host-to-device)
-                 (sync-memory-block GN4 :host-to-device)
-                 (sync-memory-block GW4 :host-to-device)
-                 (sync-memory-block GN5 :host-to-device)
 
-                 ;; Claculate first layer
-                 (k-calc-layer GN1 GW1 GN2 *input-layer* *second-layer*
-                               :grid-dim (list blocks-per-grid 1 1)
-                               :block-dim (list threads-per-block 1 1))
-                 ;; Calculate second layer
-  ;              (k-calc-layer GN2 GW2 GN3 *second-layer* *third-layer*
-  ;                            :grid-dim (list blocks-per-grid 1 1)
-  ;                            :block-dim (list threads-per-block 1 1))
-  ;              ;; Calculate third layer
-  ;              (k-calc-layer GN3 GW3 GN4 *third-layer* *fourth-layer*
-  ;                            :grid-dim (list blocks-per-grid 1 1)
-  ;                            :block-dim (list threads-per-block 1 1))
-  ;              ;; Calculate fourth layer
-  ;              (k-calc-layer GN4 GW4 GN5 *fourth-layer* *output-layer*
-  ;                            :grid-dim (list blocks-per-grid 1 1)
-  ;                            :block-dim (list threads-per-block 1 1))
 
-                 ;; THe outputs will be here
-                 (sync-memory-block GN5 :device-to-host)
-                 ;    (verify-result a b c n)
-                 ))))
+
 
 ;; Transfer connect information from a lisp array
 ;; to a CUDA memory block
@@ -290,6 +251,9 @@
                  (k-calc-layer GN4 GW4 GN5 *fourth-layer* *output-layer*
                                :grid-dim (list blocks-per-grid 1 1)
                                :block-dim (list threads-per-block 1 1))
+
+                 (k-calc-output)
+
 
                  ;; THe outputs will be here
                  (sync-memory-block GN5 :device-to-host)))))
