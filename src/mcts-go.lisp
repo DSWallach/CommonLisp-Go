@@ -103,7 +103,6 @@
       (with-locked-structure (tree-one)
                              (setf (mc-tree-hashy tree-one) table-one)
                              ))))
-)
 
 ;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
 ;; -------------------------------------
@@ -153,7 +152,7 @@
 
         (setq node-holder (gethash key (mc-tree-hashy tree)))
         ;; Update N(S_t)
-        ((setf (mc-node-num-visits node-holder)
+        (setf (mc-node-num-visits node-holder)
                (+ (mc-node-num-visits node-holder)
                   (mc-node-num-visits new-node)))
 
@@ -171,7 +170,7 @@
 
       ;; Insert the node
       (setf (gethash key (mc-tree-hashy tree)) new-node))
-    new-node))
+    new-node)
 
 ;;  SELECT-MOVE : NODEY C
 ;; ------------------------------------------

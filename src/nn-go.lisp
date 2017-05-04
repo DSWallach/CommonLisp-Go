@@ -40,10 +40,10 @@
 
 (require :acache "acache-3.0.9.fasl")
 ;; Open the file containing the most recent network
-;(db.allegrocache:open-file-database "../go-nets"
-; :if-does-not-exist :create
-; :if-exists :supersede
-; )
+(db.allegrocache:open-file-database "../go-nets"
+ :if-does-not-exist :create
+ :if-exists :supersede
+ )
 
 ;; Class for storing a network in AllegroCache
 (defclass neural-net ()
@@ -187,7 +187,7 @@
                   (GN5 'float *output-layer*)
                   (GW1 'float (slot-value network 'gw1))
                   (GW2 'float (slot-value network 'gw2))
-                  (GW3 'float (slot-value nerwork 'gw3))
+                  (GW3 'float (slot-value network 'gw3))
                   (GW4 'float (slot-value network 'gw4))
                   )
                  (random-init GN1 *input-layer*)
@@ -225,6 +225,12 @@
                  ;    (verify-result a b c n)
                  ))))
 
+;; Transfer connect information from a lisp array
+;; to a CUDA memory block
+(defmacro array-to-mem-block (arr mem-block)
+  `(dotimes (i (length ,arr))
+     (setf (memory-block-aref ,mem-block i)
+           (aref ,arr i))))
 
 ;; Run the network using the kernels defined above
 ;; -----------------------------------------------
@@ -242,13 +248,21 @@
                   (GN3 'float *third-layer*)
                   (GN4 'float *fourth-layer*)
                   (GN5 'float *output-layer*)
-                  (GW1 'float (slot-value network 'gw1))
-                  (GW2 'float (slot-value network 'gw2))
-                  (GW3 'float (slot-value nerwork 'gw3))
-                  (GW4 'float (slot-value network 'gw4))
+                  (GW1 'float *1-2-edges*)
+                  (GW2 'float *2-3-edges*)
+                  (GW3 'float *3-4-edges*) 
+                  (GW4 'float *4-5-edges*)
                   )
+
+                 ;; Transfer connection weights from network object to memory blocks
+                 (array-to-mem-block (slot-value network 'gw1) GW1)
+                 (array-to-mem-block (slot-value network 'gw2) GW2)
+                 (array-to-mem-block (slot-value network 'gw3) GW3)
+                 (array-to-mem-block (slot-value network 'gw4) GW4)
+
+                 ;; For now randomly initialize inputs
                  (random-init GN1 *input-layer*)
-                ; (random-init GW1 (* *input-layer* *second-layer*))
+
                  ;; Move node layers and connection weights to the GPU
                  (sync-memory-block GN1 :host-to-device)
                  (sync-memory-block GW1 :host-to-device)
@@ -278,6 +292,4 @@
                                :block-dim (list threads-per-block 1 1))
 
                  ;; THe outputs will be here
-                 (sync-memory-block GN5 :device-to-host)
-                 ;    (verify-result a b c n)
-                 ))))
+                 (sync-memory-block GN5 :device-to-host)))))
