@@ -145,32 +145,33 @@
                      :veck-moves moves
                      :veck-visits (make-array (length moves) :initial-element 0)
                      :veck-scores (make-array (length moves) :initial-element 0)))
-    (if (gethash key (mc-tree-hashy tree))
-      ;; If the node has been created by another thread
-      (with-locked-structure
-        ((gethash key (mc-tree-hashy tree)))
+   ;(if (gethash key (mc-tree-hashy tree))
+   ;  ;; If the node has been created by another thread
+   ;  (with-locked-structure
+   ;    ((gethash key (mc-tree-hashy tree)))
 
-        (setq node-holder (gethash key (mc-tree-hashy tree)))
-        ;; Update N(S_t)
-        (setf (mc-node-num-visits node-holder)
-               (+ (mc-node-num-visits node-holder)
-                  (mc-node-num-visits new-node)))
+   ;    (setq node-holder (gethash key (mc-tree-hashy tree)))
+   ;    ;; Update N(S_t)
+   ;    (setf (mc-node-num-visits node-holder)
+   ;           (+ (mc-node-num-visits node-holder)
+   ;              (mc-node-num-visits new-node)))
 
-         ;; Update N(S_t, A_t)
-         (setf (svref (mc-node-veck-visits node-holder) move)
-               (+ 1 (svref (mc-node-veck-visits node-holder) move)))
+   ;     ;; Update N(S_t, A_t)
+   ;     (setf (svref (mc-node-veck-visits node-holder) move)
+   ;           (+ 1 (svref (mc-node-veck-visits node-holder) move)))
 
-         ;; Update Q(S_t, A_t)
-         (setf (svref (mc-node-veck-scores node-holder) move)
-               (- result (svref (mc-node-veck-scores node-holder) move)))
+   ;     ;; Update Q(S_t, A_t)
+   ;     (setf (svref (mc-node-veck-scores node-holder) move)
+   ;           (- result (svref (mc-node-veck-scores node-holder) move)))
 
-         ;; Update the tree
-         (setf (gethash key (mc-tree-hashy tree))
-               node-holder)))
+   ;     ;; Update the tree
+   ;     (setf (gethash key (mc-tree-hashy tree))
+   ;           node-holder)))
 
       ;; Insert the node
-      (setf (gethash key (mc-tree-hashy tree)) new-node))
-    new-node)
+      (setf (gethash key (mc-tree-hashy tree)) new-node)
+
+    new-node))
 
 ;;  SELECT-MOVE : NODEY C
 ;; ------------------------------------------
@@ -189,90 +190,50 @@
         (max-so-far 0)
         (best-move-so-far 0)
         (new_q 0)
+        (ifblack 1)
         )
-    (cond
-      ;; Use threaded implementation of move selection
-      (use-threads
-        ;; Compare all the potential moves
-        (dotimes (i (length scores))
-          ;; If there isn't gonan be problems dividing by 0
-          (if (and (< 0 node-visits)
-                   (< 0 (svref visits i)))
-            ;; Calculate the monte-carlo value
-            (setq new_q (* c  (sqrt (/ (log node-visits)
-                                       (/ (svref visits i)
-                                          node-visits)))))
-            (setq new_q 0))
-          ;; Set the value, adding or subtracting depending on the player
-          (cond
-            ;; If it's black the best score is the highest
-            ((= player *black*)
-             (setf (svref scores i)
-                   (+ (svref scores i)
-                      new_q))
-             (when (< max-so-far (svref scores i))
-               (setq max-so-far (svref scores i))
-               (setq best-move-so-far i)))
+    ;; Make the score negative for black
+    (when (= player *black*)
+      (setq ifblack -1))
+    ;; Compare all the potential moves
+    (dotimes (i (length scores))
+      ;; If there isn't gonan be problems dividing by 0
+      (if (and (< 0 node-visits)
+               (< 0 (svref visits i)))
+        ;; Calculate the monte-carlo value
+        (setq new_q (* ifblack (* c  (sqrt (/ (log node-visits)
+                                              (/ (svref visits i)
+                                                 node-visits))))))
+        (setq new_q 0))
+      ;; Set the value, adding or subtracting depending on the player
+      (cond
+        ;; If it's black the best score is the highest
+        ((= player *black*)
+         (setf (svref scores i)
+               (+ (svref scores i)
+                  new_q))
+         (when (< max-so-far (svref scores i))
+           (setq max-so-far (svref scores i))
+           (setq best-move-so-far i)))
 
-            (t ; If it's white the best score is the lowest
-              (setf (svref scores i)
-                    (- (svref scores i)
-                       new_q))
-              (when (> max-so-far (svref scores i))
-                (setq max-so-far (svref scores i))
-                (setq best-move-so-far i)))))
+        (t ; If it's white the best score is the lowest
+          (setf (svref scores i)
+                (- (svref scores i)
+                   new_q))
+          (when (> max-so-far (svref scores i))
+            (setq max-so-far (svref scores i))
+            (setq best-move-so-far i))))
 
-        ;; Update the scores in the node
-        (setf (mc-node-veck-scores nodey) scores)
-        ;; Update the visits to the chosen move
-        (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
-              (+ 1 (svref visits best-move-so-far)))
-        ;; Increment the number of visits to this node
-        (setf (mc-node-num-visits nodey)
-              (+ 1 (mc-node-num-visits nodey)))
+      ;; Update the scores in the node
+      (setf (mc-node-veck-scores nodey) scores)
+      ;; Update the visits to the chosen move
+      (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
+            (+ 1 (svref visits best-move-so-far)))
 
-        )
-      ;; Use non threaded selection
-      (t 
-        ;; Compare all the potential moves
-        (dotimes (i (length scores))
-          ;; If there isn't gonan be problems dividing by 0
-          (if (and (< 0 node-visits)
-                   (< 0 (svref visits i)))
-            ;; Calculate the monte-carlo value
-            (setq new_q (* c  (sqrt (/ (log node-visits)
-                                       (/ (svref visits i)
-                                          node-visits)))))
-            (setq new_q 0))
-          ;; Set the value, adding or subtracting depending on the player
-          (cond
-            ;; If it's black the best score is the highest
-            ((= player *black*)
-             (setf (svref scores i)
-                   (+ (svref scores i)
-                      new_q))
-             (when (< max-so-far (svref scores i))
-               (setq max-so-far (svref scores i))
-               (setq best-move-so-far i)))
-
-            (t ; If it's white the best score is the lowest
-              (setf (svref scores i)
-                    (- (svref scores i)
-                       new_q))
-              (when (> max-so-far (svref scores i))
-                (setq max-so-far (svref scores i))
-                (setq best-move-so-far i)))))
-
-        ;; Update the scores in the node
-        (setf (mc-node-veck-scores nodey) scores)
-        ;; Update the visits to the chosen move
-        (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
-              (+ 1 (svref visits best-move-so-far)))
-        ;; Increment the number of visits to this node
-        (setf (mc-node-num-visits nodey)
-              (+ 1 (mc-node-num-visits nodey)))
-
-        ))
+      ;; Increment the number of visits to this node
+      (setf (mc-node-num-visits nodey)
+            (+ 1 (mc-node-num-visits nodey))))
+    ;;(format t "Move score: ~A~%" max-so-far)
     ;; Return the best move found
     best-move-so-far))
 
@@ -285,57 +246,95 @@
 ;;  OUTPUT:  A list of the form (state0 move0 state1 move1 ... statek movek)
 ;;    where each state_i is a key into the hashtable, and each move_i
 ;;    is an index into the MOVES vector of the node assoc with state_i.
-(defun sim-tree (game tree c)
+(defun sim-tree 
+  (game tree c &optional (imp nil))
   ;; (format t "Sim Tree~%")
   ;; When you hit a node not in the hastable then you are done with
   ;; sim tree. Add the one move and then start using the random play out
   ;; value only keeping track of the store at the end.
-  (let ((state-move-list nil)
-        (moves (legal-moves game))
-        (s_t nil)
-        (m_t 0))
+  (cond 
+    (imp
+      (let (;; KEY-MOVE-ACC:  accumulator of KEYs and MOVEs
+            (key-move-acc nil)
+            (hashy (mc-tree-hashy tree)))
+        (while (not (game-over? game))
+               (let* (;; KEY:  Hash key for current state of game
+                      (key (make-hash-key-from-game game))
+                      ;; NODEY:  The MC-NODE corresponding to KEY (or NIL if not in tree)
+                      (nodey (gethash key hashy)))
+                 ;; Case 1:  When key not yet in tree...
+                 (when (null nodey)
+                   ;; Create new node and insert it into tree
+                   (setf nodey (insert-new-node game tree key))
+                   (format t "NODEY: ~A~%" nodey)
+                   (let* ((mv-index (select-move nodey c))
+                          (move-veck (mc-node-veck-moves nodey))
+                          (move (svref move-veck mv-index)))
+                     (do-move! game move)
+                     (push key key-move-acc)
+                     (push mv-index key-move-acc)
+                     ;; return the accumulator prepended with selected MOVE
+                     ;; and KEY for current state
+                     (return-from sim-tree (reverse key-move-acc))))
 
-    (dotimes (i 1000000)
-      ;; Get the state (hash key)
-      (setq s_t (make-hash-key-from-game game))
-      (setq state-move-list
-            (append state-move-list (list s_t)))
-      ;; If the state doesn't already exist
-      (unless (gethash s_t (mc-tree-hashy tree) nil)
-        (let ((cur-score 0)
-              (best-score 0)
-              (best-move 0)
-              )
-          ;; Add the new state
-          (insert-new-node game tree s_t)
-          (dotimes (move (length moves))
-            ;; Update the best-score and best-move
-            (when (< best-score cur-score)
-              (setq best-move move)
-              (setq best-score cur-score)))
-          ;; Return the state-move list
-          (return-from sim-tree (append state-move-list
-                                        (list best-move)))       
-          ))
+                 ;; Case 2:  Key already in tree!
+                 (let* ((mv-index (select-move nodey c))
+                        (move-veck (mc-node-veck-moves nodey))
+                        (move (svref move-veck mv-index)))
+                   (apply #'do-move! game nil move)
+                   (push key key-move-acc)
+                   (push mv-index key-move-acc))))
 
-      ;; Otherwise the state does already exist so use select-move
-      (setq m_t (select-move (gethash (make-hash-key-from-game game)
-                                      (mc-tree-hashy tree)) c))
+        ;; After the WHILE... return the accumulated key/move list
+        (reverse key-move-acc)))
 
-      ;; Do the move
-      (do-move! game (svref moves m_t))
+    (t 
+      (let ((state-move-list nil)
+            (moves (legal-moves game))
+            (s_t nil)
+            (m_t 0))
 
-      ;; Add it to the move list
-      (setq state-move-list
-            (append state-move-list (list m_t)))
+        (dotimes (i 1000000)
+          ;; Get the state (hash key)
+          (setq s_t (make-hash-key-from-game game))
+          (setq state-move-list
+                (append state-move-list (list s_t)))
+          ;; If the state doesn't already exist
+          (unless (gethash s_t (mc-tree-hashy tree) nil)
+            (let ((cur-score 0)
+                  (best-score 0)
+                  (best-move 0)
+                  )
+              ;; Add the new state
+              (insert-new-node game tree s_t)
+              (dotimes (move (length moves))
+                ;; Update the best-score and best-move
+                (when (< best-score cur-score)
+                  (setq best-move move)
+                  (setq best-score cur-score)))
+              ;; Return the state-move list
+              (return-from sim-tree (append state-move-list
+                                            (list best-move)))       
+              ))
 
-      ;; When the game is over break out of the loop
-      (when (game-over? game) 
-        (return-from sim-tree state-move-list)))
+          ;; Otherwise the state does already exist so use select-move
+          (setq m_t (select-move (gethash (make-hash-key-from-game game)
+                                          (mc-tree-hashy tree)) c))
 
-    ;; Once the game is over return the state-move list
-    state-move-list))
+          ;; Do the move
+          (do-move! game (svref moves m_t))
 
+          ;; Add it to the move list
+          (setq state-move-list
+                (append state-move-list (list m_t)))
+
+          ;; When the game is over break out of the loop
+          (when (game-over? game) 
+            (return-from sim-tree state-move-list)))
+
+        ;; Once the game is over return the state-move list
+        state-move-list))
+    ))
 ;;  SIM-DEFAULT : GAME
 ;; ----------------------------------------------
 ;;  INPUT:  GAME, a game struct
@@ -356,36 +355,55 @@
 ;;              recently played out simulation
 ;;  OUTPUT:  doesn't matter
 ;;  SIDE EFFECT:  Updates the relevant nodes in the MC-TREE/HASHY
-(defun backup (tree key-move-acc result)
-  (let ((node-holder nil)
-        (key nil)
-        (move nil)
-        (hashy (mc-tree-hashy tree))
-        )
-    ;; Iterate through the list, two elements at a time
-    (dotimes (i (/ (length key-move-acc) 2))
-      ;; Get the first element (key)
-      (setq key (pop key-move-acc))
-      ;; Get the second element (move)
-      (setq move (pop key-move-acc))
-      ;; Get the matching node
-      (setq node-holder (gethash key hashy))
+(defun backup (tree key-move-acc result &optional (imp nil))
+  (cond 
+    (imp
+      (while key-move-acc
+             (let* ((key (pop key-move-acc))
+             (hashy (mc-tree-hashy tree))
+                    (nodey (gethash key hashy))
+                    (mv-index (pop key-move-acc))
+                    (visitz (mc-node-veck-visits nodey))
+                    (scorez (mc-node-veck-scores nodey)))
+               ;; incremenet node num visits
+               (incf (mc-node-num-visits nodey))
+               ;; increment num times did this move from this state
+               (incf (svref visitz mv-index))
+               ;; increment the SCORE
+               (incf (svref scorez mv-index)
+                     (/ (- result (svref scorez mv-index))   
+                        (svref visitz mv-index)))))
+      )
+    (t (let ((node-holder nil)
+             (key nil)
+             (move nil)
+             (hashy (mc-tree-hashy tree))
+             )
+         ;; Iterate through the list, two elements at a time
+         (dotimes (i (/ (length key-move-acc) 2))
+           ;; Get the first element (key)
+           (setq key (pop key-move-acc))
+           ;; Get the second element (move)
+           (setq move (pop key-move-acc))
+           ;; Get the matching node
+           (setq node-holder (gethash key hashy))
 
-      ;; Update N(S_t)
-      (setf (mc-node-num-visits node-holder)
-            (+ 1 (mc-node-num-visits node-holder)))
+           ;; Update N(S_t)
+           (setf (mc-node-num-visits node-holder)
+                 (+ 1 (mc-node-num-visits node-holder)))
 
-      ;; Update N(S_t, A_t)
-      (setf (svref (mc-node-veck-visits node-holder) move)
-            (+ 1 (svref (mc-node-veck-visits node-holder) move)))
-      ;; Update Q(S_t, A_t)
-      (setf (svref (mc-node-veck-scores node-holder) move)
-            (- result (svref (mc-node-veck-scores node-holder) move)))
+           ;; Update N(S_t, A_t)
+           (setf (svref (mc-node-veck-visits node-holder) move)
+                 (+ 1 (svref (mc-node-veck-visits node-holder) move)))
+           ;; Update Q(S_t, A_t)
+           (setf (svref (mc-node-veck-scores node-holder) move)
+                 (- result (svref (mc-node-veck-scores node-holder) move)))
 
-      ;; Update the tree
-      (with-locked-structure ((gethash key (mc-tree-hashy tree)))
-                             (setf (gethash key (mc-tree-hashy tree))
-                                   node-holder)))))
+           ;; Update the tree
+           (with-locked-structure ((gethash key (mc-tree-hashy tree)))
+                                  (setf (gethash key (mc-tree-hashy tree))
+                                        node-holder)))))
+    ))
 
 ;; For use by each thread of uct-search
 (defun sim-ops

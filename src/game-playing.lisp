@@ -522,9 +522,9 @@
        (do-move! ,game (svref moves rand))
        (when (game-over? ,game)
          (return)))
-     (sqrt (abs (- (svref (gg-subtotals ,game) *white*)
+     (sqrt (- (svref (gg-subtotals ,game) *white*)
                    (svref (gg-subtotals ,game) *black*)
-                   )))))
+                   ))))
 
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
@@ -532,13 +532,12 @@
 ;;  OUTPUT: A list of legal moves 
 
 (defun legal-moves (game &optional (fast? nil))
-  (let ((legal-moves (list *board-size*)); Passing is always legal
+  (let ((legal-moves (list *board-size*))  ; Passing is always legal
         (valid-moves (list *board-size*))
         (player (gg-whose-turn? game))
         (moves nil) 
         (board (gg-board game))
         )
-    ;;
     (if fast? 
       ;; At the opening only allow decent opening moves
       (cond
@@ -549,12 +548,12 @@
              (push pos valid-moves)
              )
            ))
-       ; (dotimes (row (- *board-length* 2))
-       ;   (when (> row 1)
-       ;     (dotimes (col (- *board-length* 2))
-       ;       (when (and (> col 1) 
-       ;                  (= 0 (svref board (row-col->pos row col))))
-       ;         (push (row-col->pos row col) moves))))))
+        ; (dotimes (row (- *board-length* 2))
+        ;   (when (> row 1)
+        ;     (dotimes (col (- *board-length* 2))
+        ;       (when (and (> col 1) 
+        ;                  (= 0 (svref board (row-col->pos row col))))
+        ;         (push (row-col->pos row col) moves))))))
 
         ;; More lenient in the mid game
         ((> 16 (length (gg-move-history game)))
@@ -582,41 +581,36 @@
 
       ;; Ensure it's not an eye
       (when (= 0 (svref (svref (gg-eyes game) 
-                               player) 
-                        pos))
+                               player) pos))
 
         ;; If there is a space adjacent to the move, it's not suicidal
-        (when (or (= 0 (check-board pos board *check-left*))
-                (= 0 (check-board pos board *check-right*))
-                (= 0 (check-board pos board *check-above*))
-                (= 0 (check-board pos board *check-below*)))
+        (cond 
+          ((or (= 0 (check-board pos board *check-left*))
+               (= 0 (check-board pos board *check-right*))
+               (= 0 (check-board pos board *check-above*))
+               (= 0 (check-board pos board *check-below*)))
 
-          ;; Add the move to legal-moves
-          (push pos valid-moves)
-
-          
-          ;; Skip other checks
-          (return))
+           ;; Add the move to legal-moves
+           (push pos valid-moves))
 
           ;; Or if the move connects to a group 
           ;; Check that the group has more than one liberty 
           ;; (i.e. a group that wont be captured by the move)
-          (when (and (= (+ 1 player) (check-board pos board *check-left*))
-                     (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
-            (push pos valid-moves)
-            (return))
-          (when (and (= (+ 1 player) (check-board pos board *check-right*))
-                     (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
-            (push pos valid-moves)
-            (return))
-          (when (and (= (+ 1 player) (check-board pos board *check-above*))
-                     (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
-            (push pos valid-moves)
-            (return))
-          (when (and (= (+ 1 player) (check-board pos board *check-below*))
-                     (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
-            (push pos valid-moves)
-            (return))))
+          ((and (= (+ 1 player) (check-board pos board *check-left*))
+                (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
+           (push pos valid-moves))
+
+          ((and (= (+ 1 player) (check-board pos board *check-right*))
+                (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
+           (push pos valid-moves))
+
+          ((and (= (+ 1 player) (check-board pos board *check-above*))
+                (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
+           (push pos valid-moves))
+
+          ((and (= (+ 1 player) (check-board pos board *check-below*))
+                (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
+           (push pos valid-moves)))))
 
     ;; If necessary...
     (if (and (gg-ko? game) 
@@ -646,5 +640,4 @@
         (make-array (length legal-moves) :initial-contents legal-moves))
 
       ;; Otherwise return the valid moves
-      (make-array (length valid-moves) :initial-contents valid-moves)
-      )))
+      (make-array (length valid-moves) :initial-contents valid-moves))))

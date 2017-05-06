@@ -1,4 +1,4 @@
-(defconstant *num-cores* 2)
+(defconstant *num-cores* 8)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
