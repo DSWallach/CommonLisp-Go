@@ -40,8 +40,8 @@
 ;; ---------------------------------
 ;; The hash key is the current state of the board.
 (defun make-hash-key-from-game (game)
-  (gg-board game)
-  (gg-whose-turn? game))
+  (list (gg-board game)
+  (gg-whose-turn? game)))
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------

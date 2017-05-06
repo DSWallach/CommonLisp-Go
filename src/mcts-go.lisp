@@ -42,8 +42,7 @@
     (labels
       ((add-to-tree
          (key value)
-         (setf (gethash key (mc-tree-hashy newTree)) value))
-       )
+         (setf (gethash key (mc-tree-hashy newTree)) value)))
       (maphash #'add-to-tree (mc-tree-hashy tree)))
     newTree))
 
@@ -170,7 +169,6 @@
 
       ;; Insert the node
       (setf (gethash key (mc-tree-hashy tree)) new-node)
-
     new-node))
 
 ;;  SELECT-MOVE : NODEY C
@@ -181,7 +179,7 @@
 
 ;; Methods should be whatever functions in the go-game
 ;; file that are called by the montecarlo tree search
-(defun select-move (nodey c &optional (use-threads nil))
+(defun select-move (nodey c &optional (game-move nil))
   ;; (format t "Selecet Move~%")
   (let ((scores (mc-node-veck-scores nodey))
         (visits (mc-node-veck-visits nodey))
@@ -233,7 +231,8 @@
       ;; Increment the number of visits to this node
       (setf (mc-node-num-visits nodey)
             (+ 1 (mc-node-num-visits nodey))))
-    ;;(format t "Move score: ~A~%" max-so-far)
+    (when game-move
+      (format t "Move score: ~A~%" max-so-far))
     ;; Return the best move found
     best-move-so-far))
 
@@ -247,7 +246,7 @@
 ;;    where each state_i is a key into the hashtable, and each move_i
 ;;    is an index into the MOVES vector of the node assoc with state_i.
 (defun sim-tree 
-  (game tree c &optional (imp nil))
+  (game tree c &optional (imp t))
   ;; (format t "Sim Tree~%")
   ;; When you hit a node not in the hastable then you are done with
   ;; sim tree. Add the one move and then start using the random play out
@@ -266,10 +265,11 @@
                  (when (null nodey)
                    ;; Create new node and insert it into tree
                    (setf nodey (insert-new-node game tree key))
-                   (format t "NODEY: ~A~%" nodey)
+                   ;(format t "NODEY: ~A~%" nodey)
                    (let* ((mv-index (select-move nodey c))
                           (move-veck (mc-node-veck-moves nodey))
                           (move (svref move-veck mv-index)))
+                   ;  (format t "Move: <% <%  %> %>")
                      (do-move! game move)
                      (push key key-move-acc)
                      (push mv-index key-move-acc)
@@ -314,8 +314,7 @@
                   (setq best-score cur-score)))
               ;; Return the state-move list
               (return-from sim-tree (append state-move-list
-                                            (list best-move)))       
-              ))
+                                            (list best-move)))))
 
           ;; Otherwise the state does already exist so use select-move
           (setq m_t (select-move (gethash (make-hash-key-from-game game)
@@ -371,9 +370,8 @@
                (incf (svref visitz mv-index))
                ;; increment the SCORE
                (incf (svref scorez mv-index)
-                     (/ (- result (svref scorez mv-index))   
-                        (svref visitz mv-index)))))
-      )
+                     (/ (- result (svref scorez mv-index))
+                        (svref visitz mv-index))))))
     (t (let ((node-holder nil)
              (key nil)
              (move nil)
@@ -389,15 +387,13 @@
            (setq node-holder (gethash key hashy))
 
            ;; Update N(S_t)
-           (setf (mc-node-num-visits node-holder)
-                 (+ 1 (mc-node-num-visits node-holder)))
-
+           (incf (mc-node-num-visits node-holder))
            ;; Update N(S_t, A_t)
-           (setf (svref (mc-node-veck-visits node-holder) move)
-                 (+ 1 (svref (mc-node-veck-visits node-holder) move)))
+           (incf(svref (mc-node-veck-visits node-holder) move))
            ;; Update Q(S_t, A_t)
-           (setf (svref (mc-node-veck-scores node-holder) move)
-                 (- result (svref (mc-node-veck-scores node-holder) move)))
+           (incf (svref (mc-node-veck-scores node-holder) move)
+                 (/ (- result (svref (mc-node-veck-scores node-holder) move))
+                    (svref (mc-node-veck-visits node-holder) move)))
 
            ;; Update the tree
            (with-locked-structure ((gethash key (mc-tree-hashy tree)))
@@ -444,7 +440,7 @@
 (defun uct-search (orig-game num-sims c &optional 
                              (return-tree nil) 
                              (use-threads nil)
-                             (time-limit 10000))
+                             (time-limit 50000))
   (let ((start-time (get-internal-real-time))
         )
     (cond
@@ -471,11 +467,13 @@
           ;; Wait until all the threads are finished
           (mp:barrier-wait barrier)
 
-          (format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
+          (format t "Number of nodes ~A, num of moves ~A~%" 
+                  (hash-table-count (mc-tree-hashy tree))
+                  (length (legal-moves orig-game)))
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
-                                       (mc-tree-hashy tree)) c))))
+                                       (mc-tree-hashy tree)) c t))))
 
       ;; Otherwise perform the operations sequentially
       (t
@@ -505,7 +503,7 @@
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
-                                       (mc-tree-hashy tree)) c)))))))
+                                       (mc-tree-hashy tree)) c t)))))))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------

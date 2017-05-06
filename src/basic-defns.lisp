@@ -1,4 +1,4 @@
-(defconstant *num-cores* 8)
+(defconstant *num-cores* 16)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -16,17 +16,16 @@
   (require :smputil) ;; Load Allegro mutlithreading
   (require :asdf)    ;; Load asdf package manager
   (require :process)
-
+  (require :acache "acache-3.0.9.fasl")
 ;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
-  (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 300000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
+  (declaim (optimize (speed 3) (safety 1) (space 3) (debug 0))))
 
 
 
 (defun ttest (num threads?)
-  (uct-search (init-game) num 4 nil threads?)
-  )
+  (uct-search (init-game) num 4 nil threads?))
 
 ;;  GLOBAL CONSTANTS
 
@@ -157,10 +156,10 @@
   )
 
 (defconstant *opening-moves*
-             (list (row-col->pos 3 3)
-                   (row-col->pos 2 3)
-                   (row-col->pos 2 2)
-                   (row-col->pos 3 2)
+             (list (row-col->pos 2 2)
+                   (row-col->pos 1 2)
+                   (row-col->pos 1 1)
+                   (row-col->pos 2 1)
 
                    (row-col->pos (- *board-length* 4) (- *board-length* 4))
                    (row-col->pos 2 (- *board-length* 4))
@@ -168,14 +167,14 @@
                    (row-col->pos (- *board-length* 4) 2)
 
                    (row-col->pos (- *board-length* 4) (- *board-length* 4))
-                   (row-col->pos (- *board-length* 3) (- *board-length* 4))
-                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
-                   (row-col->pos (- *board-length* 4) (- *board-length* 3))
+                   (row-col->pos (- *board-length* 2) (- *board-length* 4))
+                   (row-col->pos (- *board-length* 2) (- *board-length* 2))
+                   (row-col->pos (- *board-length* 4) (- *board-length* 2))
 
-                   (row-col->pos 3 3)
-                   (row-col->pos (- *board-length* 3) 3)
-                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
-                   (row-col->pos 3 (- *board-length* 3))
+                   (row-col->pos 2 2)
+                   (row-col->pos (- *board-length* 2) 2)
+                   (row-col->pos (- *board-length* 2) (- *board-length* 2))
+                   (row-col->pos 2 (- *board-length* 2))
                    ))
 
 

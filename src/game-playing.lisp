@@ -518,20 +518,19 @@
          )
      (dotimes (i 1000000)
        (setq moves (legal-moves ,game))
-       (setq rand (random (length moves)))
-       (do-move! ,game (svref moves rand))
+       (setq rand (svref moves (random (length moves))))
+       (do-move! ,game rand)
        (when (game-over? ,game)
          (return)))
      (sqrt (- (svref (gg-subtotals ,game) *white*)
-                   (svref (gg-subtotals ,game) *black*)
-                   ))))
+                   (svref (gg-subtotals ,game) *black*)))))
 
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
 ;;  INPUT:  GAME, A go game struct
 ;;  OUTPUT: A list of legal moves 
 
-(defun legal-moves (game &optional (fast? nil))
+(defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list *board-size*))  ; Passing is always legal
         (valid-moves (list *board-size*))
         (player (gg-whose-turn? game))
@@ -556,7 +555,7 @@
         ;         (push (row-col->pos row col) moves))))))
 
         ;; More lenient in the mid game
-        ((> 16 (length (gg-move-history game)))
+        ((> 20 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 1))
            (when (> row 0)
              (dotimes (col (- *board-length* 1))
