@@ -1,10 +1,10 @@
-(defconstant *num-cores* 16)
+(defconstant *num-cores* 48)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
-(ql:quickload "cl-cuda")
+;(ql:quickload "cl-cuda")
 
 
 ;; Make ACache accessible
@@ -20,7 +20,7 @@
 ;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
   (sys:resize-areas :new 300000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 3) (safety 1) (space 3) (debug 0))))
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 
 
@@ -32,7 +32,7 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 9)
+(defconstant *board-length* 13)
 (defconstant *group-dist* 1)
 (defconstant *mc-rounds* 2)
 (defconstant *board-size* (* *board-length*
@@ -62,7 +62,7 @@
            "game-playing"
            "alpha-beta-go"
            "mcts-go"
-           "nn-go"
+   ;;        "nn-go"
            "testing"
            )))
 

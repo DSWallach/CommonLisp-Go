@@ -134,42 +134,43 @@
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
 (defun insert-new-node (game tree key)
-  ;; (format t "Insert new node~%")
-  (let ((moves (legal-moves game))
-        (node-holder nil)
-        (new-node nil))
-    (setq new-node (make-mc-node 
-                     :key key
-                     :whose-turn (gg-whose-turn? game)
-                     :veck-moves moves
-                     :veck-visits (make-array (length moves) :initial-element 0)
-                     :veck-scores (make-array (length moves) :initial-element 0)))
-   ;(if (gethash key (mc-tree-hashy tree))
-   ;  ;; If the node has been created by another thread
-   ;  (with-locked-structure
-   ;    ((gethash key (mc-tree-hashy tree)))
+ ;; (format t "Insert new node~%")
+ (let ((moves (legal-moves game))
+       (node-holder nil)
+       (new-node nil))
+  (setq new-node (make-mc-node 
+		  :key key
+		  :whose-turn (gg-whose-turn? game)
+		  :veck-moves moves
+		  :veck-visits (make-array (length moves) :initial-element 0)
+		  :veck-scores (make-array (length moves) :initial-element 0)))
+  (if (gethash key (mc-tree-hashy tree))
+   ;; If the node has been created by another thread
+   (with-locked-structure
+    ((gethash key (mc-tree-hashy tree)))
 
-   ;    (setq node-holder (gethash key (mc-tree-hashy tree)))
-   ;    ;; Update N(S_t)
-   ;    (setf (mc-node-num-visits node-holder)
-   ;           (+ (mc-node-num-visits node-holder)
-   ;              (mc-node-num-visits new-node)))
+    (setq node-holder (gethash key (mc-tree-hashy tree)))
+    ;; Update N(S_t)
+    (setf (mc-node-num-visits node-holder)
+     (+ (mc-node-num-visits node-holder)
+      (mc-node-num-visits new-node)))
+    (dotimes (move (length (mc-node-veck-vists node-holder)))
 
-   ;     ;; Update N(S_t, A_t)
-   ;     (setf (svref (mc-node-veck-visits node-holder) move)
-   ;           (+ 1 (svref (mc-node-veck-visits node-holder) move)))
+     ;; Update N(S_t, A_t)
+     (setf (svref (mc-node-veck-visits node-holder) move)
+      (+ 1 (svref (mc-node-veck-visits node-holder) move)))
 
-   ;     ;; Update Q(S_t, A_t)
-   ;     (setf (svref (mc-node-veck-scores node-holder) move)
-   ;           (- result (svref (mc-node-veck-scores node-holder) move)))
+     ;; Update Q(S_t, A_t)
+     (setf (svref (mc-node-veck-scores node-holder) move)
+      (- result (svref (mc-node-veck-scores node-holder) move)))
 
-   ;     ;; Update the tree
-   ;     (setf (gethash key (mc-tree-hashy tree))
-   ;           node-holder)))
+     ;; Update the tree
+     (setf (gethash key (mc-tree-hashy tree))
+      node-holder)))
+	;; Otherwise Insert the node
+(setf (gethash key (mc-tree-hashy tree)) new-node))
 
-      ;; Insert the node
-      (setf (gethash key (mc-tree-hashy tree)) new-node)
-    new-node))
+new-node))
 
 ;;  SELECT-MOVE : NODEY C
 ;; ------------------------------------------
@@ -420,12 +421,13 @@
       (backup orig-tree state-move-list z)
 
       ;; Every 100 sims
-     (when (= 0 (mod i 100))
+     ;(when (= 0 (mod i 10))
         ;; Check the time
-        (setq cur-time (get-internal-real-time))
+       ; (setq cur-time (get-internal-real-time))
         ;; When it's over the time limit return
-        (when (< time-limit (- cur-time start-time))
-          (return))))
+        (when (< time-limit (- (get-internal-real-time) start-time))
+          (return))
+)
 
     ;; Pass through the barrier to signal the thread is done 
     (mp:barrier-pass-through barrier)))
@@ -440,7 +442,7 @@
 (defun uct-search (orig-game num-sims c &optional 
                              (return-tree nil) 
                              (use-threads nil)
-                             (time-limit 50000))
+                             (time-limit 1000))
   (let ((start-time (get-internal-real-time))
         )
     (cond
