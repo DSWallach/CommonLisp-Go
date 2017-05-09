@@ -26,6 +26,8 @@
 ;;;          (corresponding to weights between 4 hidden neurons
 ;;;           and 2 output neurons)
 
+(in-package :nn-go)
+
 (defstruct nn
   ;; NUM-LAYERS:  the number of layers in the neural network
   num-layers    

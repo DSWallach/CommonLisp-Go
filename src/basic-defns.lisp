@@ -1,4 +1,4 @@
-(defconstant *num-cores* 48)
+(defconstant *num-cores* 16)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -62,9 +62,10 @@
            "game-playing"
            "alpha-beta-go"
            "mcts-go"
-   ;;        "nn-go"
+          "nn-go"
            "testing"
-           )))
+           "2014-new-nn"
+           "nn-data-parser")))
 
 ;; Used to reference group-area
 (defconstant *min-row* 0)

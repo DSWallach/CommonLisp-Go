@@ -7,8 +7,7 @@
 (defpackage nn-go
   (:use :cl
         :cl-cuda
-        :db.allegrocache
-        )
+        :db.allegrocache)
   (:export :verify-mat-mul)
   (:export nn-kernel)
   (:export vec-add-kernel)
@@ -44,6 +43,63 @@
  :if-exists :supersede
  )
 
+
+;; Create a list of pathnames to the files to parse
+(defun make-parse-list 
+  (num)
+  (let ((path-list (list )))
+  (dotimes (i num)
+    (push (make-pathname :name (concatenate 'string "data" (write-to-string i) ".csv"))
+          path-list))
+  path-list))
+
+
+(defclass nn-archive ()
+  ((id :initarg :id :reader id :index :any-unique)
+   (num-layers :initarg :num-layers :reader num-layers)
+   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
+   (output-vecks :initarg :output-vecks :reader output-vecks)
+   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
+   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
+   )
+  (:metaclass persistent-class))
+
+(defun store-nn (nn id)
+  (let ((new-nn nil))
+  (setq new-nn (make-instance 'nn-archive :id id
+                 :num-layers (nn-num-layers nn)
+                 :layer-sizes (nn-layer-sizes nn)
+                 :output-vecks (nn-output-vecks nn)
+                 :weight-arrays (nn-weight-arrays nn)
+                 :delta-vecks (nn-delta-vecks nn)
+                 ))
+  (commit)
+  ))
+
+
+
+
+(defun train-nn (nn training-files &optional (commit? nil))
+ 
+;; Write the nn to disk
+(when commit? (store-nn nn)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ;; Class for storing a network in AllegroCache
 (defclass neural-net ()
   ((id :initarg :id :reader id :index :any-unique)
@@ -62,7 +118,8 @@
 (defun make ()
   (compile-file "nn-go")
   (load "nn-go")
-  )
+  (compile-file "2014-new-nn")
+  (load "2014-new-nn"))
 
 
 (defun random-array (size)
