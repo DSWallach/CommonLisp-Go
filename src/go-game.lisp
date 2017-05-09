@@ -40,7 +40,8 @@
 ;; ---------------------------------
 ;; The hash key is the current state of the board.
 (defun make-hash-key-from-game (game)
-  (gg-board game))
+  (list (gg-board game)
+  (gg-whose-turn? game)))
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
@@ -357,12 +358,21 @@
 ;;  GAME-OVER? : GAME
 ;; -------------------------------
 (defun game-over? (game)
-  (if (or (> (length (gg-move-history game)) *board-size*) 
+  (if (or (> (length (gg-move-history game)) 
+             ;; To protect against triple kos (very rare but could cause an infinite loop)
+             ;; Twice as many moves as positions on the board is many more than games typically
+             ;; go for. Usually it would be fewer than there are positions on the board.
+             (* 2 *board-size*))
           (and (> (length (gg-move-history game)) 2) 
-               (= (svref (first (gg-move-history game))0)
-                  (svref (second (gg-move-history game))0))))
-
+               ;; If the past two moves were the same move the 
+               ;; game is over. This is because the only circumstance 
+               ;; underwhich the same move can be made by each player
+               ;; consecutively is when that move is a pass. This signals
+               ;; the end of the game.
+               (= (svref (first (gg-move-history game)) 0)
+                  (svref (second (gg-move-history game)) 0))))
     t
+    ;; Otherwise the game is still going
     nil))
 
 ;;  INIT-GAME

@@ -195,7 +195,7 @@
 ;;   a depth of CUTOFF-DEPTH.
 
 (defun compute-move (g cutoff-depth &optional (print-to t) (debug? nil))
-  (format print-to "~%COMPUTE-MOVE (cutoff=~A)~%" cutoff-depth)
+  ;(format print-to "~%COMPUTE-MOVE (cutoff=~A)~%" cutoff-depth)
 
   ;; Compute move handles the initial call to 
   ;; compute-min each child of the node at depth 0
@@ -233,16 +233,16 @@
         (setq best-score current-score)))
 
     ;; Print out the final alpha of the root node
-    (format print-to "Root Alpha: ~A~%" best-score)
+ ;  (format print-to "Root Alpha: ~A~%" best-score)
 
-    (format print-to "Potential Moves: ~A~%" 
-            (stats-num-potential-moves statty))
-    (format print-to "Moves Done: ~A~%" 
-            (stats-num-moves-done statty)) 
-    (format print-to "Moves Pruned: ~A~%" 
-            (- (stats-num-potential-moves statty) 
-               (stats-num-moves-done statty)))
-    (format print-to "My move: ~A~%" best-so-far)
+ ;  (format print-to "Potential Moves: ~A~%" 
+ ;          (stats-num-potential-moves statty))
+ ;  (format print-to "Moves Done: ~A~%" 
+ ;          (stats-num-moves-done statty)) 
+ ;  (format print-to "Moves Pruned: ~A~%" 
+ ;          (- (stats-num-potential-moves statty) 
+ ;             (stats-num-moves-done statty)))
+ ;  (format print-to "My move: ~A~%" best-so-far)
 
     ;; return my-move
     best-so-far))
