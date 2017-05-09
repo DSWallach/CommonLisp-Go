@@ -56,48 +56,31 @@
 
 (defclass nn-archive ()
   ((id :initarg :id :reader id :index :any-unique)
-   (num-layers :initarg :num-layers :reader num-layers)
-   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
-   (output-vecks :initarg :output-vecks :reader output-vecks)
-   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
-   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
+;   (num-layers :initarg :num-layers :reader num-layers)
+;   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
+;   (output-vecks :initarg :output-vecks :reader output-vecks)
+;   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
+;   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
+(nn :initarg :nn :reader nn)
    )
   (:metaclass persistent-class))
 
 (defun store-nn (nn id)
   (let ((new-nn nil))
   (setq new-nn (make-instance 'nn-archive :id id
-                 :num-layers (nn-num-layers nn)
-                 :layer-sizes (nn-layer-sizes nn)
-                 :output-vecks (nn-output-vecks nn)
-                 :weight-arrays (nn-weight-arrays nn)
-                 :delta-vecks (nn-delta-vecks nn)
+                              :nn nn
+  ;               :num-layers (nn-num-layers nn)
+  ;               :layer-sizes (nn-layer-sizes nn)
+  ;               :output-vecks (nn-output-vecks nn)
+  ;               :weight-arrays (nn-weight-arrays nn)
+  ;               :delta-vecks (nn-delta-vecks nn)
                  ))
-  (commit)
-  ))
-
-
-
+  (commit)))
 
 (defun train-nn (nn training-files &optional (commit? nil))
  
 ;; Write the nn to disk
 (when commit? (store-nn nn)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ;; Class for storing a network in AllegroCache
