@@ -47,3 +47,15 @@ Convert to Monte Carlo Tree Search
 
 4) Go through Python parser to ensure that the training data is only using the moves
   played by the winner of each game
+  
+
+
+ASSIGNMENT REQS
+-----------------------
+Project
+--------------
+Description of the problem with enough reference for any to understand
+
+Lisp implementation solution. Documentation for the code. README type thing for the usage.
+
+Summary of results.
