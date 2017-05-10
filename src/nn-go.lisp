@@ -44,7 +44,8 @@
  :if-exists :supersede
  )
 
-
+(defun new-nn ()
+  (init-nn '(81 49 81)))
 
 (defclass nn-archive ()
   ((id :initarg :id :reader id :index :any-unique)
@@ -74,7 +75,6 @@
 (when commit? (store-nn nn)))
 
 
-
 ;; Create a list of pathnames to the files to parse
 (defun make-parse-list 
   (num)
@@ -82,7 +82,7 @@
     (dotimes (i num)
       (push (make-pathname :name 
                            (concatenate 'string 
-                                              "../../CSV-9x9/game"
+                                              "../../CSV-Data-9x9/data"
                                               (write-to-string i)
                                               ".csv"))
             path-list))
@@ -92,8 +92,7 @@
 ;; -------------------------------------
 ;;  INPUT: List of files
 (defun load-data (lof)
-  (let ((input-data (list))
-        (output-data (list))
+  (let ((data (list))
         (in-arr (make-array *board-size*))
         (out-arr (make-array *board-size*))
         )
@@ -102,17 +101,16 @@
       (with-open-file (line file :direction :input)
         ;; Get the input
         (dotimes (i *board-size*)
-          (setf (svref in-arr i) (read line)))
+          (setf (svref in-arr i) (read line nil)))
         ;; Get the output
         (dotimes (i *board-size*)
-          (setf (svref out-arr i) (read line)))
+          (setf (svref out-arr i) (read line nil)))
         )
-      ;; Add the array's to the appropriate lists
-      (push in-arr input-data)
-      (push out-arr output-data)
+      ;; Add the array pair to the list
+      (push (list in-arr out-arr) data)
       )
     ;; Return the lists
-    (list in-arr out-arr)))
+    data))
 
 
 (defun load-files (num-files)

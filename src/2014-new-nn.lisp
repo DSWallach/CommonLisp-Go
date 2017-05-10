@@ -145,7 +145,7 @@
       ;; For each input value...
       (dotimes (i num-inputs)
 	;; Set the "output" value for the corresponding neuron in layer 0 
-	(setf (svref out-veck-zero i) (nth i inputs)))
+	(setf (svref out-veck-zero i) (svref inputs i)))
       ;; return the NN
       nn)
      ;; Case 2:  Error!
@@ -244,7 +244,7 @@
     
     ;; for each neuron in the output layer:
     (dotimes (neuron-num num-output-neurons)
-      (let* ((target-output (nth neuron-num target-outputs))
+      (let* ((target-output (svref target-outputs neuron-num))
 	     (my-output  (svref last-output-veck neuron-num))
 	     (diffy (- target-output my-output)))
 	;;   DELTA_J = G'(IN_J) * (Y_J - A_J)
