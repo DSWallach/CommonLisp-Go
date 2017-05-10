@@ -1,6 +1,3 @@
-;; Convolutional Neural Network for 13x13 go.
-;;(ql:quickload "cl-cuda")
-
 ;; Package Definition
 (in-package :cl-user)
 
@@ -37,8 +34,6 @@
 (defconstant *train-val-two* 0.66666667)
 (defconstant *board-size* 81)
 
-
-(require :acache "acache-3.0.9.fasl")
 ;; Open the file containing the most recent network
 (db.allegrocache:open-file-database "../go-nets"
  :if-does-not-exist :create
@@ -60,20 +55,14 @@
   (:metaclass persistent-class))
 
 (defun store-nn (nn id)
-  (let ((new-nn nil))
-  (setq new-nn (make-instance 'nn-archive :id id
+  (make-instance 'nn-archive :id id
                  :num-layers (nn-num-layers nn)
                  :layer-sizes (nn-layer-sizes nn)
                  :output-vecks (nn-output-vecks nn)
                  :weight-arrays (nn-weight-arrays nn)
                  :delta-vecks (nn-delta-vecks nn)
-                 ))
-  (commit)))
-
-(defun train-nn (nn training-files &optional (commit? nil))
- 
-;; Write the nn to disk
-(when commit? (store-nn nn)))
+                 )
+  (commit))
 
 
 ;;  ANALYZE-BOARD : NN BOARD LEGAL-MOVES
@@ -138,7 +127,7 @@
     ;; Return the lists
     data))
 
-
+;; Open NUM files and convert them into training data
 (defun load-files (num-files)
   (load-data (make-parse-list num-files)))
 

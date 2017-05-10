@@ -34,8 +34,8 @@
   ;; c == number of groups captured by the move
   (move-history nil)
   (board-history nil) 
-  (game-history nil)
   )
+
 ;;  MAKE-HASH-KEY-FROM-GAME : GAME
 ;; ---------------------------------
 ;; The hash key is the current state of the board.
@@ -64,6 +64,7 @@
       (if (group-alive? group)
         (setq b-score (+ b-score 
                          (group-territory group)))
+
         ;; Otherwise add the pieces to white's score
         (setq w-score (+ w-score 
                          (length (group-pieces group))))))
@@ -73,17 +74,14 @@
       (setq b-score (+ b-score 
                        (length (group-pieces capd)))))
 
-
     ;; Calc white's score
     (dolist (group w-groups)
       (if (group-alive? group)
         (setq w-score (+ w-score 
-                         (group-territory group) 
-                         ;; (* multiplier (group-liberties group))
-                         ))
+                         (group-territory group)))
         (setq b-score (+ b-score 
                          (length (group-pieces group))))))
-
+    ;; White's Captures
     (dolist (capd w-captures)
       (setq w-score (+ w-score (length (group-pieces capd)))))
     ;; Update the game struct
@@ -92,12 +90,11 @@
 ;;  DEEP-COPY-LIST : L(ist) COPY-FUNC
 ;; ------------------------------
 ;;  Creates a deep copy of a list
-(defun deep-copy-list (l copy-func)
-  (let ((nl ())
-        )
-    (dolist (el l)
-      (push (funcall copy-func el) nl))
-    (reverse nl)))
+(defmacro deep-copy-list (l copy-func)
+  `(let ((nl ()))
+     (dolist (el ,l)
+       (push (funcall ,copy-func el) nl))
+     (reverse nl)))
 
 ;;  DEEP-COPY-GO : GAME
 ;; ---------------------------------
@@ -137,8 +134,7 @@
 ;; -------------------------------------
 ;;  Used by PRINT-GO to find the group for each piece
 (defun find-group (pos game)
-  (let ((piece (svref (gg-board game) pos))
-        )
+  (let ((piece (svref (gg-board game) pos)))
     (if (< 0 piece)
         (let* ((player (- piece 1)) 
               (groups (svref (gg-groups game) player)))

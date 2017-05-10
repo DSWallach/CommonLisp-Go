@@ -180,7 +180,7 @@
 ;; --------------------------------------
 ;;  Works like the chess-solns function of the same name
 (defun do-move! (game pos &optional (debug? nil))
-  ;;(format debug? "Do Move ~A ~%" pos)
+  (declare (ignore debug?))
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
@@ -229,9 +229,6 @@
                  (when (and (= captured 1) (= 1 (length (group-pieces group)))
                             (setf (gg-ko? game) t)))))
              )
-    ;; Push game onto game history (For debug)
-    (when debug? (push (deep-copy-go game) 
-                       (gg-game-history game)))
 
     ;; Push the board onto board history
     (push (copy-vector board) 
@@ -325,10 +322,6 @@
                  t))
              )
 
-      (when debug? 
-        (setq deep-copy (pop (gg-game-history game))) 
-        (check-order? deep-copy)
-        )
       ;; Delete the previous board 
       (pop (gg-board-history game))
 

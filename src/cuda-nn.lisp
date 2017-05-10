@@ -1,3 +1,13 @@
+
+
+
+;; UNFINSIHED
+(defun train-nn (nn training-files &optional (commit? nil))
+  ;; Write the nn to disk
+  (when commit? (store-nn nn 1234)))
+
+
+
 (defun random-array (size)
   (let ((new-array (make-array size))
         )

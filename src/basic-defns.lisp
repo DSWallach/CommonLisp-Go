@@ -19,7 +19,7 @@
   (require :acache "acache-3.0.9.fasl")
   (sys:resize-areas :new 300000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (:explain (:types t) (:variables t)))
+  (declaim (:explain (:types nil) (:variables nil)))
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defun ttest (num threads?)
@@ -160,22 +160,21 @@
                    (row-col->pos 1 1)
                    (row-col->pos 2 1)
 
-                   (row-col->pos (- *board-length* 4) (- *board-length* 4))
-                   (row-col->pos 2 (- *board-length* 4))
+                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
+                   (row-col->pos 2 (- *board-length* 3))
                    (row-col->pos 2 2)
-                   (row-col->pos (- *board-length* 4) 2)
+                   (row-col->pos (- *board-length* 3) 2)
 
-                   (row-col->pos (- *board-length* 4) (- *board-length* 4))
-                   (row-col->pos (- *board-length* 2) (- *board-length* 4))
+                   (row-col->pos (- *board-length* 3) (- *board-length* 3))
+                   (row-col->pos (- *board-length* 2) (- *board-length* 3))
                    (row-col->pos (- *board-length* 2) (- *board-length* 2))
-                   (row-col->pos (- *board-length* 4) (- *board-length* 2))
+                   (row-col->pos (- *board-length* 3) (- *board-length* 2))
 
                    (row-col->pos 2 2)
                    (row-col->pos (- *board-length* 2) 2)
                    (row-col->pos (- *board-length* 2) (- *board-length* 2))
                    (row-col->pos 2 (- *board-length* 2))
                    ))
-
 
 (defun ab-vs-mc (whose-monte? depth num-sims c &optional 
                               (return-after nil) (use-threads nil)
@@ -213,4 +212,3 @@
                   (format t "~A~%"
                           (do-move! g (uct-search g num-sims c))))))
        ))))
-

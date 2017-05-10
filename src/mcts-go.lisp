@@ -82,11 +82,8 @@
 ;;  OUTPUT: NEW-TREE, TREE-ONE destructively modified to include the information 
 ;;                    from TREE-TWO
 (defun merge-mc-trees! (tree-one tree-two)
-  ;(format t "Merge~%")
-  ;(time
   (let ((table-one (mc-tree-hashy tree-one))
         (table-two (mc-tree-hashy tree-two))
-        (node-holder nil)
         )
     ;; Define a function for use by maphash
     (labels ((merge-into-tree-one 
@@ -98,10 +95,11 @@
 
       ;; Apply the label
       (maphash #'merge-into-tree-one table-two)
+
       ;; Assign tree-one the updated hashtable and return it
       (with-locked-structure (tree-one)
-                             (setf (mc-tree-hashy tree-one) table-one)
-                             ))))
+                             (setf (mc-tree-hashy tree-one) table-one))
+      )))
 
 ;;  MERGE-MC-TREES! : TREE-ONE TREE-TWO
 ;; -------------------------------------
@@ -111,11 +109,11 @@
 (defun prune-mc-trees! (tree-one tree-two)
   (let ((table-one (mc-tree-hashy tree-one))
         (table-two (mc-tree-hashy tree-two))
-        (node-holder nil)
         )
     ;; Define a function for use by maphash
     (labels ((prune-into-tree-one 
                (key value)
+               (declare (ignore value))
                (when (gethash key table-one)
                  ;; Remove the key, value pair from table-one
                  (remhash key table-one))))
@@ -134,54 +132,47 @@
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
 (defun insert-new-node (game tree key &optional (pid 0))
- ;; (format t "Insert new node~%")
- (let ((moves (legal-moves game))
-       (node-holder nil)
-       (new-node nil))
-   (setq new-node (make-mc-node 
-                    :key key
-                    :whose-turn (gg-whose-turn? game)
-                    :veck-moves moves
-                    :veck-visits (make-array (length moves) :initial-element 0)
-                    :veck-scores nil 
-                    ))
+  ;; (format t "Insert new node~%")
+  (let ((moves (legal-moves game))
+        (node-holder nil)
+        (new-node nil))
+    (setq new-node (make-mc-node 
+                     :key key
+                     :whose-turn (gg-whose-turn? game)
+                     :veck-moves moves
+                     :veck-visits (make-array (length moves) :initial-element 0)
+                     :veck-scores nil 
+                     ))
 
-   ;; Use the network allocated for the current process
-   (if pid
-     (setf (mc-node-veck-scores new-node) 
-           (nn-go:analyze-board (gg-board game) moves pid))
-     (setf (mc-node-veck-scores new-node) 
-           (nn-go:analyze-board (gg-board game) moves ))
-     )
+    ;; Use the network allocated for the current process
+    (if pid
+      (setf (mc-node-veck-scores new-node) 
+            (nn-go:analyze-board (gg-board game) moves pid))
+      (setf (mc-node-veck-scores new-node) 
+            (nn-go:analyze-board (gg-board game) moves ))
+      )
 
-   ;;(format t "Scores ~A~%" (mc-node-veck-scores new-node))
-  (if (gethash key (mc-tree-hashy tree))
-   ;; If the node has been created by another thread
-   (with-locked-structure
-    ((gethash key (mc-tree-hashy tree)))
 
-    (setq node-holder (gethash key (mc-tree-hashy tree)))
-    ;; Update N(S_t)
-    (setf (mc-node-num-visits node-holder)
-     (+ (mc-node-num-visits node-holder)
-      (mc-node-num-visits new-node)))
-    (dotimes (move (length (mc-node-veck-vists node-holder)))
+    ;; If the node has been created by another thread
+    (if (gethash key (mc-tree-hashy tree))
+      ;; Lock the node
+      (with-locked-structure
+        ((gethash key (mc-tree-hashy tree)))
 
-     ;; Update N(S_t, A_t)
-     (setf (svref (mc-node-veck-visits node-holder) move)
-      (+ 1 (svref (mc-node-veck-visits node-holder) move)))
+        (setq node-holder (gethash key (mc-tree-hashy tree)))
+        ;; Update N(S_t)
+        (setf (mc-node-num-visits node-holder)
+              (+ (mc-node-num-visits node-holder)
+                 (mc-node-num-visits new-node)))
 
-     ;; Update Q(S_t, A_t)
-     (setf (svref (mc-node-veck-scores node-holder) move)
-      (- result (svref (mc-node-veck-scores node-holder) move)))
+          ;; Update the tree
+          (setf (gethash key (mc-tree-hashy tree))
+                node-holder))
 
-     ;; Update the tree
-     (setf (gethash key (mc-tree-hashy tree))
-      node-holder)))
-	;; Otherwise Insert the node
-(setf (gethash key (mc-tree-hashy tree)) new-node))
+      ;; Otherwise just insert the node
+      (setf (gethash key (mc-tree-hashy tree)) new-node))
 
-new-node))
+    new-node))
 
 ;;  SELECT-MOVE : NODEY C
 ;; ------------------------------------------
@@ -418,7 +409,6 @@ new-node))
   (orig-game c orig-tree total-sim id barrier start-time time-limit)
   (let* ((state-move-list nil)
          (z 0)
-         (cur-time)
          (game nil))
 
     (dotimes (i total-sim)
