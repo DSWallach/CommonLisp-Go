@@ -35,6 +35,7 @@
 (defconstant *4-5-edges* (* *fourth-layer* *output-layer*))
 (defconstant *train-val-one* 1.7159)
 (defconstant *train-val-two* 0.66666667)
+(defconstant *board-size* 81)
 
 (require :acache "acache-3.0.9.fasl")
 ;; Open the file containing the most recent network
@@ -43,15 +44,6 @@
  :if-exists :supersede
  )
 
-
-;; Create a list of pathnames to the files to parse
-(defun make-parse-list 
-  (num)
-  (let ((path-list (list )))
-  (dotimes (i num)
-    (push (make-pathname :name (concatenate 'string "data" (write-to-string i) ".csv"))
-          path-list))
-  path-list))
 
 
 (defclass nn-archive ()
@@ -68,12 +60,11 @@
 (defun store-nn (nn id)
   (let ((new-nn nil))
   (setq new-nn (make-instance 'nn-archive :id id
-                              :nn nn
-  ;               :num-layers (nn-num-layers nn)
-  ;               :layer-sizes (nn-layer-sizes nn)
-  ;               :output-vecks (nn-output-vecks nn)
-  ;               :weight-arrays (nn-weight-arrays nn)
-  ;               :delta-vecks (nn-delta-vecks nn)
+                 :num-layers (nn-num-layers nn)
+                 :layer-sizes (nn-layer-sizes nn)
+                 :output-vecks (nn-output-vecks nn)
+                 :weight-arrays (nn-weight-arrays nn)
+                 :delta-vecks (nn-delta-vecks nn)
                  ))
   (commit)))
 
@@ -82,6 +73,50 @@
 ;; Write the nn to disk
 (when commit? (store-nn nn)))
 
+
+
+;; Create a list of pathnames to the files to parse
+(defun make-parse-list 
+  (num)
+  (let ((path-list (list )))
+    (dotimes (i num)
+      (push (make-pathname :name 
+                           (concatenate 'string 
+                                              "../../CSV-9x9/game"
+                                              (write-to-string i)
+                                              ".csv"))
+            path-list))
+    path-list))
+
+;;  Load the training data into memory
+;; -------------------------------------
+;;  INPUT: List of files
+(defun load-data (lof)
+  (let ((input-data (list))
+        (output-data (list))
+        (in-arr (make-array *board-size*))
+        (out-arr (make-array *board-size*))
+        )
+    ;; For evey files
+    (dolist (file lof)
+      (with-open-file (line file :direction :input)
+        ;; Get the input
+        (dotimes (i *board-size*)
+          (setf (svref in-arr i) (read line)))
+        ;; Get the output
+        (dotimes (i *board-size*)
+          (setf (svref out-arr i) (read line)))
+        )
+      ;; Add the array's to the appropriate lists
+      (push in-arr input-data)
+      (push out-arr output-data)
+      )
+    ;; Return the lists
+    (list in-arr out-arr)))
+
+
+(defun load-files (num-files)
+  (load-data (make-parse-list num-files)))
 
 ;; Class for storing a network in AllegroCache
 (defclass neural-net ()
