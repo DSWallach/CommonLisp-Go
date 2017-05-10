@@ -30,3 +30,20 @@ Convert to Monte Carlo Tree Search
 - ...
 
 - Rapid Action Evaluation (RAVE) from monte-carlo handout
+
+
+
+
+==============================================================================
+
+1) Figure out if black is trying to loose. Ithink the way MCTS evaluates who wins
+    might not be interacting with the way my game evaluates who won correctly.
+
+2) Modify Go Game so the board reflects the same positions as the data the nn was
+    trained on.
+
+3) Modify training data to network such that it should only output the move that 
+    was played not the entire board state.
+
+4) Go through Python parser to ensure that the training data is only using the moves
+  played by the winner of each game

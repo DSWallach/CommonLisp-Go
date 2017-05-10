@@ -420,3 +420,9 @@
 
 ;; (setf nn (train-for-xor 1 '(2 4 1) 10000))
 ;; (show-xor-results nn)
+
+
+
+
+;; Train and define the default nn
+(defparameter *nn-vec* (make-array 16 :initial-element (train-all (new-nn) 0.25 (load-files 1000))))

@@ -133,17 +133,28 @@
 ;;           KEY, a hash-key representing the state of the game
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
-(defun insert-new-node (game tree key)
+(defun insert-new-node (game tree key &optional (pid 0))
  ;; (format t "Insert new node~%")
  (let ((moves (legal-moves game))
        (node-holder nil)
        (new-node nil))
-  (setq new-node (make-mc-node 
-		  :key key
-		  :whose-turn (gg-whose-turn? game)
-		  :veck-moves moves
-		  :veck-visits (make-array (length moves) :initial-element 0)
-		  :veck-scores (make-array (length moves) :initial-element 0)))
+   (setq new-node (make-mc-node 
+                    :key key
+                    :whose-turn (gg-whose-turn? game)
+                    :veck-moves moves
+                    :veck-visits (make-array (length moves) :initial-element 0)
+                    :veck-scores nil 
+                    ))
+
+   ;; Use the network allocated for the current process
+   (if pid
+     (setf (mc-node-veck-scores new-node) 
+           (nn-go:analyze-board (gg-board game) moves pid))
+     (setf (mc-node-veck-scores new-node) 
+           (nn-go:analyze-board (gg-board game) moves ))
+     )
+
+   ;;(format t "Scores ~A~%" (mc-node-veck-scores new-node))
   (if (gethash key (mc-tree-hashy tree))
    ;; If the node has been created by another thread
    (with-locked-structure
@@ -247,7 +258,7 @@ new-node))
 ;;    where each state_i is a key into the hashtable, and each move_i
 ;;    is an index into the MOVES vector of the node assoc with state_i.
 (defun sim-tree 
-  (game tree c &optional (imp t))
+  (game tree c &optional (imp t) (pid 0))
   ;; (format t "Sim Tree~%")
   ;; When you hit a node not in the hastable then you are done with
   ;; sim tree. Add the one move and then start using the random play out
@@ -265,7 +276,7 @@ new-node))
                  ;; Case 1:  When key not yet in tree...
                  (when (null nodey)
                    ;; Create new node and insert it into tree
-                   (setf nodey (insert-new-node game tree key))
+                   (setf nodey (insert-new-node game tree key pid))
                    ;(format t "NODEY: ~A~%" nodey)
                    (let* ((mv-index (select-move nodey c))
                           (move-veck (mc-node-veck-moves nodey))
@@ -307,7 +318,7 @@ new-node))
                   (best-move 0)
                   )
               ;; Add the new state
-              (insert-new-node game tree s_t)
+              (insert-new-node game tree s_t pid)
               (dotimes (move (length moves))
                 ;; Update the best-score and best-move
                 (when (< best-score cur-score)
@@ -414,7 +425,7 @@ new-node))
       ;; Make a copy of the game state
       (setq game (deep-copy-go orig-game))
       ;; Run sim-tree
-      (setq state-move-list (sim-tree game orig-tree c))
+      (setq state-move-list (sim-tree game orig-tree c id))
       ;; Run default
       (setq z (sim-default game))
       ;; Run backup
@@ -527,10 +538,10 @@ new-node))
               (format t "BLACK'S TURN!~%")
               ;;(format t "~A~%" 
               (print-go 
-                (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) t nil t t nil))
+                (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) t nil nil nil nil))
              (t
                (format t "WHITE'S TURN!~%")
                ;;(format t "~A~%"
                (print-go
-                 (do-move! g (uct-search g white-num-sims white-c nil white-threads?))t nil t t nil))))))
+                 (do-move! g (uct-search g white-num-sims white-c nil white-threads?))t nil nil nil nil))))))
 

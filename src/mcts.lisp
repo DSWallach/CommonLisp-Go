@@ -96,21 +96,21 @@
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
 
 (defun insert-new-node
-    (game tree key)
+  (game tree key)
   (let* ((moves (legal-moves game))
 
-	 (num-moves (length moves))
-	 (nodey (make-mc-node 
-		 :key key
-		 :veck-moves moves
-		 :veck-visits (make-array num-moves :initial-element 0)
-		 :veck-scores (make-array num-moves :initial-element 0)
-		 :whose-turn (gg-whose-turn? game))))
-    (format t "Legal-moves ~A~%" moves)
-    ;; insert nodey into tree
-    (setf (gethash key (mc-tree-hashy tree)) nodey)
-    ;; return the node
-    nodey))
+         (num-moves (length moves))
+         (nodey (make-mc-node 
+                  :key key
+                  :veck-moves moves
+                  :veck-visits (make-array num-moves :initial-element 0)
+                  :veck-scores (nn-go:analyze-board (gg-board game) moves) ;;(make-array num-moves :initial-element 0)
+                  :whose-turn (gg-whose-turn? game)))
+         (format t "Legal-moves ~A~%" moves)
+         ;; insert nodey into tree
+         (setf (gethash key (mc-tree-hashy tree)) nodey)
+         ;; return the node
+         nodey)))
 
 ;;  SELECT-MOVE
 ;; ------------------------------------------

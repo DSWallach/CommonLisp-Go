@@ -166,7 +166,7 @@
 ;; ----------------------------
 ;;  Print function for the GO-GAME struct
 (defun print-go (game str depth 
-                      &optional (verbose? t) (groups? t) (boards? nil))
+                      &optional (verbose? nil) (groups? nil) (boards? nil))
   (declare (ignore depth))
   (let ((board (gg-board game))
         (evals (gg-subtotals game))

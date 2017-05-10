@@ -1,10 +1,10 @@
-(defconstant *num-cores* 16)
+(defconstant *num-cores* 2)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
-;(ql:quickload "cl-cuda")
+;;(ql:quickload "cl-cuda")
 
 
 ;; Make ACache accessible
@@ -17,12 +17,10 @@
   (require :asdf)    ;; Load asdf package manager
   (require :process)
   (require :acache "acache-3.0.9.fasl")
-;  (asdf:load-system 'cl-cuda) ;; Load CUDA library
   (sys:resize-areas :new 300000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  (declaim (:explain (:types t) (:variables t)))
   (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
-
-
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -32,7 +30,7 @@
 ;; Game Properties 
 (defconstant *black* 0)
 (defconstant *white* 1)
-(defconstant *board-length* 13)
+(defconstant *board-length* 9)
 (defconstant *group-dist* 1)
 (defconstant *mc-rounds* 2)
 (defconstant *board-size* (* *board-length*
@@ -57,14 +55,14 @@
 ;; Compile and load all files
 (defun make ()
   (maker '("basic-defns"
+           "nn-go"
+           "2014-new-nn"
            "go-game"
            "group"
            "game-playing"
            "alpha-beta-go"
            "mcts-go"
-          "nn-go"
            "testing"
-           "2014-new-nn"
            "nn-data-parser")))
 
 ;; Used to reference group-area
