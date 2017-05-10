@@ -520,18 +520,19 @@
 
 (defun compete
   (black-num-sims black-c white-num-sims white-c 
-                  &optional (black-threads? nil)(white-threads? nil))
+                  &optional (black-threads? nil)(white-threads? nil) (return-game? nil))
   (let ((g (init-game)))
     (while (not (game-over? g))
            (cond
              ((eq (gg-whose-turn? g) *black*)
               (format t "BLACK'S TURN!~%")
-              ;;(format t "~A~%" 
-              (print-go 
-                (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) t nil nil nil nil))
+              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) 
+                        t nil nil nil nil))
              (t
                (format t "WHITE'S TURN!~%")
-               ;;(format t "~A~%"
-               (print-go
-                 (do-move! g (uct-search g white-num-sims white-c nil white-threads?))t nil nil nil nil))))))
-
+               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads?))
+                         t nil nil nil nil))))
+    ;; Show all game information
+    (print-go g t nil t t)
+    ;; Return the final game state if requested
+    (when return-game? g)))

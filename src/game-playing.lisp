@@ -10,33 +10,21 @@
 ;;  If there are multiple groups merge them into one
 
 (defun put-piece! (game pos)
-
   (let* ((new-group nil)
          (vec (vector (pos->row pos)
                       (pos->col pos)))
          (row (svref vec 0))
          (col (svref vec 1))
+         (group-dist 1) ; A variable to allow for potentially using different values
          (player (gg-whose-turn? game))
          (connected-groups ())
-         (group-dist 0)
          (player-groups (svref (gg-groups game) player)))
-    (cond 
-      ((< (length (gg-move-history game)) 5)
-       (setq group-dist 5))
-      ((< (length (gg-move-history game)) 10)
-       (setq group-dist 4))
-      ((< (length (gg-move-history game)) 15)
-       (setq group-dist 3))
-      ((< (length (gg-move-history game)) 20)
-       (setq group-dist 2))
-      (t
-       (setq group-dist 1))
-      )
 
     ;; Recursive subroutines to locate and retrive the 
     ;; group the move at (row, col) should be added to 
     (labels 
-      ((add-piece! ; (GROUP), Add the piece at row col to group
+      ;; ADD-PIECE (GROUP), Add the piece at row col to group
+      ((add-piece! 
          (group)
          ;; Destructively modify the group
          (push (row-col->pos row col) 
@@ -46,7 +34,8 @@
          ;; Update group 
          (update-group! group game))
 
-       (find-group ; (GROUP), Check it the piece at row col, is connected to GROUP
+       ;; FIND-GROUP (GROUP), Check it the piece at row col, is connected to GROUP
+       (find-group 
          (group)
          (let ((vec nil)
                )
@@ -64,37 +53,38 @@
                ;; Return true
                (return-from find-group t)))))
 
-       (check-groups ; (INDEX), Find the group the piece should belong to if it exists
+       ;; CHECK-GROUPS, Find the group the piece should belong to if it exists
+       (check-groups 
          ()
          ;; Do for each group 
          (dolist (group player-groups)
-               ;; When it's in the area of the group
-               (when (and (>= (+ row group-dist) 
-                               (svref (group-area group) *min-row*))
-                          (>= (+ col group-dist) 
-                              (svref (group-area group) *min-col*))
-                          (<= (- row group-dist) 
-                              (svref (group-area group) *max-row*))
-                          (<= (- col group-dist) 
-                              (svref (group-area group) *max-col*))
-                          (find-group group)
-                          )
+           ;; When it's in the area of the group
+           (when (and (>= (+ row group-dist) 
+                          (svref (group-area group) *min-row*))
+                      (>= (+ col group-dist) 
+                          (svref (group-area group) *min-col*))
+                      (<= (- row group-dist) 
+                          (svref (group-area group) *max-row*))
+                      (<= (- col group-dist) 
+                          (svref (group-area group) *max-col*))
+                      (find-group group)
+                      )
 
-                 ;;(format debug? "Merge Group~%")
-                  ;; Push it onto the connected groups
-                  (push group connected-groups)
+             ;; Push it onto the connected groups
+             (push group connected-groups)
 
-                 (setf (svref (gg-groups game) player)
-                      (remove group
-                              (svref (gg-groups game) player)
-                              :test #'equal-group?))
-                  )) 
+             (setf (svref (gg-groups game) player)
+                   (remove group
+                           (svref (gg-groups game) player)
+                           :test #'equal-group?)))) 
+         ;; Return true
          t)
        )
 
       ;; Put the piece on the board 
       (setf (svref (gg-board game) pos) 
-            (+ 1 player))
+            (+ (player->piece player)))
+
       ;; If there are no groups 
       (if (null (svref (gg-groups game) player)) 
         ;; Make a new group 
@@ -108,9 +98,9 @@
           ;; Make a list of groups containing the current move
           (setf (svref (gg-groups game) player) (list new-group))
 
-
           ;; Return 0
           0)
+
         ;; Otherwise check the groups of the player whose turn it is
         (when (check-groups)
           (cond
@@ -141,23 +131,15 @@
                    (svref (gg-groups game) player))
              ;; Return 1
              1)
+
             ;; Otherwise merge the groups
             (t 
-              ;; Remove all groups from the groups list for player
-            ; (setf (svref (gg-groups game) player) 
-            ;       (remove-if (lambda (x) 
-            ;                    (find x 
-            ;                          connected-groups
-            ;                          :test #'equal-group?))
-            ;                  player-groups
-            ;                  ))
-
-            (dolist (group connected-groups)
-              (setf (svref (gg-groups game) player)
-                    (remove group 
-                            (svref (gg-groups game) 
-                                   player)
-                            :test #'equal-group?)))
+              (dolist (group connected-groups)
+                (setf (svref (gg-groups game) player)
+                      (remove group 
+                              (svref (gg-groups game) 
+                                     player)
+                              :test #'equal-group?)))
 
               ;; Get the first group to merge
               (setq new-group (pop connected-groups))            
@@ -169,7 +151,6 @@
               ;; Update it with the new piece 
               (add-piece! new-group)
 
-              ;;(format debug? " ++++++++++++++++++++  ~% New Group ~A~%" new-group)
               ;; Push it back onto the players groups
               (push new-group (svref (gg-groups game) player))
 
@@ -179,8 +160,8 @@
 ;;  DO-MOVE! : GAME POS
 ;; --------------------------------------
 ;;  Works like the chess-solns function of the same name
-(defun do-move! (game pos &optional (debug? nil))
-  (declare (ignore debug?))
+(defun do-move! (game pos &optional (verbose? nil))
+  (declare (ignore verbose?))
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
@@ -189,50 +170,50 @@
          )
 
     ;; Function for finding and capturing groups
-    (labels (
-             (groups-capture
-               (group groups-length)
-               (let ((capture-list nil)
-                     )
-                 ;; Check if any groups were captured
-                 (dotimes (i groups-length) 
+    (labels
+      ((groups-capture
+         (group groups-length)
+         (let ((capture-list nil)
+               )
+           ;; Check if any groups were captured
+           (dotimes (i groups-length) 
 
-                   ;; Get the group
-                   (setq group (nth i groups))
+             ;; Get the group
+             (setq group (nth i groups))
 
-                   ;; Update liberties
-                   (calc-liberties! group (gg-board game))
+             ;; Update liberties
+             (calc-liberties! group (gg-board game))
 
-                   ;; When a group is to be captured
-                   (when (= 0 (group-liberties group)) 
-                     ;; Mark the group's position
-                     (setf (group-last-pos group) i)
-                     ;; Add it to the list with placement information
-                     (push (nth i groups) capture-list)))
+             ;; When a group is to be captured
+             (when (= 0 (group-liberties group)) 
+               ;; Mark the group's position
+               (setf (group-last-pos group) i)
+               ;; Add it to the list with placement information
+               (push (nth i groups) capture-list)))
 
-                 ;; Capture each group in the list
-                 (dolist (c-group capture-list)
+           ;; Capture each group in the list
+           (dolist (c-group capture-list)
 
-                   ;; Increment the capture flag
-                   (setq captured (+ 1 captured))
+             ;; Increment the capture flag
+             (setq captured (+ 1 captured))
 
-                   ;; Capture the group
-                   (capture-group! c-group game)
+             ;; Capture the group
+             (capture-group! c-group game)
 
-                   (when (find c-group (svref (gg-groups game) (- 1 player)))
-                     ;;(format debug? "Group wasn't removed~%")
-                     (break))
-                   )
-
-                 ;; If only one group containing only one piece 
-                 ;; was captured set the flag to check for ko
-                 (when (and (= captured 1) (= 1 (length (group-pieces group)))
-                            (setf (gg-ko? game) t)))))
+             (when (find c-group (svref (gg-groups game) (- 1 player)))
+               ;;(format debug? "Group wasn't removed~%")
+               (break))
              )
 
-    ;; Push the board onto board history
-    (push (copy-vector board) 
-          (gg-board-history game))
+           ;; If only one group containing only one piece 
+           ;; was captured set the flag to check for ko
+           (when (and (= captured 1) (= 1 (length (group-pieces group)))
+                      (setf (gg-ko? game) t)))))
+       )
+
+      ;; Push the board onto board history
+      (push (copy-vector board) 
+            (gg-board-history game))
 
     ;; If the move is a pass
     (cond
@@ -290,37 +271,14 @@
 ;;  UNDO-MOVE! : GAME
 ;; ----------------------------------------
 ;;  Undo the most recently played move
-(defun undo-move! (game &optional (debug? nil))
+(defun undo-move! (game &optional (verbose? nil))
+  (declare (ignore verbose?))
   (let* ((captured 0)
          (move (pop (gg-move-history game)))
          (pos (svref move 0))
          (player (gg-whose-turn? game))
          (opponent (- 1 player))
-         (deep-copy nil) 
          )
-    ;;(format debug? "Undo Move ~A~%" move)
-    (labels (
-             ;; Test if a play at POSI matches a move from the
-             ;; game's move history
-             (history-test? 
-               (posi move)
-               (= posi (svref move 0)))
-             ;; Predicate for determining the ordering of groups
-             ;; based on the move history
-             (group-order? 
-               (group-one group-two)
-               ;;(format debug? "ONe: ~A~% Two: ~A~%" group-one group-two)
-               ;; When group-one was modified more recently that group-two 
-               (when (< (position (first (group-pieces group-one)) 
-                                  (gg-move-history game)
-                                  :test #'history-test?) 
-                        (position (first (group-pieces group-two)) 
-                                  (gg-move-history game)
-                                  :test #'history-test?))
-
-                 ;; Return true
-                 t))
-             )
 
       ;; Delete the previous board 
       (pop (gg-board-history game))
@@ -331,58 +289,38 @@
         ;; Remove the piece from the board and from player's groups
         (pull-piece! game move) 
 
-      (when (= captured 0)
-        (setf (gg-ko? game) nil))
+        ;; If nothing was captured reset the ko flag
+        (when (= captured 0)
+          (setf (gg-ko? game) nil))
 
-      (cond 
-        ;; If the last move was a suicide
-        ((= -1 (svref move 1))
-         (let ((group nil)
-               )
-           ;; Remove the piece from your opponent's captures
-           (setq group (pop (svref (gg-captures game) player)))
-
-           ;; Add the group back to player's groups
-           (setf (svref (gg-groups game) opponent)
-                 (merge 'list
-                        (list group)
-                        (svref (gg-groups game) opponent)
-                        #'group-order?))
-
-           ;; Return pieces to the board except for the last move
-           (dolist (p (group-pieces group))
-             (unless (= p (svref move 0))
-               (setf (svref (gg-board game) p) 
-                     (+ 1 opponent))))))
 
         ;; If necessary return captured groups
-        ((< 0 (svref move 1))
-         ;;(format debug? "Return captured groups ~%")
-         (let ((group nil)
-               )
+        (when (< 0 (svref move 1))
+          ;;(format debug? "Return captured groups ~%")
+          (let ((group nil)
+                )
 
-           ;; Return each captured group
-           (dotimes (i (svref move 1))
+            ;; Return each captured group
+            (dotimes (i (svref move 1))
 
-             (setq group (pop (svref (gg-captures game) opponent)))
+              (setq group (pop (svref (gg-captures game) opponent)))
 
-             ;; Add the group's pieces to the board
-             (dolist (p (group-pieces group))
-               (setf (svref (gg-board game) p) (+ 1 player)))
+              ;; Add the group's pieces to the board
+              (dolist (p (group-pieces group))
+                (setf (svref (gg-board game) p) (+ 1 player)))
 
-             ;; Add the group back in it's previous position
-             (setf (svref (gg-groups game) player)
-                   ;; Append the groups that came before group
-                   (append (subseq (svref (gg-groups game) player) 
-                                   0 (group-last-pos group))  
-                           (list group) ; A list containing group
-                           ;; The groups that came after group
-                           (subseq (svref (gg-groups game) player) 
-                                   (group-last-pos group)))))))
-        )
+              ;; Add the group back in it's previous position
+              (setf (svref (gg-groups game) player)
+                    ;; Append the groups that came before group
+                    (append (subseq (svref (gg-groups game) player) 
+                                    0 (group-last-pos group))  
+                            (list group) ; A list containing group
+                            ;; The groups that came after group
+                            (subseq (svref (gg-groups game) player) 
+                                    (group-last-pos group)))))))
 
-      ;; Update player's groups
-      (dolist (group (svref (gg-groups game) player))
+        ;; Update player's groups
+        (dolist (group (svref (gg-groups game) player))
         (calc-area! group)
         (update-group! group game))
 
@@ -395,16 +333,7 @@
       (eval-subtotals! game))
 
     ;; Change turn
-    (setf (gg-whose-turn? game) opponent)
-
-    ;; Compare to the deep-copy board
-    ;; break if there's a difference
-    (when debug?  
-      (unless (equal-go? game deep-copy)
-        ;;(format debug? "Undo doesn't match copy: Copy ~% ~A Game ~% ~A ~%" deep-copy game)
-        (break)))
-
-   )))
+    (setf (gg-whose-turn? game) opponent)))
 
 ;;  PULL-PIECE! : GAME MOVE &DEBUG? 
 ;; ---------------------------------------------------------------
@@ -423,13 +352,11 @@
          (group (pop (svref (gg-groups game)
                             opponent)))
          )
-
     (labels (
              (history-test? (pos move)
                             (= pos (svref move 0)))
              (group-order?
                (group-one group-two)
-               ;; So the compiler doesn't complain
                (when (< (position (first (group-pieces group-one))
                                   (gg-move-history game)
                                   :test #'history-test?)

@@ -349,10 +349,10 @@
           (setq territory 0))))
 
     ;; Update the territory
-    (setf (group-territory group) total)))
+    (setf (group-territory group) total))
 
   ;; Set to 0
-  (setf (group-territory group) 0))
+  (setf (group-territory group) 0)))
 
 ;;  CALC-LIBERTIES! : GROUP BOARD
 ;; -------------------------
@@ -384,7 +384,6 @@
       ;; Update the group's liberties
       (setf (group-liberties group) libs)
       ))
-;;)
 
 ;;  CAPTURE-GROUP! : GROUP GAME
 ;; ---------------------------------
@@ -395,7 +394,7 @@
   (let* ((player (gg-whose-turn? game))
          (opponent (- 1 player))
          )
-    
+
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 
           (remove group (svref (gg-groups game) opponent)))

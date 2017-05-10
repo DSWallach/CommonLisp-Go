@@ -1,4 +1,5 @@
 ;;;;; TESTING
+
 ;;  TEST : TESTNAME PASSED?
 ;; -----------------------------
 ;;  Testing function
@@ -151,7 +152,7 @@
 ;;  TEST-CORNER-TERRITORY
 ;; ---------------------------------------
 ;;  Testing territory calculation
-(defun test-corner-territory()
+(defun test-corner-territory (&optional (verbose? nil))
   (let ((new-g (init-game)))
     (play-move! new-g (- *board-length* 3) (- *board-length* 1))
     (do-move! new-g *board-size*)
@@ -162,10 +163,20 @@
     (play-move! new-g (- *board-length* 3) (- *board-length* 3))
     (do-move! new-g *board-size*)
 
+    (when verbose? 
+      (print-go new-g t nil t t))
+
     (play-move! new-g (- *board-length* 2) (- *board-length* 3))
     (do-move! new-g *board-size*)
 
+    (when verbose? 
+      (print-go new-g nil t t))
+
     (play-move! new-g (- *board-length* 1) (- *board-length* 3))
+
+    (when verbose? 
+      (print-go new-g t nil t t))
+
     (test "Corner-Territory" (= (group-territory (first (svref (gg-groups new-g) *black*))) 4))))
 
 ;;  TEST-CORNER-AREA
@@ -578,7 +589,7 @@
     (undo-move! new-g)
     (when verbose? (print-go new-g t nil t t t))
     ;; Check if it's equal to the previous game state
-    (test "Undo" (equal-go? new-g new-g-copy verbose?))))
+    (test (concatenate 'string "Undo after " (write-to-string num-moves) " moves") (equal-go? new-g new-g-copy verbose?))))
 
 ;;; Testing Game Play
 ;;  TEST-LEGAL-MOVES
@@ -588,8 +599,8 @@
          (moves (legal-moves new-g))
          (passed? t)
          )
-    (dolist (move moves)
-      (do-move! new-g move verbose?)
+    (dotimes (move (length moves))
+      (do-move! new-g (svref moves move) verbose?)
       (undo-move! new-g)
       (when verbose? 
         (print-go new-g t nil t t))

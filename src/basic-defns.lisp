@@ -77,6 +77,33 @@
 (defconstant *check-above* 2)
 (defconstant *check-below* 3)
 
+;;   MACROS
+;; --------------------------------
+(defmacro row-col->pos (row col)
+  `(+ (* *board-length* ,row) ,col))
+
+(defmacro pos->row (pos)
+  `(floor (/ ,pos *board-length*)))
+
+(defmacro pos->col (pos)
+  `(mod ,pos *board-length*))
+
+(defun pos->middle-dist (pos)
+  (+ (abs (- (pos->col pos) *board-middle*))
+     (abs (- (pos->row pos) *board-middle*)))
+  )
+
+(defmacro player->piece (player)
+  `(if (= ,player *black*)
+     1  ; Black
+     -1 ; White
+     ))
+
+(defmacro piece->player (piece)
+  `(if (= ,piece 1)
+     *black*
+     *white*
+     ))
 
 ;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
 ;; ---------------------------------------------
@@ -139,20 +166,6 @@
     (vector row col)))
 
 
-;; MACROS
-(defmacro row-col->pos (row col)
-  `(+ (* *board-length* ,row) ,col))
-
-(defmacro pos->row (pos)
-  `(floor (/ ,pos *board-length*)))
-
-(defmacro pos->col (pos)
-  `(mod ,pos *board-length*))
-
-(defun pos->middle-dist (pos)
-  (+ (abs (- (pos->col pos) *board-middle*))
-     (abs (- (pos->row pos) *board-middle*)))
-  )
 
 (defconstant *opening-moves*
              (list (row-col->pos 2 2)
