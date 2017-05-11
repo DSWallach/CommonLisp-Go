@@ -5,6 +5,7 @@
 
 
 ;;;;; GO-GAME STRUCT/FUNCS 
+
 ;;  GO-GAME struct
 (defstruct (go-game (:print-function print-go)
                     (:conc-name gg-))
@@ -14,18 +15,17 @@
   ;; Groups captured by each player
   ;; necessary to be able to destructively undo moves
   (captures (vector () ()))
-  ;; Vector with pointers to the lists containing Black
-  ;; and white groups
+  ;; Vector with pointers to the lists containing Black and White groups
   (groups (vector () ()))
-  ;; White's pieces, .....
-  ;; Same as for chess
+  ;; Black plays first
   (whose-turn? *black*)
-  ;; When true get-legal-moves will check for Ko situations
-  (atari? nil)
+  ;; Points for white
   (komi 0)
-  ;; Flag for ko
+  ;; When true get-legal-moves will check for Ko situations
   (ko? nil)
+  ;; Current scores for each player (hold over from Alpha Beta)
   (subtotals (vector 0 0))
+  ;; Arrays indicating what board positions are eyes
   (eyes (vector (make-array *board-size* :initial-element 0)
                 (make-array *board-size* :initial-element 0)))
   ;; List of vectors #(a b c) where
@@ -33,6 +33,7 @@
   ;; b == col played at
   ;; c == number of groups captured by the move
   (move-history nil)
+  ;; History of the board state, used to check for ko
   (board-history nil) 
   )
 
@@ -310,7 +311,6 @@
                   :captures (vector b-caps w-caps)
                   :groups (vector b-groups w-groups)
                   :whose-turn? (gg-whose-turn? game)
-                  :atari? (gg-atari? game)
                   :komi (gg-komi game)
                   :ko? (gg-ko? game)
                   :subtotals (vector b-subs w-subs)
