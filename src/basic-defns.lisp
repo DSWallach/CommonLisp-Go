@@ -1,4 +1,9 @@
-(defconstant *num-cores* 2)
+
+(defpackage go-game
+ (:export :pool) 
+  )
+
+(defconstant *num-cores* 16)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -14,13 +19,11 @@
 (eval-when (compile load eval)
   ;; Require AllegroCache for storing networks
   (require :smputil) ;; Load Allegro mutlithreading
-  (require :asdf)    ;; Load asdf package manager
   (require :process)
   (require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 300000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 600000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (:explain (:types nil) (:variables nil)))
-  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  (declaim (optimize (speed 3) (safety 0) (space 1) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -105,6 +108,39 @@
      *white*
      ))
 
+
+
+
+
+;; Synchonized pool for storing instances of the trained network
+(defstruct (pool (:include synchronizing-structure))
+  nets
+  )
+
+(defun init-pool (nn num-nets)
+  (let ((p (make-pool)))
+    (with-locked-structure 
+      (p)
+      (dotimes (i num-nets)
+        (push (deep-copy-nn nn) (pool-nets p))))
+    p))
+
+
+
+(defun init-nn-pool ()
+  (let* ((files (load-files 1000))
+         (nn (init-nn (list 81 81 49 81 81)))
+         )
+    ;; Train
+    (train-all nn 1 files)
+    ;; Make Copies
+    (init-pool nn *num-cores*)
+    ))
+
+
+
+
+
 ;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
 ;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
@@ -147,11 +183,16 @@
 
 
 
-(defun copy-vector (in-vec)
+(defun copy-vector (in-vec &optional (copy-func nil))
   (let ((out-vec (make-array (length in-vec)))
         )
+    (if copy-func
+    (dotimes (i (length in-vec))
+      (setf (svref out-vec i) 
+            (funcall copy-func (svref in-vec i))))
     (dotimes (i (length in-vec))
       (setf (svref out-vec i) (svref in-vec i)))
+    )
     out-vec))
 
 (defun find-pos (row col)

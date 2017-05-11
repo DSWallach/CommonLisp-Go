@@ -26,7 +26,7 @@
 ;;;          (corresponding to weights between 4 hidden neurons
 ;;;           and 2 output neurons)
 
-(in-package :nn-go)
+;(in-package :nn-go)
 
 (defstruct nn
   ;; NUM-LAYERS:  the number of layers in the neural network
@@ -51,6 +51,26 @@
   ;;       the neurons in layer i.
   delta-vecks   
   )
+
+ ;(defun copy-vector (in-vec)
+ ;(let ((out-vec (make-array (length in-vec)))
+ ;      )
+ ;  (dotimes (i (length in-vec))
+ ;    (setf (svref out-vec i) (svref in-vec i)))
+ ;  out-vec))
+
+(defun deep-copy-nn (nn)
+  (let ((layers (nn-num-layers nn))
+        (sizes (copy-vector (nn-layer-sizes nn)))
+        (outputs (copy-vector (nn-output-vecks nn) 'copy-vector))
+        (weights (copy-vector (nn-weight-arrays nn)))
+        (deltas (copy-vector (nn-delta-vecks nn)))
+        )
+    (make-nn :num-layers layers
+             :layer-sizes sizes
+             :output-vecks outputs
+             :weight-arrays weights
+             :delta-vecks deltas)))
 
 ;;;  INIT-NN
 ;;; -----------------------------------------
@@ -420,9 +440,3 @@
 
 ;; (setf nn (train-for-xor 1 '(2 4 1) 10000))
 ;; (show-xor-results nn)
-
-
-
-
-;; Train and define the default nn
-(defparameter *nn-vec* (make-array 16 :initial-element (train-all (new-nn) 0.25 (load-files 1000))))

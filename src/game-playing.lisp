@@ -432,7 +432,7 @@
     `(= 0 (svref (gg-board ,game) ,pos)))
 
 
-(defmacro default-policy (game)
+(defmacro random-policy (game &optional (nn nil))
   `(let ((moves nil)
          (rand 0)
          )
@@ -444,6 +444,21 @@
          (return)))
      (sqrt (- (svref (gg-subtotals ,game) *white*)
                    (svref (gg-subtotals ,game) *black*)))))
+
+(defmacro default-policy (game &optional (nn nil))
+  `(let ((moves nil)
+         (move 0)
+         )
+     (dotimes (i 1000000)
+       (setq moves (legal-moves ,game))
+       (setq move (annalyze-move ,nn (gg-board ,game) moves))
+       (do-move! ,game move)
+       (when (game-over? ,game)
+         (return)))
+     (* 10000 
+        (sqrt (- (svref (gg-subtotals ,game) *black*)
+                 (svref (gg-subtotals ,game) *white*)))
+        )))
 
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------

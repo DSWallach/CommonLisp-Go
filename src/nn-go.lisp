@@ -1,21 +1,16 @@
 ;; Package Definition
-(in-package :cl-user)
+;(in-package :cl-user)
 
-(defpackage nn-go
-  (:use :cl
-        :db.allegrocache)
-  (:export :verify-mat-mul)
-  (:export nn-kernel)
-  (:export vec-add-kernel)
-  (:export :main)
-  (:export :main-add)
-  (:export :tester)
-  (:export :make)
-  (:export :analyze-board)
-  (:export mat1)
-  (:export mat2))
+;(defpackage nn-go
+;  (:use :cl
+;        :db.allegrocache)
+;  )
 
-(in-package :nn-go)
+;(in-package :nn-go)
+
+;(eval-when (compile load eval)
+;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+;  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 ;; This will vary for optimal performance depending on the specific GPU
 (defconstant *num-blocks* 6)
@@ -32,7 +27,6 @@
 (defconstant *4-5-edges* (* *fourth-layer* *output-layer*))
 (defconstant *train-val-one* 1.7159)
 (defconstant *train-val-two* 0.66666667)
-(defconstant *board-size* 81)
 
 ;; Open the file containing the most recent network
 (db.allegrocache:open-file-database "../go-nets"
@@ -43,35 +37,37 @@
 (defun new-nn ()
   (init-nn '(81 49 81)))
 
-(defclass nn-archive ()
-  ((id :initarg :id :reader id :index :any-unique)
+;(defclass nn-archive ()
+;  ((id :initarg :id :reader id :index :any-unique)
 ;   (num-layers :initarg :num-layers :reader num-layers)
 ;   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
 ;   (output-vecks :initarg :output-vecks :reader output-vecks)
 ;   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
 ;   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
-(nn :initarg :nn :reader nn)
-   )
-  (:metaclass persistent-class))
+;(nn :initarg :nn :reader nn)
+;   )
+;  (:metaclass persistent-class)
+;  )
 
-(defun store-nn (nn id)
-  (make-instance 'nn-archive :id id
-                 :num-layers (nn-num-layers nn)
-                 :layer-sizes (nn-layer-sizes nn)
-                 :output-vecks (nn-output-vecks nn)
-                 :weight-arrays (nn-weight-arrays nn)
-                 :delta-vecks (nn-delta-vecks nn)
-                 )
-  (commit))
+;(defun store-nn (nn id)
+;  (make-instance 'nn-archive :id id
+;                :num-layers (nn-num-layers nn)
+;                :layer-sizes (nn-layer-sizes nn)
+;                :output-vecks (nn-output-vecks nn)
+;                :weight-arrays (nn-weight-arrays nn)
+;                :delta-vecks (nn-delta-vecks nn)
+;                )
+; (commit)
+; )
 
 
-;;  ANALYZE-BOARD : NN BOARD LEGAL-MOVES
+;;  ANNALYZE-BOARD : NN BOARD LEGAL-MOVES
 ;; ------------------------------------------
 ;;  Analyze the scores of the various moves at
 ;;  the given board position
-(defun analyze-board (board legal-moves &optional (pid 0))
+(defun annalyze-board (board legal-moves nn)
   ;; Get the output of the nn for the given input (board state)
-  (let ((output (get-output-for (svref *nn-vec* pid)  board))
+  (let ((output (get-output-for nn  board))
         (move-scores (make-array (length legal-moves) :initial-element 0))
         )
     ;; For each legal move 
@@ -88,6 +84,30 @@
       )
     ;; Return the scores
     move-scores))
+
+;;  ANNALYZE-move : NN BOARD LEGAL-MOVES
+;; ------------------------------------------
+;;  Analyze the scores of the various moves at
+;;  the given board position
+(defun annalyze-move (nn board legal-moves)
+  ;; Get the output of the nn for the given input (board state)
+  (let ((output (get-output-for nn  board))
+        (move 0)
+        (best-move 0)
+        (best-score -1000000)
+        )
+    ;; For each legal move 
+    (dotimes (i (length legal-moves))
+      (setq move (svref legal-moves i))
+      ;; Skip passing
+      (unless (= *board-size* move)
+        (when (> (svref output move) best-score)
+          (setq best-score (svref output move))
+          (setq best-move move)
+          )))
+    ;;(format t "Best Move ~A Score ~A~%" best-move best-score)
+    ;; Return the scores
+    best-move))
 
 
 ;; Create a list of pathnames to the files to parse
@@ -127,30 +147,32 @@
     ;; Return the lists
     data))
 
+
+
 ;; Open NUM files and convert them into training data
 (defun load-files (num-files)
   (load-data (make-parse-list num-files)))
 
 ;; Class for storing a network in AllegroCache
-(defclass neural-net ()
-  ((id :initarg :id :reader id :index :any-unique)
-   (gw1 :initarg :gw1 :reader gw1) ; Input to Second connections
-   (gw2 :initarg :gw2 :reader gw2) ; Second to Third connections
-   (gw3 :initarg :gw3 :reader gw3) ; Third to Fourth connections
-   (gw4 :initarg :gw4 :reader gw4)  ; Fourth to Output connections
-   ; (gn1) ; Input Layer
-   ; (gn2) ; Second Layer
-   ; (gn3) ; Third Layer
-   ; (gn4) ; Fourth Layer
-   ; (gn5) ; Output Layer
-   )
-  (:metaclass persistent-class))
+;(defclass neural-net ()
+; ((id :initarg :id :reader id :index :any-unique)
+;  (gw1 :initarg :gw1 :reader gw1) ; Input to Second connections
+;  (gw2 :initarg :gw2 :reader gw2) ; Second to Third connections
+;  (gw3 :initarg :gw3 :reader gw3) ; Third to Fourth connections
+;  (gw4 :initarg :gw4 :reader gw4)  ; Fourth to Output connections
+;  ; (gn1) ; Input Layer
+;  ; (gn2) ; Second Layer
+;  ; (gn3) ; Third Layer
+;  ; (gn4) ; Fourth Layer
+;  ; (gn5) ; Output Layer
+;  )
+; (:metaclass persistent-class))
 
-(defun make ()
-  (compile-file "nn-go")
-  (load "nn-go")
-  (compile-file "2014-new-nn")
-  (load "2014-new-nn"))
+;(defun make-nn ()
+;  (compile-file "nn-go")
+;  (load "nn-go")
+;  (compile-file "2014-new-nn")
+;  (load "2014-new-nn"))
 
 
 

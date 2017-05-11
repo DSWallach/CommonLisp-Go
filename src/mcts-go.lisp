@@ -131,7 +131,8 @@
 ;;           KEY, a hash-key representing the state of the game
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
-(defun insert-new-node (game tree key &optional (pid 0))
+(defun insert-new-node (game tree key &optional (pid nil))
+  (declare (ignore pid))
   ;; (format t "Insert new node~%")
   (let ((moves (legal-moves game))
         (node-holder nil)
@@ -141,16 +142,16 @@
                      :whose-turn (gg-whose-turn? game)
                      :veck-moves moves
                      :veck-visits (make-array (length moves) :initial-element 0)
-                     :veck-scores nil 
+                     :veck-scores (make-array (length moves) :initial-element 0)
                      ))
 
     ;; Use the network allocated for the current process
-    (if pid
-      (setf (mc-node-veck-scores new-node) 
-            (nn-go:analyze-board (gg-board game) moves pid))
-      (setf (mc-node-veck-scores new-node) 
-            (nn-go:analyze-board (gg-board game) moves ))
-      )
+ ;  (if pid
+ ;    (setf (mc-node-veck-scores new-node) 
+ ;          (nn-go:analyze-board (gg-board game) moves pid))
+ ;    (setf (mc-node-veck-scores new-node) 
+ ;          (nn-go:analyze-board (gg-board game) moves ))
+ ;    )
 
 
     ;; If the node has been created by another thread
@@ -344,8 +345,10 @@
 ;;             (domain-dependent method)
 
 (defun sim-default
-  (game)
-  (default-policy game))
+  (game &optional (nn nil))
+  (if nn
+    (default-policy game nn)
+    (random-policy game)))
 
 
 ;;  BACKUP : HASHY KEY-MOVE-ACC RESULT
@@ -406,7 +409,7 @@
 
 ;; For use by each thread of uct-search
 (defun sim-ops
-  (orig-game c orig-tree total-sim id barrier start-time time-limit)
+  (orig-game c orig-tree total-sim nn id barrier start-time time-limit)
   (let* ((state-move-list nil)
          (z 0)
          (game nil))
@@ -417,21 +420,18 @@
       ;; Run sim-tree
       (setq state-move-list (sim-tree game orig-tree c id))
       ;; Run default
-      (setq z (sim-default game))
+      (setq z (sim-default game nn))
       ;; Run backup
       (backup orig-tree state-move-list z)
 
-      ;; Every 100 sims
-     ;(when (= 0 (mod i 10))
-        ;; Check the time
-       ; (setq cur-time (get-internal-real-time))
-        ;; When it's over the time limit return
-        (when (< time-limit (- (get-internal-real-time) start-time))
-          (return))
-)
+      ;; When it's over the time limit return
+      (when (< time-limit (- (get-internal-real-time) start-time))
+        (return))
+      )
 
     ;; Pass through the barrier to signal the thread is done 
-    (mp:barrier-pass-through barrier)))
+    (mp:barrier-pass-through barrier)
+    ))
 
 
 ;;  UCT-SEARCH : ORIG-GAME NUM-SIMS C
@@ -443,7 +443,8 @@
 (defun uct-search (orig-game num-sims c &optional 
                              (return-tree nil) 
                              (use-threads nil)
-                             (time-limit 1000))
+                             (pool nil)
+                             (time-limit 10000))
   (let ((start-time (get-internal-real-time))
         )
     (cond
@@ -452,9 +453,14 @@
         (let* ((tree (new-mc-tree orig-game))
                (barrier (mp:make-barrier (+ *num-cores* 1)))
                (sims-per-thread (ceiling (/ num-sims *num-cores*)))
+               (nn nil)
                )
           ;; Spawn the threads
           (dotimes (i *num-cores*)
+            ;; Get a network for each thread
+            (with-locked-structure 
+              (pool)
+              (setq nn (pop (pool-nets pool))))
             ;; Create a process and start it running with the tree
             ;; The process is killed and cleaned up after when the 
             ;; function returns.
@@ -464,6 +470,7 @@
                                      c tree
                                      ;; Add some variance in the number of sims for each thread so they don't complete all once
                                      sims-per-thread
+                                     nn
                                      i barrier
                                      start-time
                                      time-limit))
@@ -491,7 +498,7 @@
             ;; Run sim-tree
             (setq state-move-list (sim-tree game tree c))
             ;; Run default
-            (setq z (sim-default game))
+            (setq z (sim-default game (pop (pool-nets pool))))
             ;; Run backup
             (backup tree state-move-list z)
             (when (= 0 (mod i 100))
@@ -521,16 +528,18 @@
 (defun compete
   (black-num-sims black-c white-num-sims white-c 
                   &optional (black-threads? nil)(white-threads? nil) (return-game? nil))
-  (let ((g (init-game)))
+  (let ((g (init-game))
+        (p (init-nn-pool))
+        )
     (while (not (game-over? g))
            (cond
              ((eq (gg-whose-turn? g) *black*)
               (format t "BLACK'S TURN!~%")
-              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads?)) 
+              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? p)) 
                         t nil nil nil nil))
              (t
                (format t "WHITE'S TURN!~%")
-               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads?))
+               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? p))
                          t nil nil nil nil))))
     ;; Show all game information
     (print-go g t nil t t)
