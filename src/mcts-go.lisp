@@ -194,18 +194,15 @@
         (new_q 0)
         (ifblack 1)
         )
-    ;; Make the score negative for black
-    (when (= player *black*)
-      (setq ifblack -1))
     ;; Compare all the potential moves
     (dotimes (i (length scores))
       ;; If there isn't gonan be problems dividing by 0
       (if (and (< 0 node-visits)
                (< 0 (svref visits i)))
         ;; Calculate the monte-carlo value
-        (setq new_q (* ifblack (* c  (sqrt (/ (log node-visits)
-                                              (/ (svref visits i)
-                                                 node-visits))))))
+        (setq new_q (* c  (sqrt (/ (log node-visits)
+                                   (/ (svref visits i)
+                                      node-visits)))))
         (setq new_q 0))
       ;; Set the value, adding or subtracting depending on the player
       (cond
@@ -225,16 +222,19 @@
           (when (> max-so-far (svref scores i))
             (setq max-so-far (svref scores i))
             (setq best-move-so-far i))))
+      (with-locked-structure 
+        (nodey)
+        ;; Update the scores in the node
+        (setf (mc-node-veck-scores nodey) scores)
 
-      ;; Update the scores in the node
-      (setf (mc-node-veck-scores nodey) scores)
-      ;; Update the visits to the chosen move
-      (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
-            (+ 1 (svref visits best-move-so-far)))
+        ;; Update the visits to the chosen move
+        (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
+              (+ 1 (svref visits best-move-so-far)))
 
-      ;; Increment the number of visits to this node
-      (setf (mc-node-num-visits nodey)
-            (+ 1 (mc-node-num-visits nodey))))
+        ;; Increment the number of visits to this node
+        (setf (mc-node-num-visits nodey)
+              (+ 1 (mc-node-num-visits nodey))))
+      )
     (when game-move
       (format t "Move score: ~A~%" max-so-far))
     ;; Return the best move found

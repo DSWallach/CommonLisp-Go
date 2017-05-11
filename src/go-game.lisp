@@ -332,11 +332,14 @@
 (defun find-group (pos game)
   (let ((piece (svref (gg-board game) pos)))
     (unless (= 0 piece)
-      (let* ((player (piece->player 1)) 
+      (let* ((player (piece->player piece)) 
              (groups (svref (gg-groups game) player)))
         (dolist (group groups)
           (when (find pos (group-pieces group))
-            (return-from find-group group)))))))
+            (return-from find-group group)
+            ))
+            (format t "Group not found at ~A, ~A:  ~A~%" (pos->row pos) (pos->col pos) piece)
+        ))))
 
 ;;  FIND-AND-RETURN-GROUP : POS GAME
 ;; -------------------------------------
@@ -358,43 +361,53 @@
 ;;  Captures all groups that don't have two eyes or
 ;;  room for two eyes
 (defun remove-dead-groups! (game)
-  ;; Check black groups
-  (dolist (group (svref (gg-groups game) *black*))
-    (calc-life! group game)
-    ;; Capture dead groups
-    (unless (group-alive? group)
-      (capture-group! group game)))
+  (let ((player (gg-whose-turn? game))
+        )
 
-  ;; Check white groups
-  (dolist (group (svref (gg-groups game) *white*))
-    (calc-life! group game)
-    ;; Capture dead groups
-    (unless (group-alive? group)
-      (capture-group! group game)))
+    ;; Check black groups
+    (dolist (group (svref (gg-groups game) player))
+      (calc-life! group game)
+      ;; Capture dead groups
+      (when (= 0(group-alive? group))
+        (capture-group! group game)))
 
-  ;; Update territories of remaining groups
-  (dolist (group (svref (gg-groups game) *black*))
-    (update-group! group game))
-  (dolist (group (svref (gg-groups game) *white*))
-    (update-group! group game)))
+    ;; Change turns so capture-group! will work properly
+    (setf (gg-whose-turn? game ) (- 1 player))
+
+    ;; Check white groups
+    (dolist (group (svref (gg-groups game) (- 1 player)))
+      (calc-life! group game)
+      ;; Capture dead groups
+      (when  (= 0 (group-alive? group))
+        (capture-group! group game)))
+
+    ;; Reset turn
+    (setf (gg-whose-turn? game) player)
+
+    ;; Update territories of remaining groups
+    (dolist (group (svref (gg-groups game) *black*))
+      (update-group! group game))
+    (dolist (group (svref (gg-groups game) *white*))
+      (update-group! group game)))
+  )
 
 
 ;;  GAME-OVER? : GAME
 ;; -------------------------------
 (defun game-over? (game)
   (when (or (> (length (gg-move-history game)) 
-             ;; To protect against triple kos (very rare but could cause an infinite loop)
-             ;; Twice as many moves as positions on the board is many more than games typically
-             ;; go for. Usually it would be fewer than there are positions on the board.
-             (* 2 *board-size*))
-          (and (> (length (gg-move-history game)) 2) 
-               ;; If the past two moves were the same move the 
-               ;; game is over. This is because the only circumstance 
-               ;; underwhich the same move can be made by each player
-               ;; consecutively is when that move is a pass. This signals
-               ;; the end of the game.
-               (= (svref (first (gg-move-history game)) 0)
-                  (svref (second (gg-move-history game)) 0))))
+               ;; To protect against triple kos (very rare but could cause an infinite loop)
+               ;; Twice as many moves as positions on the board is many more than games typically
+               ;; go for. Usually it would be fewer than there are positions on the board.
+               (* 2 *board-size*))
+            (and (> (length (gg-move-history game)) 2) 
+                 ;; If the past two moves were the same move the 
+                 ;; game is over. This is because the only circumstance 
+                 ;; underwhich the same move can be made by each player
+                 ;; consecutively is when that move is a pass. This signals
+                 ;; the end of the game.
+                 (= (svref (first (gg-move-history game)) 0)
+                    (svref (second (gg-move-history game)) 0))))
 
     ;; Remove dead groups
     (remove-dead-groups! game)

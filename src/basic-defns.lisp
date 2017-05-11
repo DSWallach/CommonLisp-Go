@@ -28,6 +28,16 @@
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
 
+
+
+(defun print-board (game)
+            (dotimes (i *board-length*)
+              (dotimes (j *board-length*)
+                (format t "~A " (svref (gg-board game) (row-col->pos i j)))
+                )
+              (format t "~%")
+              ))
+
 ;;  GLOBAL CONSTANTS
 
 ;; Game Properties 

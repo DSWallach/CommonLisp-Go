@@ -307,7 +307,7 @@
 
               ;; Add the group's pieces to the board
               (dolist (p (group-pieces group))
-                (setf (svref (gg-board game) p) (+ 1 player)))
+                (setf (svref (gg-board game) p) (player->piece player)))
 
               ;; Add the group back in it's previous position
               (setf (svref (gg-groups game) player)
@@ -443,11 +443,12 @@
        (when (game-over? ,game)
          (return)))
      (sqrt (- (svref (gg-subtotals ,game) *white*)
-                   (svref (gg-subtotals ,game) *black*)))))
+              (svref (gg-subtotals ,game) *black*)))))
 
 (defmacro default-policy (game &optional (nn nil))
   `(let ((moves nil)
          (move 0)
+         (score 0)
          )
      (dotimes (i 1000000)
        (setq moves (legal-moves ,game))
@@ -455,10 +456,12 @@
        (do-move! ,game move)
        (when (game-over? ,game)
          (return)))
-     (* 10000 
-        (sqrt (- (svref (gg-subtotals ,game) *black*)
-                 (svref (gg-subtotals ,game) *white*)))
-        )))
+    (format t "Hi") 
+     (setq score (sqrt (- (svref (gg-subtotals ,game) *black*)
+                          (svref (gg-subtotals ,game) *white*))))
+
+     (format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))
+     score))
 
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------

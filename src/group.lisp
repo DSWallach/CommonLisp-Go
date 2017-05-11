@@ -458,10 +458,6 @@
 
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
-  ;;  (unless mark-vec
-   ;;   (print-go game t nil nil t nil)
-    ;;  (break))
-
     (labels ((get-pieces 
                (times)
                ;; Remove all the the pieces from the most recent merge 
