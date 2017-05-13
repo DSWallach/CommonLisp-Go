@@ -52,14 +52,32 @@
   delta-vecks   
   )
 
- ;(defun copy-vector (in-vec)
- ;(let ((out-vec (make-array (length in-vec)))
- ;      )
- ;  (dotimes (i (length in-vec))
- ;    (setf (svref out-vec i) (svref in-vec i)))
- ;  out-vec))
 
-(defun deep-copy-nn (nn)
+;;  NN-EQUAL
+;; ------------------------
+;; Equality test for two NN's
+(defun nn-equal (nn1 nn2)
+  (if (and (= (nn-num-layers nn1)
+              (nn-num-layers nn2))
+           (equalp (nn-layer-sizes nn1)
+                   (nn-layer-sizes nn2))
+           (equalp (nn-weight-arrays nn1)
+                   (nn-weight-arrays nn2))
+           )
+    t 
+    nil))
+
+;;  DEEP-COPY-NN-OUTPUS : NN - A NN struct
+;; --------------------------------------
+;;  Creates a new neural network with pointers to 
+;;  all the network properties of the original network
+;;  except the outputs. It creates a new vector for the 
+;;  output values of the neuron. This is used to create
+;;  multiple copies of a single network for use by the 
+;;  multiple threads during MCTS. As the networks are not
+;;  trained during the search only the values of the outputs
+;;  need to be unique between the networks
+(defun deep-copy-nn-outputs (nn)
   (let ((layers (nn-num-layers nn))
         (sizes (copy-vector (nn-layer-sizes nn)))
         (outputs (copy-vector (nn-output-vecks nn) 'copy-vector))
@@ -80,48 +98,58 @@
 ;;;  OUTPUT:  A neural network (NN struct) of that size, initialized
 ;;;           with weights randomly selected between -0.5 and +0.5.
 
-(defun init-nn (sizes-of-layers)
+(defun init-nn (sizes-of-layers &optional 
+                                (weight-arrays-init nil))
   (let* (;; NUM-LAYERS:  the number of layers in the network
-	 (num-layers (length sizes-of-layers))
-	 ;; LAYER-SIZES:  a vector whose ith element will say how many
-	 ;;  neurons are in layer i
-	 (layer-sizes (make-array num-layers))
-	 ;; OUTPUT-VECKS:  a vector of vectors.  The ith vector will
-	 ;;  contain output values for each neuron in layer i
-	 (output-vecks (make-array num-layers))
-	 ;; DELTA-VECKS:  similar to output-vecks, except they contain
-	 ;;  the delta values for each neuron
-	 (delta-vecks (make-array num-layers))
-	 ;; WEIGHT-ARRAYS:  see documentation of NN struct
-	 (weight-arrays (make-array (1- num-layers)))
-	 ;; NN: the network
-	 (nn (make-nn :num-layers num-layers
-		      :layer-sizes layer-sizes
-		      :output-vecks output-vecks
-		      :weight-arrays weight-arrays
-		      :delta-vecks delta-vecks)))
+         (num-layers (length sizes-of-layers))
+         ;; LAYER-SIZES:  a vector whose ith element will say how many
+         ;;  neurons are in layer i
+         (layer-sizes (make-array num-layers))
+         ;; OUTPUT-VECKS:  a vector of vectors.  The ith vector will
+         ;;  contain output values for each neuron in layer i
+         (output-vecks (make-array num-layers))
+         ;; DELTA-VECKS:  similar to output-vecks, except they contain
+         ;;  the delta values for each neuron
+         (delta-vecks (make-array num-layers))
+         ;; WEIGHT-ARRAYS:  see documentation of NN struct
+         (weight-arrays (make-array (1- num-layers)))
+         ;; NN: the network
+         (nn (make-nn :num-layers num-layers
+                      :layer-sizes layer-sizes
+                      :output-vecks output-vecks
+                      :weight-arrays weight-arrays
+                      :delta-vecks delta-vecks)))
+
     ;; For each layer...
     (dotimes (i num-layers)
       ;; Set the size of that layer (i.e., how many neurons)
       (setf (svref layer-sizes i) (nth i sizes-of-layers))
       ;; Create a vector of output values for the neurons in that layer
       (setf (svref output-vecks i) (make-array (svref layer-sizes i)
-					       :initial-element nil))
+                                               :initial-element nil))
       ;; Create a vector of delta values for the neurons in that layer
       (setf (svref delta-vecks i) (make-array (svref layer-sizes i)
-					      :initial-element nil))
+                                              :initial-element nil))
       ;; For non-input neurons, create an array of weights
       ;; corresponding to edges between current layer and previous layer
       (when (> i 0)
-	(let* ((num-rows (svref layer-sizes (1- i)))
-	       (num-cols (svref layer-sizes i))
-	       ;; The array of weights
-	       (harry (make-array (list num-rows num-cols))))
-	  (setf (svref weight-arrays (1- i)) harry)
-	  ;; randomize weights
-	  (dotimes (i num-rows)
-	    (dotimes (j num-cols)
-	      (setf (aref harry i j) (- (/ (random 100) 100) 0.5)))))))
+        (if weight-arrays-init 
+          ;; When provided the layer weights use them instead
+          ;; of random values
+          (setf (svref weight-arrays (1- i)) 
+                (aref weight-arrays-init (1- i)))
+          ;; Otherwise use random values
+          (let* ((num-rows (svref layer-sizes (1- i)))
+                 (num-cols (svref layer-sizes i))
+                 ;; The array of weights
+                 (harry (make-array (list num-rows num-cols))))
+            (setf (svref weight-arrays (1- i)) harry)
+            ;; randomize weights
+            (dotimes (i num-rows)
+              (dotimes (j num-cols)
+                (setf (aref harry i j) 
+                      (- (/ (random 100) 100) 0.5)))))))
+      )
     ;; return the NN
     nn))
 

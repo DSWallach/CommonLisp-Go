@@ -457,12 +457,21 @@
        (do-move! ,game move)
        (when (game-over? ,game)
          (return)))
-     (setq score (sqrt (abs (- (svref (gg-subtotals ,game) *black*)
-                          (svref (gg-subtotals ,game) *white*)))))
 
-     ;; White wins in case of a tie
-     (when (= score 0)
-       (setq score -1))
+     (setq score (- (svref (gg-subtotals ,game) *black*)
+                    (svref (gg-subtotals ,game) *white*)))
+     (cond 
+       ;; White wins in case of a tie
+       ((= score 0)
+        (setq score -1))
+       ;; If black won
+       ((> score 0)
+        (setq score (sqrt (abs score))))
+       ;; If White won
+       (t 
+         (setq score (* -1 (sqrt (abs score)))))
+       )
+
      ;(format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))
      score))
 

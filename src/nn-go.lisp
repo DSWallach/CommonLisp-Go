@@ -110,6 +110,79 @@
     best-move))
 
 
+
+;; NOTE: I cannot believe that its this easy to write/write arrays from files
+
+;;  WRITE-NETWORK : 
+;;  INPUT: FILENAME - A string representing where the file will be written
+;;         NN - A neural network struct
+;;  OPTIONAL: FORCE? - Overwrite file with same name if one exists
+;; ---------------------------------------------
+;;  Writes a NN to a space deliminated text file
+(defun write-network 
+  (nn filename &optional (force? nil))
+  ;; Network files are put in the 'networks' sub directory
+  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename)))
+        (file nil))
+    ;; Overwrite the existing file on close if the force flag is set
+    (if force? 
+      (setq file (open file-path :direction :output :if-exists :supersede))
+      (setq file (open file-path :direction :output)))
+    ;; The number of layers is inferred from the length
+    ;; of the layer sizes
+
+    ;; Layer Sizes
+    (write-string "layer-sizes " file)
+    (write-line (write-to-string (nn-layer-sizes nn)) file)
+
+    ;; No need to store the output vecks
+
+    ;; Write weight arrays
+    (write-line "weight-arrays " file)
+    ;; For each layer
+    (dotimes (i (nn-num-layers nn))
+      ;; Write the  connections from that layer
+      ;; Write each layer's weights on a new line
+      (write-line (write-to-string (nn-weight-arrays nn)) file)
+      )
+    ;; No need to store the delta-vecks
+    ;; All done
+    (close file)
+    ))
+
+;;  READ-NETWORK
+;; --------------------------------
+;;  INPUT: FILENAME, the filename of the network to read in 
+;;                   (assumed to be in the networks directory)
+;;  OUTPUT: NN, A new NN struct with the same NUM-LAYERS, LAYER-SIZES, 
+;;              and WEIGHT-ARRAYS as the network written to FILENAME
+(defun read-network (filename)
+  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename)))
+        (layer-sizes nil)
+        (weight-arrays nil)
+        (size-list (list))
+        )
+    (with-open-file (line file-path)
+
+      (format t "Read layer sizes~%")
+      ;; Match layer-sizes
+      (when (string-equal "layer-sizes" (read line))
+        (setq layer-sizes (read line))
+        )
+
+      (format t "Read weight arrays~%")
+      ;; Match weight-arrays
+      (when (string-equal "weight-arrays" (read line))
+        (setq weight-arrays (read line))))
+
+    (format t "Close File~%")
+    ;; Convert layer sizes to list from vector
+    (dotimes (i (length layer-sizes))
+      (push (svref layer-sizes (- (length layer-sizes) i 1))
+            size-list))
+
+    (init-nn size-list weight-arrays)))
+
 ;; Create a list of pathnames to the files to parse
 (defun make-parse-list 
   (num)
@@ -153,6 +226,7 @@
 (defun load-files (num-files)
   (load-data (make-parse-list num-files)))
 
+
 ;; Synchonized pool for storing instances of the trained network
 (defstruct (pool (:include synchronizing-structure))
   nets
@@ -166,10 +240,8 @@
         (push (deep-copy-nn nn) (pool-nets p))))
     p))
 
-
-
 (defun init-nn-pool ()
-  (let* ((files (load-files 60000))
+  (let* ((files (load-files 6000))
          (nn (init-nn (list 81 81 49 81 81)))
          )
     ;; Train
@@ -177,6 +249,20 @@
     ;; Make Copies
     (init-pool nn *num-cores*)
     ))
+
+
+;(defun store-nn (nn id)
+;  (make-instance 'nn-archive :id id
+;                :num-layers (nn-num-layers nn)
+;                :layer-sizes (nn-layer-sizes nn)
+;                :output-vecks (nn-output-vecks nn)
+;                :weight-arrays (nn-weight-arrays nn)
+;                :delta-vecks (nn-delta-vecks nn)
+;                )
+; (commit)
+
+; )
+
 
 
 
