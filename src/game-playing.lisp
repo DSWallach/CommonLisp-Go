@@ -436,6 +436,7 @@
   `(let ((moves nil)
          (rand 0)
          )
+     (format t "Rand Pol~%")
      (dotimes (i 1000000)
        (setq moves (legal-moves ,game))
        (setq rand (svref moves (random (length moves))))
@@ -456,11 +457,13 @@
        (do-move! ,game move)
        (when (game-over? ,game)
          (return)))
-    (format t "Hi") 
-     (setq score (sqrt (- (svref (gg-subtotals ,game) *black*)
-                          (svref (gg-subtotals ,game) *white*))))
+     (setq score (sqrt (abs (- (svref (gg-subtotals ,game) *black*)
+                          (svref (gg-subtotals ,game) *white*)))))
 
-     (format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))
+     ;; White wins in case of a tie
+     (when (= score 0)
+       (setq score -1))
+     ;(format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))
      score))
 
 ;;  LEGAL-MOVES? : GAME 
@@ -485,12 +488,6 @@
              (push pos valid-moves)
              )
            ))
-        ; (dotimes (row (- *board-length* 2))
-        ;   (when (> row 1)
-        ;     (dotimes (col (- *board-length* 2))
-        ;       (when (and (> col 1) 
-        ;                  (= 0 (svref board (row-col->pos row col))))
-        ;         (push (row-col->pos row col) moves))))))
 
         ;; More lenient in the mid game
         ((> 20 (length (gg-move-history game)))
@@ -505,7 +502,8 @@
 
         (t (dotimes (pos *board-size*)
              (when (= 0 (svref board pos))
-               (push pos moves)))))
+               (push pos moves))))
+        )
 
       ;; Allow all moves
       (dotimes (pos *board-size*)
@@ -515,10 +513,6 @@
     ;; Check for suicidal play, not allowed under Chinese or
     ;; Japanese rules so it's not allowed here.
     (dolist (pos moves)
-
-      ;; Ensure it's not an eye
-      (when (= 0 (svref (svref (gg-eyes game) 
-                               player) pos))
 
         ;; If there is a space adjacent to the move, it's not suicidal
         (cond 
@@ -547,7 +541,7 @@
 
           ((and (= (+ 1 player) (check-board pos board *check-below*))
                 (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
-           (push pos valid-moves)))))
+           (push pos valid-moves))))
 
     ;; If necessary...
     (if (and (gg-ko? game) 

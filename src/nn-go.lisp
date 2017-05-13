@@ -117,7 +117,7 @@
     (dotimes (i num)
       (push (make-pathname :name 
                            (concatenate 'string 
-                                              "../../CSV-Data-9x9/data"
+                                              "../../9x9/9x9game"
                                               (write-to-string i)
                                               ".csv"))
             path-list))
@@ -152,6 +152,33 @@
 ;; Open NUM files and convert them into training data
 (defun load-files (num-files)
   (load-data (make-parse-list num-files)))
+
+;; Synchonized pool for storing instances of the trained network
+(defstruct (pool (:include synchronizing-structure))
+  nets
+  )
+
+(defun init-pool (nn num-nets)
+  (let ((p (make-pool)))
+    (with-locked-structure 
+      (p)
+      (dotimes (i num-nets)
+        (push (deep-copy-nn nn) (pool-nets p))))
+    p))
+
+
+
+(defun init-nn-pool ()
+  (let* ((files (load-files 60000))
+         (nn (init-nn (list 81 81 49 81 81)))
+         )
+    ;; Train
+    (train-all nn 0.25 files)
+    ;; Make Copies
+    (init-pool nn *num-cores*)
+    ))
+
+
 
 ;; Class for storing a network in AllegroCache
 ;(defclass neural-net ()

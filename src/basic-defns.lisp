@@ -23,7 +23,7 @@
   (require :acache "acache-3.0.9.fasl")
   (sys:resize-areas :new 600000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 3) (safety 0) (space 1) (debug 0))))
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -122,30 +122,6 @@
 
 
 
-;; Synchonized pool for storing instances of the trained network
-(defstruct (pool (:include synchronizing-structure))
-  nets
-  )
-
-(defun init-pool (nn num-nets)
-  (let ((p (make-pool)))
-    (with-locked-structure 
-      (p)
-      (dotimes (i num-nets)
-        (push (deep-copy-nn nn) (pool-nets p))))
-    p))
-
-
-
-(defun init-nn-pool ()
-  (let* ((files (load-files 1000))
-         (nn (init-nn (list 81 81 49 81 81)))
-         )
-    ;; Train
-    (train-all nn 1 files)
-    ;; Make Copies
-    (init-pool nn *num-cores*)
-    ))
 
 
 

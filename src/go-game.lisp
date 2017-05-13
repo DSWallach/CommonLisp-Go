@@ -237,8 +237,8 @@
 ;; ---------------------------------
 ;; The hash key is the current state of the board.
 (defun make-hash-key-from-game (game)
-  (list (gg-board game)
-  (gg-whose-turn? game)))
+  (copy-vector (gg-board game)))
+
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
@@ -281,6 +281,7 @@
     ;; White's Captures
     (dolist (capd w-captures)
       (setq w-score (+ w-score (length (group-pieces capd)))))
+    
     ;; Update the game struct
     (setf (gg-subtotals game) (vector b-score w-score))))
 
@@ -307,7 +308,7 @@
         (b-eyes (copy-vector (svref (gg-eyes game) *black*)))
         (w-eyes (copy-vector (svref (gg-eyes game) *white*)))
         )
-    (make-go-game :board (copy-seq (gg-board game)) 
+    (make-go-game :board (copy-vector (gg-board game)) 
                   :captures (vector b-caps w-caps)
                   :groups (vector b-groups w-groups)
                   :whose-turn? (gg-whose-turn? game)
