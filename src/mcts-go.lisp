@@ -444,10 +444,12 @@
          (nn nil)
          (game nil))
 
-    ;; Get a network 
-    (with-locked-structure 
-      (pool)
-      (setq nn (pop (pool-nets pool))))
+    ;; When provided a pool
+    (when pool
+      ;; Get a network 
+      (with-locked-structure 
+        (pool)
+        (setq nn (pop (pool-nets pool)))))
 
     (dotimes (i total-sim)
       ;; Make a copy of the game state
@@ -464,10 +466,13 @@
         (return))
       )
 
-    ;; Return the network
-    (with-locked-structure 
-      (pool)
-      (push nn (pool-nets pool)))
+    ;; When you got a network
+    (when nn 
+      ;; Return the network
+      (with-locked-structure 
+        (pool)
+        (push nn (pool-nets pool)))
+      )
 
     ;; Pass through the barrier to signal the thread is done 
     (mp:barrier-pass-through barrier)
@@ -504,7 +509,6 @@
                                      #'sim-ops           ; Function Call
                                      orig-game           ; The game
                                      c tree
-                                     ;; Add some variance in the number of sims for each thread so they don't complete all once
                                      sims-per-thread
                                      pool
                                      i barrier
@@ -554,49 +558,3 @@
                  (select-move (gethash (make-hash-key-from-game orig-game)
                                        (mc-tree-hashy tree)) c t)))))))
 
-;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
-;; --------------------------------------------------
-;;  INPUTS:  BLACK-NUM-SIMS, the number of simulations for each of black's moves
-;;           BLACK-C, the exploration/exploitation constant used by black
-;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
-;;           WHITE-C, the exploration/exploitation constant used by white
-;;  OUTPUT:  Don't care
-;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
-;;    for both players according to the specified parameters.
-
-(defun compete
-  (black-num-sims black-c white-num-sims white-c 
-                  &optional 
-                  (black-threads? nil)
-                  (white-threads? nil) 
-                  (black-network? nil)
-                  (white-network? nil)
-                  (return-game? nil) 
-                  (pool nil))
-  (let ((g (init-game))
-        (p nil)
-        )
-    (if pool 
-      (setq p pool)
-      (setq pool (init-nn-pool "Trained-Network")))
-    (while (not (game-over? g))
-           (cond
-             ((eq (gg-whose-turn? g) *black*)
-              (format t "BLACK'S TURN!~%")
-              (if black-network?
-                (setq p pool)
-                (setq p nil))
-              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? p)) 
-                        t nil nil nil nil))
-             (t
-               (format t "WHITE'S TURN!~%")
-              (if white-network?
-                (setq p pool)
-                (setq p nil))
-               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? p))
-                         t nil nil nil nil))))
-
-    ;; Show all game information
-    (print-go g t nil t t)
-    ;; Return the final game state if requested
-    (when return-game? g)))

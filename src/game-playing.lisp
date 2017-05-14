@@ -519,11 +519,11 @@
      ;(format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))
      score))
 
+
 ;;  LEGAL-MOVES? : GAME 
 ;; -----------------------------
 ;;  INPUT:  GAME, A go game struct
 ;;  OUTPUT: A list of legal moves 
-
 (defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list ))  ; Passing is always legal
         (valid-moves (list *board-size*))
@@ -566,7 +566,6 @@
     ;; Check for suicidal play, not allowed under Chinese or
     ;; Japanese rules so it's not allowed here.
     (dolist (pos moves)
-
         ;; If there is a space adjacent to the move, it's not suicidal
         (cond 
           ((or (= 0 (check-board pos board *check-left*))
@@ -601,25 +600,29 @@
              (< 3 (length (gg-board-history game))))
       ;; Check for for infringement of the Ko rule
       (unless (dolist (move valid-moves)
-                ;; Check that the board is not returning to 
-                ;; the state prior to your opponents last
-                ;; move. (Ko Rule)
+                ;; Passing is always an options
+                (if (= move *board-size*)
+                  (push move legal-moves)
+                  ;; Check that the board is not returning to 
+                  ;; the state prior to your opponents last
+                  ;; move. (Ko Rule)
 
-                ;; Playing with fire
-                (let ((new-board nil)
-                      (old-board nil))
+                  ;; Playing with fire
+                  (let ((new-board nil)
+                        (old-board nil))
 
-                  ;; Get the old board
-                  (setq old-board (first (gg-board-history game)))
+                    ;; Get the old board
+                    (setq old-board (first (gg-board-history game)))
 
-                  ;; Mod Game
-                  (do-move! game move)
-                  ;; Get board
-                  (setq new-board (copy-vector (gg-board game)))
-                  ;; Unmod game 
-                  (undo-move! game)
-                  (unless (equal-board? new-board old-board)
-                    (push move legal-moves))))
+                    ;; Mod Game
+                    (do-move! game move)
+                    ;; Get board
+                    (setq new-board (copy-vector (gg-board game)))
+                    ;; Unmod game 
+                    (undo-move! game)
+                    (unless (equal-board? new-board old-board)
+                      (push move legal-moves))))
+                )
 
         ;; Return legal moves
         (make-array (length legal-moves) :initial-contents legal-moves))

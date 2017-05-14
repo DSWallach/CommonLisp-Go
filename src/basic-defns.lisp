@@ -1,34 +1,23 @@
-
-(defpackage go-game
- (:export :pool) 
-  )
-
 (defconstant *num-cores* 16)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
 (setq compiler:tail-call-non-self-merge-switch t) 
-;;(ql:quickload "cl-cuda")
-
-
-;; Make ACache accessible
-;(defpackage :user (:use :db.allegrocache))
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
   ;; Require AllegroCache for storing networks
   (require :smputil) ;; Load Allegro mutlithreading
   (require :process)
-  (require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 600000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
+  ;; Not being used currently
+  ;(require :acache "acache-3.0.9.fasl")
+  (sys:resize-areas :new 30000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
+  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
-
-
 
 (defun print-board (game)
             (dotimes (i *board-length*)
@@ -51,6 +40,18 @@
 (defconstant *board-middle*
              (- (/ *board-length* 2) 1))
 
+;; Used to reference group-area
+(defconstant *min-row* 0)
+(defconstant *min-col* 1)
+(defconstant *max-row* 2)
+(defconstant *max-col* 3)
+
+;; Used by check board
+(defconstant *check-left* 0)
+(defconstant *check-right* 1)
+(defconstant *check-above* 2)
+(defconstant *check-below* 3)
+
 ;; For compiling
 (defun cl (filename)
   ;;  COMPILER-FLAGS
@@ -64,10 +65,10 @@
 
 (defun maker (lof)
   (mapcar #'cl lof))
-
 ;; Compile and load all files
 (defun make ()
-  (maker '("basic-defns"
+  (maker '(
+           "basic-defns"
            "nn-go"
            "2014-new-nn"
            "go-game"
@@ -76,19 +77,8 @@
            "alpha-beta-go"
            "mcts-go"
            "testing"
-           "nn-data-parser")))
+           )))
 
-;; Used to reference group-area
-(defconstant *min-row* 0)
-(defconstant *min-col* 1)
-(defconstant *max-row* 2)
-(defconstant *max-col* 3)
-
-;; Used by check board
-(defconstant *check-left* 0)
-(defconstant *check-right* 1)
-(defconstant *check-above* 2)
-(defconstant *check-below* 3)
 
 ;;   MACROS
 ;; --------------------------------
@@ -161,8 +151,6 @@
 (defun pg (d1 d2)
   (play-game (init-game) d1 d2 t))
 
-
-
 (defun copy-vector (in-vec &optional (copy-func nil))
   (let ((out-vec (make-array (length in-vec)))
         )
@@ -175,7 +163,6 @@
     )
     out-vec))
 
-
 (defun find-pos (row col)
   (declare (type fixnum row col))
   (+ (* row *board-length*) col)) 
@@ -186,8 +173,6 @@
         (row (floor (/ pos *board-length*)))
         )
     (vector row col)))
-
-
 
 (defconstant *opening-moves*
              (list (row-col->pos 2 2)
@@ -253,3 +238,62 @@
                   (format t "~A~%"
                           (do-move! g (uct-search g num-sims c))))))
        ))))
+
+
+;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
+;; --------------------------------------------------
+;;  NOTE:  Compete has a lot of functionality for various situations
+;;           for simply watching two A.I.'s player it's recommended to 
+;;           use one of the macros defined below
+;;  INPUTS:  BLACK-NUM-SIMS, the number of simulations for each of black's moves
+;;           BLACK-C, the exploration/exploitation constant used by black
+;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
+;;           WHITE-C, the exploration/exploitation constant used by white
+;;  OUTPUT:  Don't care
+;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
+;;    for both players according to the specified parameters.
+
+(defun compete
+  (black-num-sims black-c white-num-sims white-c 
+                  &optional 
+                  (black-threads? nil)
+                  (white-threads? nil) 
+                  (black-network? nil)
+                  (white-network? nil)
+                  (pool nil)
+                  (return-game? nil) 
+                  (record-game? nil)
+                  )
+  (let ((g (init-game))
+        (p nil)
+        )
+    (if pool 
+      (setq p pool)
+      (setq pool (init-nn-pool "Trained-Network")))
+    (while (not (game-over? g))
+           (cond
+             ((eq (gg-whose-turn? g) *black*)
+              (format t "BLACK'S TURN!~%")
+              (if black-network?
+                (setq p pool)
+                (setq p nil))
+              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? p)) 
+                        t nil nil nil nil))
+             (t
+               (format t "WHITE'S TURN!~%")
+               (if white-network?
+                 (setq p pool)
+                 (setq p nil))
+               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? p))
+                         t nil nil nil nil))))
+
+    ;; Show all game information
+    (print-go g t nil t t)
+
+    ;; If a record from the game is to be used
+    (when record-game?
+      ;; Macro defined in nn-go.lisp
+      (record-game game))
+
+    ;; Return the final game state if requested
+    (when return-game? g)))

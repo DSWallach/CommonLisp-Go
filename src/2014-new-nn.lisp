@@ -289,62 +289,62 @@
 	 (weight-arrays (nn-weight-arrays nn))
 	 ;;(last-weight-array (svref weight-arrays penult-layer-index))
 	 )
-    
+
     ;; for each neuron in the output layer:
     (dotimes (neuron-num num-output-neurons)
       (let* ((target-output (svref target-outputs neuron-num))
-	     (my-output  (svref last-output-veck neuron-num))
-	     (diffy (- target-output my-output)))
-	;;   DELTA_J = G'(IN_J) * (Y_J - A_J)
-	;;           = G(IN_J)*(1 - G(IN_J))*(Y_J - A_J)
-	;;           = A_J * (1 - A_J) * (Y_J - A_J)
-	(setf (svref last-delta-veck neuron-num)
-	  (* my-output (- 1 my-output) diffy))))
-    
+             (my-output  (svref last-output-veck neuron-num))
+             (diffy (- target-output my-output)))
+        ;;   DELTA_J = G'(IN_J) * (Y_J - A_J)
+        ;;           = G(IN_J)*(1 - G(IN_J))*(Y_J - A_J)
+        ;;           = A_J * (1 - A_J) * (Y_J - A_J)
+        (setf (svref last-delta-veck neuron-num)
+              (* my-output (- 1 my-output) diffy))))
+
     ;; for each hidden layer...
     (do ((lay-num penult-layer-index (1- lay-num)))
-	;; exit
-	((= lay-num 0))
+      ;; exit
+      ((= lay-num 0))
       ;; BODY of DO
       ;; ---------------------------
       (let* ((num-neurons (svref layer-sizes lay-num))
-	     (curr-out-veck (svref output-vecks lay-num))
-	     (next-delta-veck (svref delta-vecks (1+ lay-num)))
-	     (my-delta-veck (svref delta-vecks lay-num))
-	     (num-neurons-next-layer (svref layer-sizes (1+ lay-num)))
-	     (curr-weight-array (svref weight-arrays lay-num))
-	     )
-	;; for each neuron in that layer...
-	(dotimes (i num-neurons)
-	  ;; DELTA_I = G'(IN_I) SUM [W_I_J DELTA_J]
-	  ;;         = G(IN_I) * (1 - G(IN_I)) * SUM [ W_I_J DELTA_J ]
-	  ;;         = A_I * (1 - A_I) * SUM [ W_I_J DELTA_J ]
-	  (let* ((my-output (svref curr-out-veck i))
-		 (sum (let ((dotty 0))
-			(dotimes (j num-neurons-next-layer)
-			  (incf dotty (* (aref curr-weight-array i j)
-					 (svref next-delta-veck j))))
-			dotty)))
-	    (setf (svref my-delta-veck i)
-	      (* my-output (- 1 my-output) sum))))))
-    
+             (curr-out-veck (svref output-vecks lay-num))
+             (next-delta-veck (svref delta-vecks (1+ lay-num)))
+             (my-delta-veck (svref delta-vecks lay-num))
+             (num-neurons-next-layer (svref layer-sizes (1+ lay-num)))
+             (curr-weight-array (svref weight-arrays lay-num))
+             )
+        ;; for each neuron in that layer...
+        (dotimes (i num-neurons)
+          ;; DELTA_I = G'(IN_I) SUM [W_I_J DELTA_J]
+          ;;         = G(IN_I) * (1 - G(IN_I)) * SUM [ W_I_J DELTA_J ]
+          ;;         = A_I * (1 - A_I) * SUM [ W_I_J DELTA_J ]
+          (let* ((my-output (svref curr-out-veck i))
+                 (sum (let ((dotty 0))
+                        (dotimes (j num-neurons-next-layer)
+                          (incf dotty (* (aref curr-weight-array i j)
+                                         (svref next-delta-veck j))))
+                        dotty)))
+            (setf (svref my-delta-veck i)
+                  (* my-output (- 1 my-output) sum))))))
+
     ;; Now, update all of the weights in the network using the DELTA values
     ;;  For each layer...
     (dotimes (lay-num (1- num-layers))
       (let ((weight-array (svref weight-arrays lay-num))
-	    (delta-veck (svref delta-vecks (1+ lay-num)))
-	    (output-veck (svref output-vecks lay-num)))
-	;; For each neuron N_i in that layer...
-	(dotimes (i (svref layer-sizes lay-num))
-	  ;; For each neuron N_j in the following layer...
-	  (dotimes (j (svref layer-sizes (1+ lay-num)))
-	    ;; Update the weight on the edge from N_i to N_j
-	    ;; W_I_J += ALPHA * A_I * DELTA_J
-	    (incf (aref weight-array i j)
-		  (* alpha 
-		     (svref output-veck i) 
-		     (svref delta-veck j)))))))
-      
+            (delta-veck (svref delta-vecks (1+ lay-num)))
+            (output-veck (svref output-vecks lay-num)))
+        ;; For each neuron N_i in that layer...
+        (dotimes (i (svref layer-sizes lay-num))
+          ;; For each neuron N_j in the following layer...
+          (dotimes (j (svref layer-sizes (1+ lay-num)))
+            ;; Update the weight on the edge from N_i to N_j
+            ;; W_I_J += ALPHA * A_I * DELTA_J
+            (incf (aref weight-array i j)
+                  (* alpha 
+                     (svref output-veck i) 
+                     (svref delta-veck j)))))))
+
     ;; return the NN
     nn))
 
