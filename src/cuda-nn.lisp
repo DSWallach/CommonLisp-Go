@@ -66,8 +66,6 @@
   ;; Write the nn to disk
   (when commit? (store-nn nn 1234)))
 
-
-
 (defun random-array (size)
   (let ((new-array (make-array size))
         )
@@ -229,10 +227,6 @@
                         (aref temp-weights (+ bid tx 1))))
                   )
              ))
-
-
-
-
 
 ;; Transfer connect information from a lisp array
 ;; to a CUDA memory block
