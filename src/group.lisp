@@ -227,19 +227,20 @@
                    (>= col min-col))
           (setq posn (row-col->pos row col))
           (cond 
-            ((and 
-              (= 0 (svref board posn))
-                    ;; A second eyes cannot be immediately adjacent to another eye
-                    (or (and (<= min-col (- 1 posn))  
-                              (svref eyes (- 1 posn)))
-                        (and (>= max-col (+ 1 posn))
-                             (svref eyes (+ 1 posn)))
-                        (and (<= min-row (- *board-length* posn))
-                             (svref eyes (- *board-length* posn)))
-                        (and (>= max-row (+ *board-length* posn))
-                             (svref eyes (+ *board-length* posn)))
-                        ))
-                      
+            (
+            ; (and 
+               (= 0 (svref board posn))
+               ;; A second eyes cannot be immediately adjacent to another eye
+        ;    (or (and (<= min-col (- 1 posn))  
+        ;               (svref eyes (- 1 posn)))
+        ;          (and (>= max-col (+ 1 posn))
+        ;               (svref eyes (+ 1 posn)))
+        ;          (and (<= min-row (- *board-length* posn))
+        ;               (svref eyes (- *board-length* posn)))
+        ;          (and (>= max-row (+ *board-length* posn))
+        ;               (svref eyes (+ *board-length* posn)))
+        ;          ))
+
 
              ;; This will set eye-case
              (eye-at? posn
@@ -354,14 +355,16 @@
 ;; space taken up by the piece.
 (defun calc-territory! (group game player)
   ;; Dead groups have no territory
-  (if (group-alive? group)
+  (if (= 0 (group-alive? group))
+  ;; Set to 0
+  (setf (group-territory group) 0)
   ;; +1 accounts for subtracting 1 for the space of the piece
   (let* ((area (group-area group))
          (board (gg-board game))
-         (min-row (- (svref area 0) 1))
-         (min-col (- (svref area 1) 1))
-         (max-row (+ (svref area 2) 1))
-         (max-col (+ (svref area 3) 1))
+         (min-row (- (svref area 0) 0))
+         (min-col (- (svref area 1) 0))
+         (max-row (+ (svref area 2) 0))
+         (max-col (+ (svref area 3) 0))
          (territory 0)
          (opponent (- 1 player))
          (player? nil)
@@ -426,10 +429,7 @@
           (setq territory 0))))
 
     ;; Update the territory
-    (setf (group-territory group) total))
-
-  ;; Set to 0
-  (setf (group-territory group) 0)))
+    (setf (group-territory group) total))))
 
 ;;  CALC-LIBERTIES! : GROUP BOARD
 ;; -------------------------
@@ -468,10 +468,10 @@
 ;;  SIDE-EFFECT: Destructively modify the game state by 
 ;;          capturing GROUP
 (defun capture-group! (group game &optional (player nil))
-  (unless player 
+  (unless player
     (setq player (gg-whose-turn? game)))
   (let ((opponent (- 1 player))
-         )
+        )
 
     ;; Remove the groups from the opponent's groups
     (setf (svref (gg-groups game) opponent) 

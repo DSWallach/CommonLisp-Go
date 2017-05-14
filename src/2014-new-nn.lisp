@@ -81,8 +81,8 @@
   (let ((layers (nn-num-layers nn))
         (sizes (copy-vector (nn-layer-sizes nn)))
         (outputs (copy-vector (nn-output-vecks nn) 'copy-vector))
-        (weights (copy-vector (nn-weight-arrays nn)))
-        (deltas (copy-vector (nn-delta-vecks nn)))
+        (weights (copy-seq (nn-weight-arrays nn)))
+        (deltas (copy-vector (nn-delta-vecks nn) 'copy-vector))
         )
     (make-nn :num-layers layers
              :layer-sizes sizes

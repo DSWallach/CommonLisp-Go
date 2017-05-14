@@ -442,7 +442,8 @@
        (setq rand (svref moves (random (length moves))))
        (do-move! ,game rand)
        (when (game-over? ,game)
-         (return)))
+         (return)
+         ))
 
      (setq score (- (svref (gg-subtotals ,game) *black*)
                     (svref (gg-subtotals ,game) *white*)))
@@ -495,7 +496,7 @@
 ;;  OUTPUT: A list of legal moves 
 
 (defun legal-moves (game &optional (fast? t))
-  (let ((legal-moves (list *board-size*))  ; Passing is always legal
+  (let ((legal-moves (list ))  ; Passing is always legal
         (valid-moves (list *board-size*))
         (player (gg-whose-turn? game))
         (moves nil) 
@@ -590,6 +591,7 @@
                   (undo-move! game)
                   (unless (equal-board? new-board old-board)
                     (push move legal-moves))))
+
         ;; Return legal moves
         (make-array (length legal-moves) :initial-contents legal-moves))
 

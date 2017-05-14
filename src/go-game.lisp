@@ -386,8 +386,8 @@
 
 
 (defun num-liberties (group1 group2)
-    (if (< (group-liberties group1) 
-           (group-liberties group2))
+    (if (< (group-liberties (second group1)) 
+           (group-liberties (second group2)))
       t nil))
 
 ;;  REMOVE-DEAD-GROUPS! : GAME
@@ -396,42 +396,33 @@
 ;;  room for two eyes
 (defun remove-dead-groups! (game)
 
-  (let ((b-groups (sort (svref (gg-groups game) *black*) #'num-liberties))
-        (w-groups (sort (svref (gg-groups game) *white*) #'num-liberties))
+  (let ((b-count 0)
+        (w-count 0)
+        (groups )
         (turn (gg-whose-turn? game))
         (group nil)
+        (player)
         )
-    (dotimes (i (+ (length b-groups) 
-                   (length w-groups)))
-      (cond 
-        ((= turn *black*)
-         (setq group (first b-groups))
-         (setq b-groups (rest b-groups))
-         (when group
-           (update-group! group game *black*)
-           ;; Capture dead groups
-           (when (= 0(group-alive? group))
-             (capture-group! group game *white*))
-           )
 
-         (when (< 0 (length w-groups)) 
-           (setq turn *white*))
-         )
-        (t
+    ;; Sort the groups so those with the fewest liberties come first
+    (dolist (group (svref (gg-groups game) *black*))
+        (push (list *black* group) groups))
 
-          (setq group (first w-groups))
-          (setq w-groups (rest w-groups))
-          (when group
-            (update-group! group game *white*)
-            ;; Capture dead groups
-            (when (= 0(group-alive? group))
-              (capture-group! group game *black*))
-            )
-          (when (< 0 (length b-groups))
-            (setq turn *black*))
-          )
+    (dolist (group (svref (gg-groups game) *white*))
+        (push (list *white* group) groups))
+
+
+    (setq groups (sort groups #'num-liberties))
+
+    (dolist (group-pair groups)
+      (setq player (first group))
+      ;; Update the group
+      (update-group! (second group-pair) game (first group-pair))
+
+      ;; When a group has no eye-space capture it
+      (when (= 0 (group-alive? (second group-pair)))
+        (capture-group! (second group-pair) game (- 1 (first group-pair)))
         ))
-    ;(print-go game t nil t t)
 
     ;; Update territories of remaining groups
     (dolist (ggroup (svref (gg-groups game) *black*))

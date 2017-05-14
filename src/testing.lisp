@@ -684,6 +684,15 @@
         )
       ))
 
+;; TEST-DEEP-COPY
+(defun test-deep-copy ()
+  (let* ((new-g (init-game))
+        (old-g (deep-copy-go new-g))
+        )
+    (play-game new-g 1 1 t)
+    (test "Deep-Copy" 
+          (equal-go? old-g (init-game)))))
+
 ;;  TEST-ROBUST 
 ;; ------------------------------
 ;;  Testing the robustness of the game system
@@ -713,6 +722,7 @@
   (test-undo-two-captures)
   (test-undo-merge-group)
   (test-undo-merge-many-group)
+  (test-deep-copy)
   (test-undo 5)
   (test-undo 10)
   (test-undo 15)

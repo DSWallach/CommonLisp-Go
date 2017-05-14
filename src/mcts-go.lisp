@@ -199,7 +199,7 @@
         (ifblack 1)
         )
 
-    (when game-move (format t "Node: ~A~%" nodey))
+  ;  (when game-move (format t "Node: ~A~%" nodey))
     ;; Compare all the potential moves
     (dotimes (i (length scores))
       (cond
@@ -234,24 +234,21 @@
             (setq best-move-so-far i))))
       )
 
-    (when game-move (format t "Post scores: ~A~%" scores) )
+  ;  (when game-move (format t "Post scores: ~A~%" scores) )
     (with-locked-structure 
       (nodey)
       ;; Update the scores in the node
       (setf (mc-node-veck-scores nodey) scores)
 
       ;; Update the visits to the chosen move
-      (setf (svref (mc-node-veck-visits nodey) best-move-so-far)
-            (+ 1 (svref visits best-move-so-far)))
+      (incf (svref (mc-node-veck-visits nodey) best-move-so-far))
 
       ;; Increment the number of visits to this node
-      (setf (mc-node-num-visits nodey)
-            (+ 1 (mc-node-num-visits nodey))))
+      (incf (mc-node-num-visits nodey)))
 
-    (when game-move
-      (format t "Move score: ~A~%" max-so-far))
+   ; (when game-move (format t "Move score: ~A~%" max-so-far))
 
-    (when game-move (format t "Post post scores: ~A~%" scores) )
+   ; (when game-move (format t "Post post scores: ~A~%" scores) )
     ;; Return the best move found
     best-move-so-far))
 
@@ -532,7 +529,9 @@
               (z 0)
               (cur-time 0)
               (game nil))
-          (setq nn (pop (pool-nets pool)))
+          (when pool
+            (setq nn (pop (pool-nets pool)))
+            )
           (dotimes (i num-sims)
             ;; Make a copy of the game state
             (setq game (deep-copy-go orig-game))
@@ -546,7 +545,9 @@
               (setq cur-time (get-internal-real-time))
               (when (< time-limit (- cur-time start-time))
                 (return))))
-          (push nn (pool-nets pool))
+          (when nn
+            (push nn (pool-nets pool))
+            )
 
           ;; Select the best move
           (svref (legal-moves orig-game) 
@@ -568,6 +569,8 @@
                   &optional 
                   (black-threads? nil)
                   (white-threads? nil) 
+                  (black-network? nil)
+                  (white-network? nil)
                   (return-game? nil) 
                   (pool nil))
   (let ((g (init-game))
@@ -575,17 +578,24 @@
         )
     (if pool 
       (setq p pool)
-      (setq p (init-nn-pool)))
+      (setq pool (init-nn-pool "Trained-Network")))
     (while (not (game-over? g))
            (cond
              ((eq (gg-whose-turn? g) *black*)
               (format t "BLACK'S TURN!~%")
+              (if black-network?
+                (setq p pool)
+                (setq p nil))
               (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? p)) 
                         t nil nil nil nil))
              (t
                (format t "WHITE'S TURN!~%")
+              (if white-network?
+                (setq p pool)
+                (setq p nil))
                (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? p))
                          t nil nil nil nil))))
+
     ;; Show all game information
     (print-go g t nil t t)
     ;; Return the final game state if requested

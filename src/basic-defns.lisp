@@ -23,7 +23,7 @@
   (require :acache "acache-3.0.9.fasl")
   (sys:resize-areas :new 600000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
+  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -171,6 +171,7 @@
       (setf (svref out-vec i) (svref in-vec i)))
     )
     out-vec))
+
 
 (defun find-pos (row col)
   (declare (type fixnum row col))
