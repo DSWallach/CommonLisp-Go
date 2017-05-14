@@ -102,18 +102,37 @@
       (format str "---")))
   (format str "~%")
 
+; (format str "Eyes ~% ~A~% ~A~%" 
+;         (svref (gg-eyes game) *black*)
+;         (svref (gg-eyes game) *white*)
+;         )
   ;; Print the board
   (dotimes (row *board-length*)
     (if (< 9 row)
       (format str "~A |" row)
       (format str " ~A |" row))
+
     (dotimes (col *board-length*)
       (let* ((p (svref board (row-col->pos row col)))
              (g (find-group (row-col->pos row col) game))
              (pos nil)
              )
         (if (= 0 p) 
-          (format str " - ")
+          (cond 
+            ((and verbose? (< 0 (svref (svref (gg-eyes game) *black*) 
+                                       (row-col->pos row col)))
+                  )
+             (format str " x ")
+             )
+            ((and verbose? (< 0 (svref (svref (gg-eyes game) *white*) 
+                                       (row-col->pos row col)))
+                  )
+             (format str " o ")
+             )
+            (t (format str " - ")
+               )
+            )
+
           (if verbose? 
             (when g ; If there is a group
               (setq pos (group-territory g))
@@ -252,19 +271,22 @@
         (w-captures (svref (gg-captures game) *white*))
         (b-groups (svref (gg-groups game) *black*))
         (w-groups (svref (gg-groups game) *white*))
+        (life 0)
         )
 
     ;; Calc black's score
     (dolist (group b-groups)
+      (setq life (group-alive? group))
       ;; If the group's alive add it's territory 
       ;; to black's score
-      (if (group-alive? group)
-        (setq b-score (+ b-score 
-                         (group-territory group)))
+      (cond  
+        ((= 1 life)
+         (setq b-score (+ b-score 
+                          (group-territory group))))
 
         ;; Otherwise add the pieces to white's score
-        (setq w-score (+ w-score 
-                         (length (group-pieces group))))))
+        ((= 0 life) (setq w-score (+ w-score 
+                                     (length (group-pieces group)))))))
 
     ;; Add black's captures to their score
     (dolist (capd b-captures)
@@ -273,15 +295,20 @@
 
     ;; Calc white's score
     (dolist (group w-groups)
-      (if (group-alive? group)
-        (setq w-score (+ w-score 
-                         (group-territory group)))
-        (setq b-score (+ b-score 
-                         (length (group-pieces group))))))
+
+      (setq life (group-alive? group))
+      (cond 
+        ((= 1 life) 
+         (setq w-score (+ w-score 
+                          (group-territory group))))
+        ((= 0 life) 
+         (setq b-score (+ b-score 
+                          (length (group-pieces group))))))
+      )
     ;; White's Captures
     (dolist (capd w-captures)
       (setq w-score (+ w-score (length (group-pieces capd)))))
-    
+
     ;; Update the game struct
     (setf (gg-subtotals game) (vector b-score w-score))))
 
@@ -324,8 +351,8 @@
 ;; ------------------------------------
 ;;  Static evaluation function
 (defun eval-func (game)
-  (- (svref (gg-subtotals game) (gg-whose-turn? game))
-     (svref (gg-subtotals game) (- 1 (gg-whose-turn? game)))))
+  (- (svref (gg-subtotals game) *black*)
+     (svref (gg-subtotals game) *white*)))
 
 ;;  FIND-GROUP : POS GAME
 ;; -------------------------------------
@@ -357,40 +384,61 @@
                          group)))))))
 
 
+
+(defun num-liberties (group1 group2)
+    (if (< (group-liberties group1) 
+           (group-liberties group2))
+      t nil))
+
 ;;  REMOVE-DEAD-GROUPS! : GAME
 ;; ----------------------------------
 ;;  Captures all groups that don't have two eyes or
 ;;  room for two eyes
 (defun remove-dead-groups! (game)
-  (let ((player (gg-whose-turn? game))
+
+  (let ((b-groups (sort (svref (gg-groups game) *black*) #'num-liberties))
+        (w-groups (sort (svref (gg-groups game) *white*) #'num-liberties))
+        (turn (gg-whose-turn? game))
+        (group nil)
         )
+    (dotimes (i (+ (length b-groups) 
+                   (length w-groups)))
+      (cond 
+        ((= turn *black*)
+         (setq group (first b-groups))
+         (setq b-groups (rest b-groups))
+         (when group
+           (update-group! group game *black*)
+           ;; Capture dead groups
+           (when (= 0(group-alive? group))
+             (capture-group! group game *white*))
+           )
 
-    ;; Check black groups
-    (dolist (group (svref (gg-groups game) player))
-      (calc-life! group game)
-      ;; Capture dead groups
-      (when (= 0(group-alive? group))
-        (capture-group! group game)))
+         (when (< 0 (length w-groups)) 
+           (setq turn *white*))
+         )
+        (t
 
-    ;; Change turns so capture-group! will work properly
-    (setf (gg-whose-turn? game ) (- 1 player))
-
-    ;; Check white groups
-    (dolist (group (svref (gg-groups game) (- 1 player)))
-      (calc-life! group game)
-      ;; Capture dead groups
-      (when  (= 0 (group-alive? group))
-        (capture-group! group game)))
-
-    ;; Reset turn
-    (setf (gg-whose-turn? game) player)
+          (setq group (first w-groups))
+          (setq w-groups (rest w-groups))
+          (when group
+            (update-group! group game *white*)
+            ;; Capture dead groups
+            (when (= 0(group-alive? group))
+              (capture-group! group game *black*))
+            )
+          (when (< 0 (length b-groups))
+            (setq turn *black*))
+          )
+        ))
+    ;(print-go game t nil t t)
 
     ;; Update territories of remaining groups
-    (dolist (group (svref (gg-groups game) *black*))
-      (update-group! group game))
-    (dolist (group (svref (gg-groups game) *white*))
-      (update-group! group game)))
-  )
+    (dolist (ggroup (svref (gg-groups game) *black*))
+      (update-group! ggroup game *black*))
+    (dolist (ggroup (svref (gg-groups game) *white*))
+      (update-group! ggroup game *white*))
+    ))
 
 
 ;;  GAME-OVER? : GAME

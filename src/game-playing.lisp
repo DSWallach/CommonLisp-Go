@@ -435,16 +435,30 @@
 (defmacro random-policy (game &optional (nn nil))
   `(let ((moves nil)
          (rand 0)
+         (score 0)
          )
-     (format t "Rand Pol~%")
      (dotimes (i 1000000)
        (setq moves (legal-moves ,game))
        (setq rand (svref moves (random (length moves))))
        (do-move! ,game rand)
        (when (game-over? ,game)
          (return)))
-     (sqrt (- (svref (gg-subtotals ,game) *white*)
-              (svref (gg-subtotals ,game) *black*)))))
+
+     (setq score (- (svref (gg-subtotals ,game) *black*)
+                    (svref (gg-subtotals ,game) *white*)))
+     (cond 
+       ;; White wins in case of a tie
+       ((= score 0)
+        (setq score -1))
+       ;; If black won
+       ((> score 0)
+        (setq score (sqrt (abs score))))
+       ;; If White won
+       (t 
+         (setq score (* -1 (sqrt (abs score)))))
+       )
+
+     score))
 
 (defmacro default-policy (game &optional (nn nil))
   `(let ((moves nil)
@@ -491,7 +505,7 @@
       ;; At the opening only allow decent opening moves
       (cond
         ;; If the game has just begun
-        ((> 8 (length (gg-move-history game)))
+        ((> 4 (length (gg-move-history game)))
          (dolist (pos *opening-moves*)
            (when (legal-move? game pos)
              (push pos valid-moves)
@@ -499,7 +513,7 @@
            ))
 
         ;; More lenient in the mid game
-        ((> 20 (length (gg-move-history game)))
+        ((> 15 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 1))
            (when (> row 0)
              (dotimes (col (- *board-length* 1))

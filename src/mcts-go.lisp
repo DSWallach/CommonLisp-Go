@@ -202,18 +202,18 @@
     (when game-move (format t "Node: ~A~%" nodey))
     ;; Compare all the potential moves
     (dotimes (i (length scores))
-      (when (and (> c 0)
+      (cond
+        ;; Immediately select an unexplored move
+        ((and (> c 0)
               (= 0 (svref visits i)))
-        (setq best-move-so-far i)
-        (return))
-      ;; If there isn't gonan be problems dividing by 0
-      (if (and (< 0 node-visits)
-               (< 0 (svref visits i)))
-        ;; Calculate the monte-carlo value
-        (setq new_q (* c  (sqrt (/ (log node-visits)
-                                   (/ (svref visits i)
-                                      node-visits)))))
-        (setq new_q 0))
+         (setq best-move-so-far i)
+         (return))
+        ;; Otherwise
+        (t 
+          ;; Calculate the monte-carlo value
+          (setq new_q (* c  (sqrt (/ (log node-visits)
+                                     (/ (svref visits i)
+                                        node-visits)))))))
       ;; Set the value, adding or subtracting depending on the player
       (cond
         ;; If it's black the best score is the highest
@@ -548,8 +548,6 @@
                 (return))))
           (push nn (pool-nets pool))
 
-          (print-mc-tree tree t nil)
-          ;(format t "Number of nodes ~A~%" (hash-table-count (mc-tree-hashy tree)))
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
@@ -567,10 +565,17 @@
 
 (defun compete
   (black-num-sims black-c white-num-sims white-c 
-                  &optional (black-threads? nil)(white-threads? nil) (return-game? nil))
+                  &optional 
+                  (black-threads? nil)
+                  (white-threads? nil) 
+                  (return-game? nil) 
+                  (pool nil))
   (let ((g (init-game))
-        (p (init-nn-pool))
+        (p nil)
         )
+    (if pool 
+      (setq p pool)
+      (setq p (init-nn-pool)))
     (while (not (game-over? g))
            (cond
              ((eq (gg-whose-turn? g) *black*)

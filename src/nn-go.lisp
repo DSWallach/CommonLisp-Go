@@ -1,64 +1,3 @@
-;; Package Definition
-;(in-package :cl-user)
-
-;(defpackage nn-go
-;  (:use :cl
-;        :db.allegrocache)
-;  )
-
-;(in-package :nn-go)
-
-;(eval-when (compile load eval)
-;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-;  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
-
-;; This will vary for optimal performance depending on the specific GPU
-(defconstant *num-blocks* 6)
-(defconstant *threads-per-block* 28)
-(defconstant *learning-rate* 0.25)
-(defconstant *input-layer* 169)
-(defconstant *second-layer* 81) ; 9 * 9
-(defconstant *third-layer* 49)  ; 7 * 7
-(defconstant *fourth-layer* 81)
-(defconstant *output-layer* 169)
-(defconstant *1-2-edges* (* *input-layer* *second-layer*))
-(defconstant *2-3-edges* (* *second-layer* *third-layer*))
-(defconstant *3-4-edges* (* *third-layer* *fourth-layer*))
-(defconstant *4-5-edges* (* *fourth-layer* *output-layer*))
-(defconstant *train-val-one* 1.7159)
-(defconstant *train-val-two* 0.66666667)
-
-;; Open the file containing the most recent network
-(db.allegrocache:open-file-database "../go-nets"
- :if-does-not-exist :create
- :if-exists :supersede
- )
-
-(defun new-nn ()
-  (init-nn '(81 49 81)))
-
-;(defclass nn-archive ()
-;  ((id :initarg :id :reader id :index :any-unique)
-;   (num-layers :initarg :num-layers :reader num-layers)
-;   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
-;   (output-vecks :initarg :output-vecks :reader output-vecks)
-;   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
-;   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
-;(nn :initarg :nn :reader nn)
-;   )
-;  (:metaclass persistent-class)
-;  )
-
-;(defun store-nn (nn id)
-;  (make-instance 'nn-archive :id id
-;                :num-layers (nn-num-layers nn)
-;                :layer-sizes (nn-layer-sizes nn)
-;                :output-vecks (nn-output-vecks nn)
-;                :weight-arrays (nn-weight-arrays nn)
-;                :delta-vecks (nn-delta-vecks nn)
-;                )
-; (commit)
-; )
 
 
 ;;  ANNALYZE-BOARD : NN BOARD LEGAL-MOVES
@@ -111,7 +50,7 @@
 
 
 
-;; NOTE: I cannot believe that its this easy to write/write arrays from files
+;; NOTE: I cannot believe that it's this easy to read/write from files
 
 ;;  WRITE-NETWORK : 
 ;;  INPUT: FILENAME - A string representing where the file will be written
@@ -190,42 +129,51 @@
     (dotimes (i num)
       (push (make-pathname :name 
                            (concatenate 'string 
-                                              "../../9x9/9x9game"
-                                              (write-to-string i)
-                                              ".csv"))
+                                        "../../9x9/9x9game"
+                                        (write-to-string i)
+                                        ".csv"))
             path-list))
     path-list))
 
 ;;  Load the training data into memory
 ;; -------------------------------------
 ;;  INPUT: List of files
-(defun load-data (lof)
+(defun load-data (lof &optional (verbose? nil))
   (let ((data (list))
         (in-arr (make-array *board-size* :initial-element 0))
         (out-arr (make-array *board-size* :initial-element 0))
+        (line nil)
         )
     ;; For evey files
-    (dolist (file lof)
-      (with-open-file (line file :direction :input)
-        ;; Get the input
-        (dotimes (i *board-size*)
-          (setf (svref in-arr i) (read line nil)))
-        ;; Get the output
-        (dotimes (i *board-size*)
-          (setf (svref out-arr i) (read line nil)))
-        )
+    (dolist (file-path lof)
+      (when verbose? (format t "Reading file ~A" file-path))
+      (with-open-file (file file-path :direction :input)
+        (when verbose? (format t "~A lines to read~%" (floor (/ (file-length file) 
+                                                                (* 2 *board-size*)))))
+        ;; For every line in the file
+        (dotimes (j (floor (/ (file-length file) (* 2 *board-size*))))
+          ;; Ensure the file isn't empty
+          (unless (peek-char t file nil nil)
+            (return))
+          ;; Get the input
+          (dotimes (i *board-size*)
+            (setf (svref in-arr i) (read file)))
+          ;; Get the output
+          (dotimes (i *board-size*)
+            (setf (svref out-arr i) (read file)))
+          ;; Add it to the list of training data
+          (push (list in-arr out-arr) data)
+          ))
       ;; Add the array pair to the list
-      (push (list in-arr out-arr) data)
       )
+    (format t "Created ~A (state, action) pairs~%" (length data))
     ;; Return the lists
     data))
-
 
 
 ;; Open NUM files and convert them into training data
 (defun load-files (num-files)
   (load-data (make-parse-list num-files)))
-
 
 ;; Synchonized pool for storing instances of the trained network
 (defstruct (pool (:include synchronizing-structure))
@@ -237,17 +185,22 @@
     (with-locked-structure 
       (p)
       (dotimes (i num-nets)
-        (push (deep-copy-nn nn) (pool-nets p))))
+        (push (deep-copy-nn-outputs nn) (pool-nets p))))
     p))
 
-(defun init-nn-pool ()
-  (let* ((files (load-files 6000))
-         (nn (init-nn (list 81 81 49 81 81)))
-         )
-    ;; Train
-    (train-all nn 0.25 files)
-    ;; Make Copies
-    (init-pool nn *num-cores*)
+(defun init-nn-pool (&optional (net-name nil))
+  (cond
+    (net-name
+      (init-pool (read-network net-name) *num-cores*)
+      )
+    (t (let* ((files (load-files 60000))
+              (nn (init-nn (list 81 65 49 65 81)))
+              )
+         ;; Train
+         (train-all nn 0.25 files)
+         ;; Make Copies
+         (init-pool nn *num-cores*)
+         ))
     ))
 
 

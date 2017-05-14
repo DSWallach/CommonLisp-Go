@@ -1,5 +1,65 @@
+;; Package Definition
+(in-package :cl-user)
 
+(defpackage nn-go
+  (:use :cl
+        :cl-cuda)
+  (:export :main)
+  )
 
+(in-package :nn-go)
+
+;(eval-when (compile load eval)
+;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+;  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+
+;; This will vary for optimal performance depending on the specific GPU
+(defconstant *num-blocks* 6)
+(defconstant *threads-per-block* 28)
+(defconstant *learning-rate* 0.25)
+(defconstant *input-layer* 169)
+(defconstant *second-layer* 81) ; 9 * 9
+(defconstant *third-layer* 49)  ; 7 * 7
+(defconstant *fourth-layer* 81)
+(defconstant *output-layer* 169)
+(defconstant *1-2-edges* (* *input-layer* *second-layer*))
+(defconstant *2-3-edges* (* *second-layer* *third-layer*))
+(defconstant *3-4-edges* (* *third-layer* *fourth-layer*))
+(defconstant *4-5-edges* (* *fourth-layer* *output-layer*))
+(defconstant *train-val-one* 1.7159)
+(defconstant *train-val-two* 0.66666667)
+
+;; Open the file containing the most recent network
+;(db.allegrocache:open-file-database "../go-nets"
+; :if-does-not-exist :create
+; :if-exists :supersede
+; )
+
+;(defun new-nn ()
+;  (init-nn '(81 49 81)))
+
+;(defclass nn-archive ()
+;  ((id :initarg :id :reader id :index :any-unique)
+;   (num-layers :initarg :num-layers :reader num-layers)
+;   (layer-sizes :initarg :layer-sizes :reader layer-sizes)
+;   (output-vecks :initarg :output-vecks :reader output-vecks)
+;   (weight-arrays :initarg :weight-arrays :reader weight-arrays)
+;   (delta-vecks :initarg :delta-vecks :reader delta-vecks)
+;(nn :initarg :nn :reader nn)
+;   )
+;  (:metaclass persistent-class)
+;  )
+
+;(defun store-nn (nn id)
+;  (make-instance 'nn-archive :id id
+;                :num-layers (nn-num-layers nn)
+;                :layer-sizes (nn-layer-sizes nn)
+;                :output-vecks (nn-output-vecks nn)
+;                :weight-arrays (nn-weight-arrays nn)
+;                :delta-vecks (nn-delta-vecks nn)
+;                )
+; (commit)
+; )
 
 ;; UNFINSIHED
 (defun train-nn (nn training-files &optional (commit? nil))
@@ -85,11 +145,12 @@
 ;;         gn-finish, Memory allocated in MAIN for storing layer 2
 ;;  OUTPUT: gn-finish, Vector containing the neuron values of layer 2
 
-(defkernel k-calc-layer (void ((gn-start float*) 
-                               (gw-start float*) 
-                               (gn-finish float*) 
-                               (from-layer int) 
-                               (to-layer int)))
+(defkernel k-calc-layer 
+           (void ((gn-start float*) 
+                  (gw-start float*) 
+                  (gn-finish float*) 
+                  (from-layer int) 
+                  (to-layer int)))
            (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
                  (j (+ (* block-dim-x block-idx-y) thread-idx-y))
                  (bid block-idx-x)
@@ -112,18 +173,62 @@
                  ))
              ))
 
-(defkernel k-calc-error (void ((gn-output float*)
-                               (desired-output float*)
-                               (layer-error float*)
-                               ))
-          (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
-                )
-            (set (aref layer-error i)
-                 ;; Tanh for the sigmoid function
-                 (tanh ())
-                 )
-            ))
 
+
+;;  K-CALC-ERROR 
+;; ---------------------------
+;;  Calculates the error at a particular layer of the NN
+(defkernel k-calc-error 
+           (void ((gn-output float*)
+                  (desired-output float*)
+                  (layer-error float*)
+                  ))
+           (let ((bid block-idx-x)
+                 )
+             (set (aref layer-error bid)
+                  ;; Tanh for the sigmoid function
+                  (* (tanh (aref gn-output bid))
+                     (- (aref gn-output bid)
+                        (aref desired-output bid))))
+             ))
+
+;;  K-ADJUST-WEIGHTS
+;; ---------------------------
+;;  Adjusts the weights of the network in a particular layer
+(defkernel k-adjust-weights 
+           (void ((output-error float*) ; Of the subsequent layer (e.g. 4-adjust-weights uses 5-calc-error
+                 (layer-neurons float*)
+                 (layer-weights float*)
+                 (layer-num int)
+                 (learning-rate float)
+                 (temp-weights float*)
+                 (new-weights float*)
+                 ))
+           (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x))
+                 (j (+ (* block-dim-x block-idx-y) thread-idx-y))
+                 (bid block-idx-x)
+                 (tx thread-idx-x)
+                 (ty thread-idx-y)
+                 (wt (+ (* thread-idx-y 2 from-layer)
+                        (* thread-idx-x 2)))
+                 )
+             ;; Initialize the weights from the errors
+             (set (aref temp-weights)
+                  (aref output-error bid)
+                  )
+             ;; Calculate the new values for the weights
+             (set (aref temp-weights (+ bid tx 1))
+                  (+ (aref new-weights (+ bid tx 1))
+                     (aref output-error tx)
+                     (aref layer-neurons tx))
+                  )
+             ;; Set the new weights
+             (set (aref new-weights (+ bid tx 1))
+                  (- (aref layer-weights (+ bid tx 1))
+                     (* learning-rate 
+                        (aref temp-weights (+ bid tx 1))))
+                  )
+             ))
 
 
 

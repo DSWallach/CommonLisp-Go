@@ -23,7 +23,7 @@
   (require :acache "acache-3.0.9.fasl")
   (sys:resize-areas :new 600000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 0) (safety 3) (space 0) (debug 3))))
+  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -118,15 +118,6 @@
      *white*
      ))
 
-
-
-
-
-
-
-
-
-
 ;;  PLAY-GAME : GAME DEPTH-ONE DEPTH-TWO ONE?
 ;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
@@ -214,6 +205,12 @@
                    (row-col->pos (- *board-length* 2) 2)
                    (row-col->pos (- *board-length* 2) (- *board-length* 2))
                    (row-col->pos 2 (- *board-length* 2))
+                   (floor  (/ *board-size* 2))
+
+                   (floor (+ (/ *board-size* 2) 1))
+                   (floor (- (/ *board-size* 2) 1))
+                   (floor (+ (/ *board-size* 2) *board-length*))
+                   (floor (- (/ *board-size* 2) *board-length*))
                    ))
 
 (defun ab-vs-mc (whose-monte? depth num-sims c &optional 
