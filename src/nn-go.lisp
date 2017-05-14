@@ -16,14 +16,15 @@
 ;;  Inverts the positions of black's and white's pieces
 ;;  Non-Desctructive so it doesn't need to be undone
 (defmacro invert-board (board)
-  `((let ((new-board (make-array (length ,board) :initial-element 0)) 
+  `(let ((new-board (make-array (length ,board) :initial-element 0)) 
           )
-      dotimes (pos (length ,board) new-board)
-      (cond 
-        ((= -1 (svref ,board pos))
-         (setf (svref new-board pos) 1))
-        ((= 1 (svref ,board pos))
-         (setf (svref new-board pos) -1))))))
+      (dotimes (pos (length ,board) new-board)
+        (cond 
+          ((= -1 (svref ,board pos))
+           (setf (svref new-board pos) 1))
+          ((= 1 (svref ,board pos))
+           (setf (svref new-board pos) -1))))
+      new-board))
 
 
 ;;  ANNALYZE-BOARD : NN BOARD LEGAL-MOVES PLAYER
@@ -64,8 +65,9 @@
     ;; If it's white's turn invert the board state
     (if (eq player *white*)
       (setq output (get-output-for nn (invert-board board)))
-      (setq output (get-output-for-nn board)))
+      (setq output (get-output-for nn board)))
 
+    ;(format t "Scores: ~A~%" output)
     ;; For each legal move 
     (dotimes (i (length legal-moves))
       (setq move (svref legal-moves i))
@@ -75,9 +77,13 @@
           (setq best-score (svref output move))
           (setq best-move move)
           )))
-    ;;(format t "Best Move ~A Score ~A~%" best-move best-score)
-    ;; Return the scores
-    best-move))
+    ;(format t "Best Move ~A Score ~A~%" best-move best-score)
+    ;; Return the best move
+    (if (< 0.0004 best-move)
+      best-move
+      ;; If isn't above the threashold return pass as the best move 
+      *board-size*)
+    ))
 
 ;; NOTE: I cannot believe that it's this easy to read/write from files
 
@@ -233,7 +239,7 @@
     ))
 
 (defmacro process-store-nn (name layers rate)
-  (mp:process-run-function ,name #'store-nn ,name ,layers ,rate))
+  `(mp:process-run-function ,name #'store-nn ,name ,layers ,rate))
 
 (defun store-nn (name layers rate)
   (let ((files (load-files 60000))
@@ -241,8 +247,6 @@
         )
     (train-all nn rate files)
     (write-network nn name)))
-
-
 
 ;; Record a random board state from the game along with who won the game
 (defmacro record-game (game)

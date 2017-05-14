@@ -110,6 +110,7 @@
 ;         )
   ;; Print the board
   (dotimes (row *board-length*)
+    
     (if (< 9 row)
       (format str "~A |" row)
       (format str " ~A |" row))
@@ -257,8 +258,23 @@
 ;;  MAKE-HASH-KEY-FROM-GAME : GAME
 ;; ---------------------------------
 ;; The hash key is the current state of the board.
-(defun make-hash-key-from-game (game)
-  (copy-vector (gg-board game)))
+;; Represented as a bit vector twice the size of the
+;; board, 1's in the first board size represent black's
+;; pieces. 1's after that are white's pieces
+(defmacro make-hash-key-from-game (game)
+  `(let ((board-vec (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0)))
+     (dotimes (i (length (gg-board ,game)))
+       (cond 
+         ((= 1 (svref (gg-board ,game) i))
+          (setf (sbit board-vec i) 1)
+          )
+         ((= -1 (svref (gg-board ,game) i))
+          (setf (sbit board-vec (+ i *board-size*)) 1)
+          )))
+     ;; Indicate who'se turn
+     (when (= (gg-whose-turn? ,game) *white*)
+       (setf (sbit board-vec (* 2 *board-size*)) 1))
+     board-vec))
 
 
 ;;  EVAL-SUBTOTALS! : GAME
@@ -279,16 +295,17 @@
     ;; Calc black's score
     (dolist (group b-groups)
       (setq life (group-alive? group))
-      ;; If the group's alive add it's territory 
-      ;; to black's score
       (cond  
-        ((= 1 life)
-         (setq b-score (+ b-score 
-                          (group-territory group))))
-
-        ;; Otherwise add the pieces to white's score
-        ((= 0 life) (setq w-score (+ w-score 
-                                     (length (group-pieces group)))))))
+      ;; If the group's alive add it's territory  to black's score
+        ((= 1 life) 
+         (incf b-score (group-territory group)))
+        ;; If it's dead add the pieces to white's score
+        ((= 0 life) 
+         (incf w-score (length (group-pieces group))))
+        ;; If it may be alive add half the terrriory
+        ((= -1 life)
+         (incf b-score (floor (/ (group-territory group) 2))))
+        ))
 
     ;; Add black's captures to their score
     (dolist (capd b-captures)
@@ -297,16 +314,16 @@
 
     ;; Calc white's score
     (dolist (group w-groups)
-
       (setq life (group-alive? group))
       (cond 
         ((= 1 life) 
-         (setq w-score (+ w-score 
-                          (group-territory group))))
+         (incf w-score (group-territory group)))
         ((= 0 life) 
-         (setq b-score (+ b-score 
-                          (length (group-pieces group))))))
-      )
+         (incf b-score (length (group-pieces group))))
+        ((= -1 life)
+         (incf w-score (floor (/ (group-territory group) 2))))
+      ))
+
     ;; White's Captures
     (dolist (capd w-captures)
       (setq w-score (+ w-score (length (group-pieces capd)))))
@@ -388,11 +405,6 @@
 
 
 
-(defun num-liberties (group1 group2)
-    (if (< (group-liberties (second group1)) 
-           (group-liberties (second group2)))
-      t nil))
-
 ;;  REMOVE-DEAD-GROUPS! : GAME
 ;; ----------------------------------
 ;;  Captures all groups that don't have two eyes or
@@ -407,48 +419,54 @@
         (groups )
         (turn (gg-whose-turn? game))
         (group nil)
-        (player)
+        (player nil)
         )
-    ;; This isn't very elegant but this is a special situation
-    ;; my usual setup for undo move returning the correect previous
-    ;; state won't work when both players have groups that are captured
-    ;; as this only happens at the end of the game the performance hit shouldn't
-    ;; be too bad
-   (setf (gg-groups game) 
-         ;; Add additional copies of the structure of the lists
-         ;; don't need to copy the groups
-         (vector b-groups w-groups b-groups w-groups)) 
-   (setf (gg-captures game) 
-         ;; Add additional copies of the structure of the lists
-         ;; don't need to copy the groups
-         (vector b-caps w-caps b-caps w-caps)) 
+    (labels ((num-liberties 
+               (group1 group2)
+               ;; Order of firstest liberties first,
+               ;; Ties are broken by whose turn it is
+               (if (or (< (group-liberties (second group1)) 
+                          (group-liberties (second group2)))
+                       (and (= (group-liberties (second group1)) 
+                               (group-liberties (second group2)))
+                            (eq (first group1) turn)))
+                 t nil))
+             )
+      ;; This isn't very elegant but this is a special situation
+      ;; my usual setup for undo move returning the correect previous
+      ;; state won't work when both players have groups that are captured
+      ;; as this only happens at the end of the game the performance hit shouldn't
+      ;; be too bad
+      (setf (gg-groups game) 
+            ;; Add additional copies of the structure of the lists
+            ;; don't need to copy the groups
+            (vector b-groups w-groups b-groups w-groups)) 
+      (setf (gg-captures game) 
+            ;; Add additional copies of the structure of the lists
+            ;; don't need to copy the groups
+            (vector b-caps w-caps b-caps w-caps)) 
 
-    ;; Sort the groups so those with the fewest liberties come first
-    (dolist (group (svref (gg-groups game) *black*))
+      ;; Sort the groups so those with the fewest liberties come first
+      (dolist (group (svref (gg-groups game) *black*))
         (push (list *black* group) groups))
 
-    (dolist (group (svref (gg-groups game) *white*))
+      (dolist (group (svref (gg-groups game) *white*))
         (push (list *white* group) groups))
+      (setq groups (sort groups #'num-liberties))
+      (dolist (group-pair groups)
+        (setq player (first group))
+        ;; Update the group
+        (update-group! (second group-pair) game (first group-pair))
 
-
-    (setq groups (sort groups #'num-liberties))
-
-    (dolist (group-pair groups)
-      (setq player (first group))
-      ;; Update the group
-      (update-group! (second group-pair) game (first group-pair))
-
-      ;; When a group has no eye-space capture it
-      (when (= 0 (group-alive? (second group-pair)))
-        (capture-group! (second group-pair) game (- 1 (first group-pair)))
-        ))
-
-    ;; Update territories of remaining groups
-    (dolist (ggroup (svref (gg-groups game) *black*))
-      (update-group! ggroup game *black*))
-    (dolist (ggroup (svref (gg-groups game) *white*))
-      (update-group! ggroup game *white*))
-    ))
+        ;; When a group has no eye-space capture it
+        (when (= 0 (group-alive? (second group-pair)))
+          (capture-group! (second group-pair) game (- 1 (first group-pair)))))
+      ;; Update territories of remaining groups
+      (dolist (ggroup (svref (gg-groups game) *black*))
+        (update-group! ggroup game *black*))
+      (dolist (ggroup (svref (gg-groups game) *white*))
+        (update-group! ggroup game *white*))
+      )))
 
 
 ;;  GAME-OVER? : GAME

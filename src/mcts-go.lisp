@@ -79,7 +79,7 @@
   (let* ((root-key (make-hash-key-from-game game))
          (new-tree (make-mc-tree :root-key root-key
                                  :hashy (make-hash-table
-                                          :test #'equalp
+                                          :test #'equal
                                           :size num-sims)))
          )
     (insert-new-node game new-tree root-key)

@@ -497,7 +497,7 @@
          )
      (dotimes (i 1000000)
        (setq moves (legal-moves ,game))
-       (setq move (annalyze-move ,nn (gg-board ,game) moves))
+       (setq move (annalyze-move ,nn (gg-board ,game) moves (gg-whose-turn? ,game)))
        (do-move! ,game move)
        (when (game-over? ,game)
          (return)))
@@ -543,7 +543,7 @@
            ))
 
         ;; More lenient in the mid game
-        ((> 15 (length (gg-move-history game)))
+        ((> 20 (length (gg-move-history game)))
          (dotimes (row (- *board-length* 1))
            (when (> row 0)
              (dotimes (col (- *board-length* 1))

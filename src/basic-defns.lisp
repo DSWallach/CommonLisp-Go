@@ -12,7 +12,7 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 30000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
   (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
 
@@ -257,35 +257,37 @@
   (black-num-sims black-c white-num-sims white-c 
                   &optional 
                   (black-threads? nil)
-                  (white-threads? nil) 
-                  (black-network? nil)
-                  (white-network? nil)
+                  (white-threads? nil)
+                  (black-network  nil)
+                  (white-network  nil)
                   (pool nil)
-                  (return-game? nil) 
+                  (return-game? nil)
                   (record-game? nil)
                   )
   (let ((g (init-game))
-        (p nil)
+        (b-p nil)
+        (w-p nil)
         )
-    (if pool 
-      (setq p pool)
-      (setq pool (init-nn-pool "Trained-Network")))
+    (when pool
+      (setq b-p pool)
+      (setq w-p pool))
+
+    (when black-network
+      (setq b-p (init-nn-pool black-network)))
+
+    (when white-network
+      (setq w-p (init-nn-pool white-network)))
+
     (while (not (game-over? g))
            (cond
-             ((eq (gg-whose-turn? g) *black*)
+             ((= (gg-whose-turn? g) *black*)
               (format t "BLACK'S TURN!~%")
-              (if black-network?
-                (setq p pool)
-                (setq p nil))
-              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? p)) 
-                        t nil nil nil nil))
+              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)) 
+                        t nil t nil nil))
              (t
                (format t "WHITE'S TURN!~%")
-               (if white-network?
-                 (setq p pool)
-                 (setq p nil))
-               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? p))
-                         t nil nil nil nil))))
+               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p))
+                         t nil t nil nil))))
 
     ;; Show all game information
     (print-go g t nil t t)
@@ -297,3 +299,15 @@
 
     ;; Return the final game state if requested
     (when return-game? g)))
+
+(defun play-nets-no-t (net1 net2)
+  (compete 100 2 100 2 nil nil net1 net2)
+  )
+
+(defun play-nets (net1 net2)
+  (compete 100 2 100 2 t t net1 net2)
+  )
+
+
+(defun play-mcts (b-num w-num)
+ (compete b-num 2 w-num 2 nil nil nil nil nil))

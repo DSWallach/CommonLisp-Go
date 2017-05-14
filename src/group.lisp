@@ -85,7 +85,6 @@
                       (,opponent (incf ,opponent-counter)))
                     t)))
        (incf ,player-counter))
-
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (- ,posn 1)))
@@ -228,18 +227,18 @@
           (setq posn (row-col->pos row col))
           (cond 
             (
-            ; (and 
-               (= 0 (svref board posn))
-               ;; A second eyes cannot be immediately adjacent to another eye
-        ;    (or (and (<= min-col (- 1 posn))  
-        ;               (svref eyes (- 1 posn)))
-        ;          (and (>= max-col (+ 1 posn))
-        ;               (svref eyes (+ 1 posn)))
-        ;          (and (<= min-row (- *board-length* posn))
-        ;               (svref eyes (- *board-length* posn)))
-        ;          (and (>= max-row (+ *board-length* posn))
-        ;               (svref eyes (+ *board-length* posn)))
-        ;          ))
+             ; (and 
+             (= 0 (svref board posn))
+             ;; A second eyes cannot be immediately adjacent to another eye
+             ;    (or (and (<= min-col (- 1 posn))  
+             ;               (svref eyes (- 1 posn)))
+             ;          (and (>= max-col (+ 1 posn))
+             ;               (svref eyes (+ 1 posn)))
+             ;          (and (<= min-row (- *board-length* posn))
+             ;               (svref eyes (- *board-length* posn)))
+             ;          (and (>= max-row (+ *board-length* posn))
+             ;               (svref eyes (+ *board-length* posn)))
+             ;          ))
 
 
              ;; This will set eye-case
@@ -258,19 +257,22 @@
              ;; Record eye status
              (case eye-case
                (1 
-                ;; When there is an eye
-                ;; update the player's eyes
-                (setf (svref (svref (gg-eyes game) player) posn) eye-case)
                 (incf num-eyes))
-               (-1 (incf possible-eyes))))
+               (-1 (incf possible-eyes))
+               )
+             ;; When there is an eye
+             ;; update the player's eyes
+             (setf (svref (svref (gg-eyes game) player) posn) eye-case)
+             )
+
             ;; If there is a piece at posn it's no longer an eye
             (t (setf (svref (svref (gg-eyes game) player) posn) 0))
             )
 
-        ;; If the group has two true eyes
-        (when (< 1 num-eyes)
-          ;; Set the group to alive
-          (setf (group-alive? group) 1)
+          ;; If the group has two true eyes
+          (when (< 1 num-eyes)
+            ;; Set the group to alive
+            (setf (group-alive? group) 1)
           ;; And return
           (return-from calc-life!)))))
 
@@ -602,7 +604,6 @@
 ;;  INPUTS: GROUP, a group struct
 ;;          POS, The position of the piece to be removed
 (defun group-remove! (group pos game)
-
   ;; Remove the most recent piece
   (setf (group-pieces group)
         (remove pos (group-pieces group)))
