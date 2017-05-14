@@ -576,7 +576,6 @@
         )
     ;; Allow the A.I. to play to some random point
     (dotimes (i num-moves)
-      (when verbose? (print-go new-g t nil t t))
       (do-move! new-g (compute-move new-g 2 nil)))
 
     (when verbose? (print-go new-g t nil t t t))
@@ -584,7 +583,7 @@
     (setq new-g-copy (deep-copy-go new-g))
     ;; Do one more move
     (do-move! new-g (compute-move new-g 2 nil))
-    (when verbose? (print-go new-g t nil t t t))
+    ;(when verbose? (print-go new-g t nil t t t))
     ;; Undo the move
     (undo-move! new-g)
     (when verbose? (print-go new-g t nil t t t))
@@ -689,7 +688,7 @@
   (let* ((new-g (init-game))
         (old-g (deep-copy-go new-g))
         )
-    (play-game new-g 1 1 t)
+    (play-game new-g 1 1 t nil)
     (test "Deep-Copy" 
           (equal-go? old-g (init-game)))))
 

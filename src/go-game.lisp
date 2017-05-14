@@ -28,6 +28,8 @@
   ;; Arrays indicating what board positions are eyes
   (eyes (vector (make-array *board-size* :initial-element 0)
                 (make-array *board-size* :initial-element 0)))
+  ;; So groups aren't captured twice
+  (over? nil)
   ;; List of vectors #(a b c) where
   ;; a == row played at
   ;; b == col played at
@@ -343,6 +345,7 @@
                   :ko? (gg-ko? game)
                   :subtotals (vector b-subs w-subs)
                   :eyes (vector b-eyes w-eyes)
+                  :over? (gg-over? game)
                   :board-history (deep-copy-list (gg-board-history game) 'copy-vector)
                   :move-history (deep-copy-list (gg-move-history game) 'copy-seq)
                   )))
@@ -395,14 +398,30 @@
 ;;  Captures all groups that don't have two eyes or
 ;;  room for two eyes
 (defun remove-dead-groups! (game)
-
   (let ((b-count 0)
         (w-count 0)
+        (b-groups (svref (gg-groups game) *black*))
+        (w-groups (svref (gg-groups game) *white*))
+        (b-caps (svref (gg-captures game) *black*))
+        (w-caps (svref (gg-captures game) *white*))
         (groups )
         (turn (gg-whose-turn? game))
         (group nil)
         (player)
         )
+    ;; This isn't very elegant but this is a special situation
+    ;; my usual setup for undo move returning the correect previous
+    ;; state won't work when both players have groups that are captured
+    ;; as this only happens at the end of the game the performance hit shouldn't
+    ;; be too bad
+   (setf (gg-groups game) 
+         ;; Add additional copies of the structure of the lists
+         ;; don't need to copy the groups
+         (vector b-groups w-groups b-groups w-groups)) 
+   (setf (gg-captures game) 
+         ;; Add additional copies of the structure of the lists
+         ;; don't need to copy the groups
+         (vector b-caps w-caps b-caps w-caps)) 
 
     ;; Sort the groups so those with the fewest liberties come first
     (dolist (group (svref (gg-groups game) *black*))
@@ -435,6 +454,10 @@
 ;;  GAME-OVER? : GAME
 ;; -------------------------------
 (defun game-over? (game)
+  ;; If the game has already been determined as over 
+  ;; return immediately
+  (when (gg-over? game) 
+    (return-from game-over? t))
   (when (or (> (length (gg-move-history game)) 
                ;; To protect against triple kos (very rare but could cause an infinite loop)
                ;; Twice as many moves as positions on the board is many more than games typically
@@ -454,6 +477,8 @@
 
     ;; Update scores
     (eval-subtotals! game)
+    ;; Set the game over flag
+    (setf (gg-over? game) t)
     ;; Return true
     t
     ;; Otherwise the game is still going

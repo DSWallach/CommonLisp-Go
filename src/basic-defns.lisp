@@ -122,15 +122,18 @@
 ;; ---------------------------------------------
 ;; A function for setting to A.I.'s with different
 ;; depths against each other. For fun.
-(defun play-game (game depth-one depth-two one?) 
+(defun play-game (game depth-one depth-two one? &optional (verbose? nil
+                                                                  )) 
   (if (game-over? game)
-    (unless (format t "++++++++ Game Over +++++++++~%")
-      (print-go game t nil t t))
+    (when verbose?
+      (unless (format t "++++++++ Game Over +++++++++~%")
+        (print-go game t nil t t)))
     (when (if one? 
             (do-move! game (compute-move game depth-one))
             (do-move! game (compute-move game depth-two)))
-      (format t "Game State~%")
-      (print-go game t nil nil nil)
+      (when verbose? 
+        (format t "Game State~%")
+        (print-go game t nil nil nil))
       (play-game game depth-one depth-two (not one?)))))
 
 ;;  PLAY-GAME-DEBUG

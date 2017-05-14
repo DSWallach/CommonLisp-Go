@@ -273,12 +273,47 @@
 ;;  Undo the most recently played move
 (defun undo-move! (game &optional (verbose? nil))
   (declare (ignore verbose?))
-  (let* ((captured 0)
-         (move (pop (gg-move-history game)))
-         (pos (svref move 0))
-         (player (gg-whose-turn? game))
-         (opponent (- 1 player))
-         )
+  (if
+    ;; If undoing the last move of the game
+    ;; reset the groups, over flag, and turn
+    (gg-over? game)
+    ;; Get the copies of the group lists
+    (let ((b-groups (svref (gg-groups game) 2))
+          (w-groups (svref (gg-groups game) 3))
+          (b-caps (svref (gg-captures game) 2))
+          (w-caps (svref (gg-captures game) 3))
+          )
+      ;; Reset the groups
+      (setf (gg-groups game)
+            (vector b-groups w-groups))
+      ;; Reset the captues
+      (setf (gg-captures game)
+            (vector b-caps w-caps))
+
+      ;; Update groups
+      (dolist (group (svref (gg-groups game) *black*))
+        (update-group! group game))
+      (dolist (group (svref (gg-groups game) *white*))
+        (update-group! group game))
+      ;; Update scores
+      (eval-subtotals! game)
+      ;; Pop the move
+      (pop (gg-move-history game))
+      ;; Reset the board
+      (setf (gg-board game)
+            (pop (gg-board-history game)))
+      ;; Reset the over falg
+      (setf (gg-over? game) nil)
+      ;; Reset turn
+      (setf (gg-whose-turn? game) 
+            (- 1 (gg-whose-turn? game)))
+      )
+    (let* ((captured 0)
+           (move (pop (gg-move-history game)))
+           (pos (svref move 0))
+           (player (gg-whose-turn? game))
+           (opponent (- 1 player))
+           )
 
       ;; Delete the previous board 
       (pop (gg-board-history game))
@@ -321,19 +356,20 @@
 
         ;; Update player's groups
         (dolist (group (svref (gg-groups game) player))
-        (calc-area! group)
-        (update-group! group game))
+          (calc-area! group)
+          (update-group! group game))
 
-      ;; Update opponent's groups
-      (dolist (group (svref (gg-groups game) opponent))
-        (calc-area! group)
-        (update-group! group game))
+        ;; Update opponent's groups
+        (dolist (group (svref (gg-groups game) opponent))
+          (calc-area! group)
+          (update-group! group game))
 
-      ;; Evaluate each players score
-      (eval-subtotals! game))
+        ;; Evaluate each players score
+        (eval-subtotals! game))
 
-    ;; Change turn
-    (setf (gg-whose-turn? game) opponent)))
+      ;; Change turn
+      (setf (gg-whose-turn? game) opponent)))
+)
 
 ;;  PULL-PIECE! : GAME MOVE &DEBUG? 
 ;; ---------------------------------------------------------------
@@ -377,24 +413,17 @@
       (cond
         ;; If necessary seperate groups
         ((< 1 (svref move 2))
-         (let (
-               (new-group nil) 
+         (let ((new-group nil) 
                (new-groups nil)
                )
-
            (dotimes (i (- (svref move 2) 1))
-
              ;; Get the seperated group
              (setq new-group 
                    (seperate-group! group game))
-
              ;; Add the new-group to the list of new groups
-             (push new-group new-groups)
-             )
-
+             (push new-group new-groups))
            ;; Push the modified onto the list of groups 
            (push group new-groups)
-
            ;; Add the group back into opponent's groups with the 
            ;; correct ordering
            (setf (svref (gg-groups game) opponent)
@@ -402,8 +431,8 @@
                         (svref (gg-groups game) opponent)
                         (sort new-groups #'group-order?)
                         #'group-order?
-                        ))
-           ))
+                        )))
+         )
 
         ;; If the group has more pieces  
         ((< 0 (length (group-pieces group)))
