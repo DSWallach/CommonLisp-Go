@@ -387,7 +387,7 @@
     (when verbose? (print-go g t nil t t))
 
     ;; If a record from the game is to be used
-    (when record-game?
+    (when filename
       ;; Macro defined in nn-go.lisp
       (record-game g))
 

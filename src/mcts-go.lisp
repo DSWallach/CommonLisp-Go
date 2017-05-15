@@ -511,9 +511,9 @@
           ;; Wait until all the threads are finished
           (mp:barrier-wait barrier)
 
-          (format t "Number of nodes ~A, num of moves ~A~%" 
-                  (hash-table-count (mc-tree-hashy tree))
-                  (length (legal-moves orig-game)))
+         ; (format t "Number of nodes ~A, num of moves ~A~%" 
+         ;         (hash-table-count (mc-tree-hashy tree))
+         ;         (length (legal-moves orig-game)))
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)

@@ -172,7 +172,7 @@
       (when (string-equal "weight-arrays" (read line))
         (setq weight-arrays (read line))))
 
-    (format t "Close File~%")
+    ;(format t "Close File~%")
     ;; Convert layer sizes to list from vector
     (dotimes (i (length layer-sizes))
       (push (svref layer-sizes (- (length layer-sizes) i 1))
@@ -298,28 +298,27 @@
                ))
 
 (defconstant *lon*
-             (list 
-               "full-conn-0.25"
-               "full-conn-0.5" 
-               "full-conn-0.75"
-               "full-conn-1" 
-               "small-conn-0.25"
-               "small-conn-0.5"
-               "small-conn-0.75"
-               "small-conn-1"
-               "full-conv-0.25"
-               "full-conv-0.5"
-               "full-conv-0.75"
-               "full-conv-1"
-               "small-conv-0.25"
-               "small-conv-0.5"
-               "small-conv-0.75"
-               "small-conv-1"
-               "charles" 
-               "direct" 
-               ))
-
-;;  TRAIN-NETWORKS
+             (read-nets (list 
+                              "full-conn-0.25-0"
+                              "full-conn-0.5-0" 
+                              "full-conn-0.75-0"
+                              "full-conn-1-0" 
+                              "small-conn-0.25-0"
+                              "small-conn-0.5-0"
+                              "small-conn-0.75-0"
+                              "small-conn-1-0"
+                              "full-conv-0.25-0"
+                              "full-conv-0.5-0"
+                              "full-conv-0.75-0"
+                              "full-conv-1-0"
+                              "small-conv-0.25-0"
+                              "small-conv-0.5-0"
+                              "small-conv-0.75-0"
+                              "small-conv-1-0"
+                              "charles-0" 
+                              "direct-0" 
+                              )))
+             ;;  TRAIN-NETWORKS
 ;; ---------------------
 ;; INPUTS: LOT, a list of triples 
 ;;              first = network-name
@@ -426,20 +425,19 @@
      next-gen))
 
 ;; Basically a wrapper for compete
-(defun gaunlet (net1 net2 gen)
-  (compete 500 1 500 1 nil nil 
+(defun gaunlet (net1 net2 file-lock)
+  (compete 10 1 10 1 t t 
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
-           (concatenate 'string "../game-records/game-history-gen-" 
-                        (write-to-string gen)) 
+           file-lock
            nil))
 
 ;; Has two competitors play two games against each other 
 ;; once each as black and white. The player with the combined
 ;; higher score from both games is the winner (ties are a one 
 ;; point win for white)
-(defun face-off (pair gen barrier)
+(defun face-off (pair gen barrier file-lock)
   (let ((comp1 (first pair))
         (comp2 (second pair))
         (score1 0)
@@ -449,7 +447,7 @@
 
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
-    (setq game (gaunlet (c-net comp1) (c-net comp2) gen))
+    (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -463,7 +461,7 @@
         ))
 
     ;; Then they switch
-    (setq game (gaunlet (c-net comp2) (c-net comp1) gen))
+    (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -504,9 +502,8 @@
     ;; If there is a tie, neither is dominated 
     ;; or has a change in fitness
 
-    (mp:barrier-pass-through barrier)))
-
-
+    (mp:barrier-pass-through barrier)
+    (format t "Thread completing ~A ~%" barrier)))
 
 ;; Run evolutionary trials pitting networks against
 ;; networks and store a few game state pairs from the 
@@ -514,19 +511,29 @@
 (defun evolve-networks (lon generations num-fronts &optional (threads? nil))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
         (fronts (make-array num-fronts :initial-element (list)))
-        (population (list))
+        (generation (list))
         (pairs nil) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
         (barrier nil)
+        (file-lock  nil)
         )
     (dolist (net lon)
       (push (new-competetor net gen-id) 
-            population)
+            generation)
       (incf gen-id))
     ;; Run the evolutionary algorithm
     (dotimes (gen generations)
+      (format t "Running Generation ~A~%" gen)
+      ;; Create the lock for this gen's file
+      (setq file-lock
+            (make-file-lock :path 
+                            (make-pathname :name 
+                                           (concatenate 'string 
+                                                        "../game-records/game-history-gen-" 
+                                                        (write-to-string gen)))))
+
       ;; Randomly distribute the networks among the fronts
-      (dolist (comp population)
+      (dolist (comp generation)
         (push comp (svref fronts (random num-fronts))))
       ;; Reset the fronts as pairs
       (dotimes (i num-fronts)
@@ -536,6 +543,8 @@
       (dotimes (i num-fronts)
         (dolist (pair (svref fronts i))
           (push pair pairs)))
+      ;; Reset the barrier
+      (setq barrier (mp:make-barrier (+ 1 (length pairs))))
       ;; Evaluate each network's fitness
       (dolist (pair pairs)
         (if threads? 
@@ -544,12 +553,14 @@
                                    pair
                                    gen
                                    barrier
-                                   )
-          (face-off pair gen barrier)))
+                                   file-lock)
+          (face-off pair gen barrier file-lock)))
+      (format t "Waiting for threads to finish~%")
       ;; Wait for all the trials to finish
       (mp:barrier-wait barrier)
+      (format t "Creating next generation~%")
       ;; Get the next generation
       (setq generation (get-next-gen generation))
-      ;; Reset the barrier
-      (setq barrier (mp:make-barrier (+ 1 (length generation))))
-      )))
+      )
+    (format t "Done!~%")
+    ))
