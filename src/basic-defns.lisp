@@ -12,9 +12,9 @@
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
   (sys:resize-areas :new 3000000000 :old 800000000) ;; Allocate extra memory to minize garbage collection
-  (setf (sys:gc-parameter :generation-spread) 25)
+  (setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 3))))
+  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))

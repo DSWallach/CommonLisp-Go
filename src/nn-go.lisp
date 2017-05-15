@@ -551,7 +551,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 1000 1 1000 1 t t 
+  (compete 500 1 500 1 2 2 
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -641,8 +641,9 @@
         (gen-id 0)
         (barrier nil)
         (file-lock  nil)
+        (lonn (load-files lon))
         )
-    (dolist (net lon)
+    (dolist (net lonn)
       (push (new-competetor net gen-id) 
             generation)
       (incf gen-id))
