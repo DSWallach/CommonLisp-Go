@@ -426,7 +426,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 10 1 10 1 t t 
+  (compete 500 1 500 1 t t 
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
