@@ -408,5 +408,3 @@
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))
 
-(defun gaunlet (net1 net2)
-  (compete 1000 1 1000 1 nil nil net1 net2 nil t))

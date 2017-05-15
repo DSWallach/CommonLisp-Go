@@ -275,6 +275,8 @@
                (list "small-conv-0.5" (list 81 49 81) 0.5)
                (list "small-conv-0.75" (list 81 49 81) 0.75)
                (list "small-conv-1" (list 81 49 81) 1)
+               (list "charles" (list 81 67 81) 0.9)
+               (list "direct" (list 81 81) 0.25)
                ))
 
 ;;  TRAIN-NETWORKS
@@ -286,19 +288,223 @@
 ;; For training multiple networks at the same time
 ;; so the files don't have to be opened mulitple times
 (defun train-networks (lot)
-  (let ((files (load-files 6))
-        (triple nil))
+  (let ((files (load-files 60000)))
     (dolist (triple lot)
-      (setq triple (concatenate 'list triple files))
-      (format t "Applying ~A~%" triple)
-      (apply #'process-store-nn triple))))
-
+      ;; Can't use apply cause files is a list
+      ;(format t "Applying ~A~%" triple)
+      (process-store-nn (first triple)
+                        (second triple)
+                        (third triple)
+                        files
+                        ))))
+;; Trains the networks with the names and parameters 
+;; passed in as a list of triples
 (defmacro p-train-networks (lot)
   `(mp:process-run-function (write-to-string ,lot) #'train-networks ,lot))
 
 
-
-
-(defun evolve-networks (lon)
-  
+;; I'm using an evolutionary algorithm instead of 
+;; training on the results of the matches b/c the network
+;; trained that way wasn't better when combined with the 
+;; Value network in the original paper so I'm going to 
+;; try something else
+(defstruct (competetor
+             (:conc-name c-)
+             (:include synchronizing-structure))
+  id        ;; A number that is unique within each generation
+  net       ;; A NN
+  age       ;; The number of gens this network has been a competetor
+  fitness   ;; The fitness of this competetor in the current generation
+  dominated ;; A parameter for use with AFPO
   )
+
+(defun new-competetor (net id)
+  (make-comptetor :net net 
+                  :age 0
+                  :fitness 0
+                  :dominated nil
+                  ))
+
+;; Returns a list of pairs containing every combination of 
+;; pairs of two networks provided
+;; These lists are akin to the pareto fronts in AFPO
+(defmacro make-pairs (loc)
+  (let ((pairs (list))
+        (comp1 nil)
+        )
+    (loop while (< 0 (length ,loc))
+          do (setq comp1 (pop ,loc))
+          (dolist (comp2 ,loc)
+            (push (list comp1 comp2) pairs)))
+    pairs))
+
+
+;; Non-dominated before dominated then 
+;; by fitness
+(defun most-fit (comp1 comp2)
+  (if (or (and (not (c-domniated comp1))
+               (c-dominated comp2))
+          (> (c-fit comp1) 
+             (c-fit comp2)))
+    t nil))
+
+;; Macro for returning the next generation of 
+;; competetors
+(defmacro get-next-gen (generation)
+  `(let ((next-gen (list))
+        (gen-id 0)
+        )
+    ;; Sort the list by highest fitness
+    (sort ,generation :test #'most-fit)
+
+    ;; For each member of the population
+    (dolist (comp population)
+      ;; Every non-dominated ID gets a mutant offspring 
+      ;; added to the next-generation
+      (unless (c-domniated comp)
+        (push (new-competetor (mutate-network (c-net comp)) gen-id)
+              next-gen)
+        (incf gen-id))
+      ;; Increment age
+      (incf (c-age comp))
+      ;; Reset fitness
+      (setf (c-fitness comp) 0)
+      ;; Reset dominated
+      (setf (c-domniated comp) nil)
+      ;; Add it to the next generation
+      (push comp next-gen)
+
+      ;; Return when all non-dominated networks
+      ;; are added and the previous population size
+      ;; has been reached
+      (when (and 
+              (c-dominated comp)
+              (>= (length next-gen)
+                  (length ,generation)))
+        (return)))
+    ;; Return the next generation
+    next-gen))
+
+;; Basically a wrapper for compete
+(defun gaunlet (net1 net2 gen)
+  (compete 1000 1 1000 1 nil nil net1 net2 nil t 
+           (concatenate 'string "../game-records/game-history-gen-" 
+                        (write-to-string gen)) 
+           nil))
+
+;; Has two competitors play two games against each other 
+;; once each as black and white. The player with the combined
+;; higher score from both games is the winner (ties are a one 
+;; point win for white)
+(defun face-off (pair gen barrier)
+  (let ((comp1 (first pair))
+        (comp2 (second pair))
+        (score1 0)
+        (score2 0)
+        (game nil)
+        )
+
+    ;; Play a game recording two random board states 
+    ;; as well as who won in this generation's game-history
+    (setq game (gaunlet (c-net comp1) (c-net comp2) gen))
+    (cond
+      ;; If a tie count as a one point victory for white
+      ((= (svref (gg-subtotals game) *black*)
+          (svref (gg-subtotals game) *white*))
+       (incf score2 1))
+      (t 
+        ;; First comp1 is black
+        (incf score1 (svref (gg-subtotals game) *black*))
+        ;; And comp2 is white
+        (incf score2 (svref (gg-subtotals game) *white*))
+        ))
+
+    ;; Then they switch
+    (setq game (gaunlet (c-net comp2) (c-net comp1) gen))
+    (cond
+      ;; If a tie count as a one point victory for white
+      ((= (svref (gg-subtotals game) *black*)
+          (svref (gg-subtotals game) *white*))
+       (incf score1 1))
+      (t 
+        ;; First comp1 is black
+        (incf score2 (svref (gg-subtotals game) *black*))
+        ;; And comp2 is white
+        (incf score1 (svref (gg-subtotals game) *white*))
+        ))
+    ;; Evaluate the winner
+    (cond 
+      ;; If comp1 was the victor
+      ((> score1 score2)
+       ;; Update it's fitness
+       (with-locked-structure 
+         (comp1)
+         (incf (c-fitness comp1)))
+       (with-locked-structure 
+         (comp2)
+         ;; Update the other fitness
+         (decf (c-fitness comp2))
+         ;; Set dominated 
+         (setf (c-dominated comp2) t)))
+      ;; If comp2 was the victor
+      ((> score2 score1)
+       ;; Update it's fitness
+       (with-locked-structure 
+         (comp2)
+         (incf (c-fitness comp2)))
+       (with-locked-structure 
+         (comp1)
+         ;; Update the other fitness
+         (decf (c-fitness comp1))
+         ;; Set dominated 
+         (setf (c-dominated comp1) t))))
+    ;; If there is a tie, neither is dominated 
+    ;; or has a change in fitness
+
+    (mp:barrier-pass-through barrier)))
+
+
+
+;; Run evolutionary trials pitting networks against
+;; networks and store a few game state pairs from the 
+;; game
+(defun evolve-networks (lon generations)
+  (let ((lineage-counters (make-array (length lon) :initial-element 1))
+        (fronts (make-array *num-fronts*) :initial-element (list))
+        (population (list))
+        (pairs nil) ; A list of pairs containing every combination of networks in the generation
+        (gen-id 0)
+        (barrier nil)
+        )
+    (dolist (net lon)
+      (push (new-competetor net gen-id) 
+            population)
+      (incf gen-id))
+    ;; Run the evolutionary algorithm
+    (dotimes (gen generations)
+      ;; Randomly distribute the networks among the fronts
+      (dolist (comp population)
+        (push comp (svref fronts (random *num-fronts*))))
+      ;; Reset the fronts as pairs
+      (dotimes (i *num-fronts*)
+        (setf (svref fronts i)
+              (make-pairs (svref fronts i))))
+      ;; Add all the pairs into one list
+      (dotimes (i *num-front*)
+        (dolist (pair (svref fronts i))
+          (push pair pairs)))
+      ;; Evaluate each network's fitness
+      (dolist (pair pairs)
+        (mp:process-run-function (write-to-string pair) 
+                                 #'face-off
+                                 pair
+                                 gen
+                                 barrier
+                                 ))
+      ;; Wait for all the trials to finish
+      (mp:barrier-wait barrier)
+      ;; Get the next generation
+      (setq generation (get-next-gen generation))
+      ;; Reset the barrier
+      (setq barrier mp:make-barrier (+ 1 (length generation)))
+      )))
