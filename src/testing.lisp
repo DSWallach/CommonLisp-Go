@@ -679,18 +679,30 @@
       (format t "Begin Test~%")
       (maphash #'check-entry (mc-tree-hashy tree1))
       (maphash #'check-entry (mc-tree-hashy tree2))
-        (format t "Test Passed~%")
-        )
-      ))
+      (format t "Test Passed~%")
+      )
+    ))
 
 ;; TEST-DEEP-COPY
 (defun test-deep-copy ()
   (let* ((new-g (init-game))
-        (old-g (deep-copy-go new-g))
-        )
+         (old-g (deep-copy-go new-g))
+         )
     (play-game new-g 1 1 t nil)
     (test "Deep-Copy" 
           (equal-go? old-g (init-game)))))
+
+
+;; TEST-EYE-AT
+(defun test-eye-at ()
+
+  (let* ((new-g (init-game))
+         (old-g (deep-copy-go new-g))
+         )
+    (play-game new-g 1 1 t nil)
+    (test "Deep-Copy" 
+          (equal-go? old-g (init-game)))))
+
 
 ;;  TEST-ROBUST 
 ;; ------------------------------

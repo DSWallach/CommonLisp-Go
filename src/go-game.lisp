@@ -296,15 +296,15 @@
     (dolist (group b-groups)
       (setq life (group-alive? group))
       (cond  
-      ;; If the group's alive add it's territory  to black's score
-        ((= 1 life) 
-         (incf b-score (group-territory group)))
         ;; If it's dead add the pieces to white's score
         ((= 0 life) 
          (incf w-score (length (group-pieces group))))
+      ;; If the group's alive add it's territory  to black's score
+        (t;(= 1 life) 
+         (incf b-score (group-territory group)))
         ;; If it may be alive add half the terrriory
-        ((= -1 life)
-         (incf b-score (floor (/ (group-territory group) 2))))
+    ;    ((= -1 life)
+    ;     (incf b-score (floor (/ (group-territory group) 2))))
         ))
 
     ;; Add black's captures to their score
@@ -316,12 +316,12 @@
     (dolist (group w-groups)
       (setq life (group-alive? group))
       (cond 
-        ((= 1 life) 
-         (incf w-score (group-territory group)))
         ((= 0 life) 
          (incf b-score (length (group-pieces group))))
-        ((= -1 life)
-         (incf w-score (floor (/ (group-territory group) 2))))
+        (t;(= 1 life) 
+         (incf w-score (group-territory group)))
+    ;    ((= -1 life)
+    ;     (incf w-score (floor (/ (group-territory group) 2))))
       ))
 
     ;; White's Captures
@@ -423,9 +423,12 @@
         )
     (labels ((num-liberties 
                (group1 group2)
-               ;; Order of firstest liberties first,
+               ;; Order of dead groups then
+               ;; fewstest liberties first,
                ;; Ties are broken by whose turn it is
-               (if (or (< (group-liberties (second group1)) 
+               (if (or (and (= 0 (group-alive? (second group1)))
+                            (not (= 0 (group-alive? (second group2))))) 
+                     (< (group-liberties (second group1)) 
                           (group-liberties (second group2)))
                        (and (= (group-liberties (second group1)) 
                                (group-liberties (second group2)))
@@ -440,11 +443,11 @@
       (setf (gg-groups game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-groups w-groups b-groups w-groups)) 
+            (vector b-groups w-groups (copy-seq b-groups) (copy-seq w-groups))) 
       (setf (gg-captures game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-caps w-caps b-caps w-caps)) 
+            (vector b-caps w-caps (copy-seq b-caps) (copy-seq w-caps)))
 
       ;; Sort the groups so those with the fewest liberties come first
       (dolist (group (svref (gg-groups game) *black*))
@@ -452,7 +455,10 @@
 
       (dolist (group (svref (gg-groups game) *white*))
         (push (list *white* group) groups))
+
       (setq groups (sort groups #'num-liberties))
+
+      ;(format t "Groups: ~A~%" groups)
       (dolist (group-pair groups)
         (setq player (first group))
         ;; Update the group

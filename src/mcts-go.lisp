@@ -150,6 +150,7 @@
     (setq new-node (make-mc-node 
                      :key key
                      :whose-turn (gg-whose-turn? game)
+                     :num-visits 1
                      :veck-moves moves
                      :veck-visits (make-array (length moves) :initial-element 0)
                      :veck-scores (make-array (length moves) :initial-element 0)
@@ -164,15 +165,8 @@
       (with-locked-structure
         ((gethash key (mc-tree-hashy tree)))
 
-        (setq node-holder (gethash key (mc-tree-hashy tree)))
         ;; Update N(S_t)
-        (setf (mc-node-num-visits node-holder)
-              (+ (mc-node-num-visits node-holder)
-                 (mc-node-num-visits new-node)))
-
-          ;; Update the tree
-          (setf (gethash key (mc-tree-hashy tree))
-                node-holder))
+        (incf (mc-node-num-visits (gethash key (mc-tree-hashy tree)))))
 
       ;; Otherwise just insert the node
       (setf (gethash key (mc-tree-hashy tree)) new-node))

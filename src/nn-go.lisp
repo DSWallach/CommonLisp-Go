@@ -102,6 +102,14 @@
     (if force? 
       (setq file (open file-path :direction :output :if-exists :supersede))
       (setq file (open file-path :direction :output)))
+    ;; Write the family-name
+    (write-string "family-name " file) 
+    (write-line (nn-family-name nn) file)
+
+    ;; Write the ID
+    (write-string "ID " file)
+    (write-line (write-to-string (nn-id nn)) file)
+
     ;; The number of layers is inferred from the length
     ;; of the layer sizes
 
@@ -117,8 +125,7 @@
     (dotimes (i (nn-num-layers nn))
       ;; Write the  connections from that layer
       ;; Write each layer's weights on a new line
-      (write-line (write-to-string (nn-weight-arrays nn)) file)
-      )
+      (write-line (write-to-string (nn-weight-arrays nn)) file))
     ;; No need to store the delta-vecks
     ;; All done
     (close file)
@@ -132,19 +139,25 @@
 ;;              and WEIGHT-ARRAYS as the network written to FILENAME
 (defun read-network (filename)
   (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename)))
+        (name nil)
+        (id 0)
         (layer-sizes nil)
         (weight-arrays nil)
         (size-list (list))
         )
     (with-open-file (line file-path)
+      (when (string-equal "family-name" (read line))
+        (setq name (read line)))
+      (when (string-equal "ID" (read line))
+        (setq id (read line)))
 
-      (format t "Read layer sizes~%")
+
+      ;(format t "Read layer sizes~%")
       ;; Match layer-sizes
       (when (string-equal "layer-sizes" (read line))
-        (setq layer-sizes (read line))
-        )
+        (setq layer-sizes (read line)))
 
-      (format t "Read weight arrays~%")
+      ;(format t "Read weight arrays~%")
       ;; Match weight-arrays
       (when (string-equal "weight-arrays" (read line))
         (setq weight-arrays (read line))))
@@ -155,7 +168,7 @@
       (push (svref layer-sizes (- (length layer-sizes) i 1))
             size-list))
 
-    (init-nn size-list weight-arrays)))
+    (init-nn size-list weight-arrays name id)))
 
 ;; Create a list of pathnames to the files to parse
 (defun make-parse-list 
@@ -164,7 +177,7 @@
     (dotimes (i num)
       (push (make-pathname :name 
                            (concatenate 'string 
-                                        "../../9x9/9x9game"
+                                        "../../9x9/game"
                                         (write-to-string i)
                                         ".csv"))
             path-list))
@@ -181,21 +194,15 @@
         )
     ;; For evey files
     (dolist (file-path lof)
-      (when verbose? (format t "Reading file ~A" file-path))
+      (when verbose? (format t "Reading file ~A " file-path))
       (with-open-file (file file-path :direction :input)
-        (when verbose? (format t "~A lines to read~%" (floor (/ (file-length file) 
-                                                                (* 2 *board-size*)))))
         ;; For every line in the file
-        (dotimes (j (floor (/ (file-length file) (* 2 *board-size*))))
-          ;; Ensure the file isn't empty
-          (unless (peek-char t file nil nil)
-            (return))
+        (loop while (peek-char t file nil nil)
+          do 
           ;; Get the input
-          (dotimes (i *board-size*)
-            (setf (svref in-arr i) (read file)))
+          (setq in-arr (read file))
           ;; Get the output
-          (dotimes (i *board-size*)
-            (setf (svref out-arr i) (read file)))
+          (setq out-arr (read file))
           ;; Add it to the list of training data
           (push (list in-arr out-arr) data)
           ))
@@ -204,7 +211,6 @@
     (when verbose? (format t "Created ~A (state, action) pairs~%" (length data)))
     ;; Return the lists
     data))
-
 
 ;; Open NUM files and convert them into training data
 (defun load-files (num-files)
@@ -238,35 +244,61 @@
          ))
     ))
 
-(defmacro process-store-nn (name layers rate)
-  `(mp:process-run-function ,name #'store-nn ,name ,layers ,rate))
+(defmacro process-store-nn (name layers rate files)
+  `(mp:process-run-function ,name #'store-nn ,name ,layers ,rate ,files))
 
-(defun store-nn (name layers rate)
-  (let ((files (load-files 60000))
-        (nn (init-nn layers))
-        )
+(defun store-nn (name layers rate files)
+  (let ((nn (init-nn layers nil name)))
+    (format t "Network ~A~%" (nn-family-name nn))
     (train-all nn rate files)
-    (write-network nn name)))
+    (format t "Training Network ~A~%" (nn-family-name nn))
+    (write-network nn name t)
+    (format t "Network ~A ~A written~%" (nn-family-name nn) (nn-id nn))
+    ))
 
-;; Record a random board state from the game along with who won the game
-(defmacro record-game (game)
-  ;; Get a random board state
-  `(let* ((game-record "../game-records/main-record")
-          (file-path (make-pathname game-record))
-          (store-board  (nth (random (length (gg-board-history ,game)))
-                             (gg-board-history ,game)))
-          (score (- (svref (gg-subtotals ,game) *black*)
-                    (svref (gg-subtotals ,game) *white*)))
-          (winner nil))
-     ;; If the score is greater than 0, black won
-     (if (> score 0)
-       ;; The network represents black as a 1
-       (setq winner 1)
-       ;; Otherwise white won
-       (setq winner -1))
 
-     (with-open-file (file file-path :direction :output :if-exists :append)
-       ;; Write the board state
-      (write-string (write-to-string store-board)) 
-      ;; Write who won the game
-      (write-line (write-to-string winner)))))
+(defconstant *lot*
+             (list 
+               (list "full-conn-0.25" (list 81 81 81 81 81) 0.25)
+               (list "full-conn-0.5" (list 81 81 81 81 81) 0.5)
+               (list "full-conn-0.75" (list 81 81 81 81 81) 0.75)
+               (list "full-conn-1" (list 81 81 81 81 81) 1)
+               (list "small-conn-0.25" (list 81 81 81) 0.25)
+               (list "small-conn-0.5" (list 81 81 81) 0.5)
+               (list "small-conn-0.75" (list 81 81 81) 0.75)
+               (list "small-conn-1" (list 81 81 81) 1)
+               (list "full-conv-0.25" (list 81 65 49 65 81) 0.25)
+               (list "full-conv-0.5" (list 81 65 49 65 81) 0.5)
+               (list "full-conv-0.75" (list 81 65 49 65 81) 0.75)
+               (list "full-conv-1" (list 81 65 49 65 81) 1)
+               (list "small-conv-0.25" (list 81 49 81) 0.25)
+               (list "small-conv-0.5" (list 81 49 81) 0.5)
+               (list "small-conv-0.75" (list 81 49 81) 0.75)
+               (list "small-conv-1" (list 81 49 81) 1)
+               ))
+
+;;  TRAIN-NETWORKS
+;; ---------------------
+;; INPUTS: LOT, a list of triples 
+;;              first = network-name
+;;              second = layer-sizes 
+;;              third = training-rate
+;; For training multiple networks at the same time
+;; so the files don't have to be opened mulitple times
+(defun train-networks (lot)
+  (let ((files (load-files 6))
+        (triple nil))
+    (dolist (triple lot)
+      (setq triple (concatenate 'list triple files))
+      (format t "Applying ~A~%" triple)
+      (apply #'process-store-nn triple))))
+
+(defmacro p-train-networks (lot)
+  `(mp:process-run-function (write-to-string ,lot) #'train-networks ,lot))
+
+
+
+
+(defun evolve-networks (lon)
+  
+  )

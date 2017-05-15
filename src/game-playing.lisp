@@ -460,7 +460,6 @@
 (defmacro legal-move? (game pos)
     `(= 0 (svref (gg-board ,game) ,pos)))
 
-
 (defmacro random-policy (game &optional (nn nil))
   `(let ((moves nil)
          (rand 0)
@@ -505,15 +504,15 @@
      (setq score (- (svref (gg-subtotals ,game) *black*)
                     (svref (gg-subtotals ,game) *white*)))
      (cond 
-       ;; White wins in case of a tie
-       ((= score 0)
-        (setq score -1))
+
+       ;; If White won
+       ((< score 0)
+         (setq score (* -1 (sqrt (abs score)))))
        ;; If black won
        ((> score 0)
         (setq score (sqrt (abs score))))
-       ;; If White won
-       (t 
-         (setq score (* -1 (sqrt (abs score)))))
+       ;; White wins in case of a tie
+       (t (setq score -1))
        )
 
      ;(format t "End Score: ~$~%" (svref (gg-subtotals ,game) *black*))

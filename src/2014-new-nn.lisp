@@ -29,6 +29,10 @@
 ;(in-package :nn-go)
 
 (defstruct nn
+  ;; FAMILY-NAME: A string for identifying this network's family
+  family-name
+  ;; ID: An identifier for this network that is unique within this lineage
+  id
   ;; NUM-LAYERS:  the number of layers in the neural network
   num-layers    
   ;; LAYER-SIZES:  a vector specifying the number of neurons in each layer
@@ -51,6 +55,38 @@
   ;;       the neurons in layer i.
   delta-vecks   
   )
+
+;;  NN-MUTATE
+;; -----------------------------
+;;  Returns a fresh NN with weights slightly modified from NN
+(defun nn-mutate 
+  (nn mutation-rate)
+  (let ((name (nn-family-name nn))
+        (id (+ 1 (nn-id nn)))
+        (num-layers (nn-num-layers nn))
+        (layer-sizes (copy-seq (nn-layer-sizes nn)))
+        (weight-arrays (copy-seq (nn-weight-arrays nn)))
+        )
+    (dotimes (lay-num (1- num-layers))
+      (let ((weight-array (svref weight-arrays lay-num))
+            (delta-veck (svref delta-vecks (1+ lay-num)))
+            (output-veck (svref output-vecks lay-num)))
+        ;; For each neuron N_i in that layer...
+        (dotimes (i (svref layer-sizes lay-num))
+          ;; For each neuron N_j in the following layer...
+          (dotimes (j (svref layer-sizes (1+ lay-num)))
+            ;; If random is less than the mutation-rate
+            (when (> mutation-rate (random 1.0))
+              ;; Should be about 50%
+              (if (= 0 (random 2))
+                ;; Modify the weights by some amount less than the mutation-rate
+                (incf (aref weight-array i j)
+                      (random mutation-rate))
+                (decf (aref weight-array i j)
+                      (random mutation-rate)))
+              )))))
+    ;; Return a fresh 
+    (init-nn layer-sizes weight-arrays name id)))
 
 
 ;;  NN-EQUAL
@@ -99,7 +135,9 @@
 ;;;           with weights randomly selected between -0.5 and +0.5.
 
 (defun init-nn (sizes-of-layers &optional 
-                                (weight-arrays-init nil))
+                                (weight-arrays-init nil)
+                                (name "default")
+                                (id 0))
   (let* (;; NUM-LAYERS:  the number of layers in the network
          (num-layers (length sizes-of-layers))
          ;; LAYER-SIZES:  a vector whose ith element will say how many
@@ -114,7 +152,9 @@
          ;; WEIGHT-ARRAYS:  see documentation of NN struct
          (weight-arrays (make-array (1- num-layers)))
          ;; NN: the network
-         (nn (make-nn :num-layers num-layers
+         (nn (make-nn :family-name name
+                      :id id 
+                      :num-layers num-layers
                       :layer-sizes layer-sizes
                       :output-vecks output-vecks
                       :weight-arrays weight-arrays

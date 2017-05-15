@@ -78,7 +78,8 @@
      (unless (ignore-errors 
                (cond ;; An eye counts as the player as the opponent cannot play there
                  ((= 1 (svref ,eyes (+ ,posn 1)))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t (setq ,eye-case (svref ,board (+ ,posn 1)))
                     (case ,eye-case
                       (,player (incf ,player-counter))
@@ -88,7 +89,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (- ,posn 1)))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (- ,posn 1)))
                    (case ,eye-case 
                      (,player (incf ,player-counter))
@@ -98,7 +100,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (+ ,posn (- *board-length* 1))))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (- *board-length* 1))))
                    (case ,eye-case 
                      (,player (incf ,player-counter))
@@ -108,7 +111,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (- ,posn (- *board-length* 1))))
-                  (incf ,player-counter))
+                  (incf ,player-counter) 
+                  t)
                  (t(setq ,eye-case (svref ,board (- ,posn (- *board-length* 1))))
                    (case ,eye-case 
                      (,player (incf ,player-counter))
@@ -118,7 +122,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (+ ,posn *board-length*)))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (+ ,posn *board-length*)))
                    (case ,eye-case
                      (,player (incf ,player-counter))
@@ -128,7 +133,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (- ,posn *board-length*)))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (- ,posn *board-length*)))
                    (case ,eye-case
                      (,player (incf ,player-counter))
@@ -138,7 +144,8 @@
      (unless (ignore-errors 
                (cond 
                  ((= 1 (svref ,eyes (+ ,posn (+ *board-length* 1))))
-                  (incf ,player-counter))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (+ *board-length* 1))))
                    (case ,eye-case 
                      (,player (incf ,player-counter))
@@ -147,8 +154,9 @@
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
-                 ((= 1 (svref ,eyes (+ ,posn (+ *board-length* 1))))
-                  (incf ,player-counter))
+                 ((= 1 (svref ,eyes (- ,posn (+ *board-length* 1))))
+                  (incf ,player-counter)
+                  t)
                  (t(setq ,eye-case (svref ,board (- ,posn (+ *board-length* 1))))
                    (case ,eye-case
                      (,player (incf ,player-counter))
@@ -159,6 +167,9 @@
        ;; If the player has at least 7/8 there's a true eye
        ((> ,player-counter 6) 
         (setq ,eye-case 1))
+       ((> ,player-counter 4)
+        (format t "Eye Found ~A~%" ,player-counter)
+        )
        ;; If the opponent has more than 1 there's no room for
        ;; an eye
        ((> ,opponent-counter 1) 
@@ -256,8 +267,7 @@
              (setq opponent-counter 0)
              ;; Record eye status
              (case eye-case
-               (1 
-                (incf num-eyes))
+               (1 (incf num-eyes))
                (-1 (incf possible-eyes))
                )
              ;; When there is an eye

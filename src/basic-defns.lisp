@@ -12,9 +12,9 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 3000000000 :old 10000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 4000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
+  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -239,6 +239,55 @@
                           (do-move! g (uct-search g num-sims c))))))
        ))))
 
+(defstruct (compete-settings 
+             (:conc-name cs-)
+             (:print-function print-settings)
+             )
+  (b-sims 0)
+  (b-c 0)
+  (b-t nil)
+  (b-net nil)
+  (w-sims 0)
+  (w-c 0)
+  (w-t nil)
+  (w-net nil)
+  (pool nil)
+  )
+
+(defun compete-to-list (settings)
+  (let ((set-list (list)))
+    (push (cs-b-sims settings) set-list)
+    (push (cs-b-c settings) set-list)
+    (push (cs-b-t settings) set-list)
+    (push (cs-b-net settings) set-list)
+    (push (cs-w-sims settings) set-list)
+    (push (cs-w-c settings) set-list)
+    (push (cs-w-t settings) set-list)
+    (push (cs-w-net settings) set-list)
+    (push (cs-pool settings) set-list)
+    set-list))
+
+(defun print-settings (settings str depth)
+  (declare (ignore depth))
+  (format str "  ~A ~A ~A ~A ~A ~A ~A ~A ~A" 
+          (cs-b-sims settings)
+          (cs-b-c settings)
+          (cs-b-t settings)
+          (cs-b-net settings)
+          (cs-w-sims settings)
+          (cs-w-c settings)
+          (cs-w-t settings)
+          (cs-w-net settings)
+          (cs-pool settings)
+          ))
+
+(defstruct (file-lock 
+             (:include synchronizing-structure))
+  path)
+
+(defconstant *game-file*
+             (make-file-lock :path (make-pathname :name 
+                                            "../game-records/main-record")))
 
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------
@@ -262,12 +311,56 @@
                   (white-network  nil)
                   (pool nil)
                   (return-game? nil)
-                  (record-game? nil)
+                  (filename nil)
+                  (verbose? t)
                   )
   (let ((g (init-game))
         (b-p nil)
         (w-p nil)
         )
+
+    ;; Record a random board state from the game along with who won the game
+    (labels ((record-game 
+               (game)
+               ;; Get a random board state
+               (let* (
+                      (store-board  (nth (random (length (gg-board-history game)))
+                                         (gg-board-history game)))
+                      (score (- (svref (gg-subtotals game) *black*)
+                                (svref (gg-subtotals game) *white*)))
+                      (winner nil)
+                      (set-struct (make-compete-settings 
+                                    :b-sims black-num-sims 
+                                    :b-c black-c 
+                                    :w-sims white-num-sims 
+                                    :w-c white-c 
+                                    :b-t black-threads?
+                                    :w-t white-threads?
+                                    :b-net black-network
+                                    :w-net white-network
+                                    :pool pool
+                                    )
+                                  )
+                      )
+                 ;; If the score is greater than 0, black won
+                 (if (> score 0)
+                   ;; The network represents black as a 1
+                   (setq winner 1)
+                   ;; Otherwise white won
+                   (setq winner -1))
+
+                 (with-locked-structure 
+                   (filename)
+                   (with-open-file (file (file-lock-path filename) :direction :output 
+                                         :if-does-not-exist :create
+                                         :if-exists :append)
+                     ;; Write the board state
+                     (write-string (write-to-string store-board) file) 
+                     ;; Write who won the game
+                     (write-string (write-to-string winner) file)
+                     (write-line (write-to-string (compete-to-list set-struct )) file)))
+                 ))
+             )
     (when pool
       (setq b-p pool)
       (setq w-p pool))
@@ -281,33 +374,39 @@
     (while (not (game-over? g))
            (cond
              ((= (gg-whose-turn? g) *black*)
-              (format t "BLACK'S TURN!~%")
-              (print-go (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)) 
-                        t nil t nil nil))
+              (when verbose? (format t "BLACK'S TURN!~%"))
+              (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p))
+              (when verbose? (print-go g t nil t nil nil)))
              (t
-               (format t "WHITE'S TURN!~%")
-               (print-go (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p))
-                         t nil t nil nil))))
+               (when verbose? (format t "WHITE'S TURN!~%"))
+               (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p))
+               (when verbose? (print-go g t nil t nil nil)))))
 
     ;; Show all game information
-    (print-go g t nil t t)
+    (when verbose? (print-go g t nil t t))
 
     ;; If a record from the game is to be used
     (when record-game?
       ;; Macro defined in nn-go.lisp
-      (record-game game))
+      (record-game g))
 
     ;; Return the final game state if requested
-    (when return-game? g)))
+    (when return-game? g))))
 
 (defun play-nets-no-t (net1 net2)
-  (compete 100 2 100 2 nil nil net1 net2)
+  (compete 81 2 1 2 nil nil net1 net2)
   )
 
 (defun play-nets (net1 net2)
-  (compete 100 2 100 2 t t net1 net2)
+  (compete 10 1 1 1 t t net1 net2 nil nil t)
   )
 
+(defun play-b-net (net)
+  (compete 500 1 500 1 t t net nil nil nil t)
+  )
 
 (defun play-mcts (b-num w-num)
- (compete b-num 2 w-num 2 nil nil nil nil nil))
+  (compete b-num 2 w-num 2 nil nil nil nil nil))
+
+(defun gaunlet (net1 net2)
+  (compete 1000 1 1000 1 nil nil net1 net2 nil t))
