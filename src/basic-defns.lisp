@@ -362,6 +362,7 @@
                  ))
              )
     (when pool
+      (format t "Pool ~A~%" pool)
       (setq b-p pool)
       (setq w-p pool))
 

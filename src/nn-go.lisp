@@ -17,14 +17,14 @@
 ;;  Non-Desctructive so it doesn't need to be undone
 (defmacro invert-board (board)
   `(let ((new-board (make-array (length ,board) :initial-element 0)) 
-          )
-      (dotimes (pos (length ,board) new-board)
-        (cond 
-          ((= -1 (svref ,board pos))
-           (setf (svref new-board pos) 1))
-          ((= 1 (svref ,board pos))
-           (setf (svref new-board pos) -1))))
-      new-board))
+         )
+     (dotimes (pos (length ,board) new-board)
+       (cond 
+         ((= -1 (svref ,board pos))
+          (setf (svref new-board pos) 1))
+         ((= 1 (svref ,board pos))
+          (setf (svref new-board pos) -1))))
+     new-board))
 
 
 ;;  ANNALYZE-BOARD : NN BOARD LEGAL-MOVES PLAYER
@@ -85,6 +85,14 @@
       *board-size*)
     ))
 
+
+
+(defun net-to-string (nn)
+  (concatenate 'string 
+               (write-to-string (nn-family-name nn))
+               "-"
+               (write-to-string (nn-id nn))))
+
 ;; NOTE: I cannot believe that it's this easy to read/write from files
 
 ;;  WRITE-NETWORK : 
@@ -94,9 +102,11 @@
 ;; ---------------------------------------------
 ;;  Writes a NN to a space deliminated text file
 (defun write-network 
-  (nn filename &optional (force? nil))
+  (nn &optional (filename nil) (force? nil))
+      (unless filename
+        (setq filename (string-downcase (net-to-string nn))))
   ;; Network files are put in the 'networks' sub directory
-  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename)))
+  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename ".net")))
         (file nil))
     ;; Overwrite the existing file on close if the force flag is set
     (if force? 
@@ -104,7 +114,7 @@
       (setq file (open file-path :direction :output)))
     ;; Write the family-name
     (write-string "family-name " file) 
-    (write-line (nn-family-name nn) file)
+    (write-line (write-to-string (nn-family-name nn)) file)
 
     ;; Write the ID
     (write-string "ID " file)
@@ -138,7 +148,7 @@
 ;;  OUTPUT: NN, A new NN struct with the same NUM-LAYERS, LAYER-SIZES, 
 ;;              and WEIGHT-ARRAYS as the network written to FILENAME
 (defun read-network (filename)
-  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename)))
+  (let ((file-path (make-pathname :name (string-downcase (concatenate 'string "../networks/" filename ".net"))))
         (name nil)
         (id 0)
         (layer-sizes nil)
@@ -170,6 +180,14 @@
 
     (init-nn size-list weight-arrays name id)))
 
+
+(defmacro read-nets (lof)
+  `(let ((lon (list)))
+     (dolist (filename ,lof)
+       (push (read-network filename) lon)
+       )
+     lon))
+
 ;; Create a list of pathnames to the files to parse
 (defun make-parse-list 
   (num)
@@ -198,14 +216,14 @@
       (with-open-file (file file-path :direction :input)
         ;; For every line in the file
         (loop while (peek-char t file nil nil)
-          do 
-          ;; Get the input
-          (setq in-arr (read file))
-          ;; Get the output
-          (setq out-arr (read file))
-          ;; Add it to the list of training data
-          (push (list in-arr out-arr) data)
-          ))
+              do 
+              ;; Get the input
+              (setq in-arr (read file))
+              ;; Get the output
+              (setq out-arr (read file))
+              ;; Add it to the list of training data
+              (push (list in-arr out-arr) data)
+              ))
       ;; Add the array pair to the list
       )
     (when verbose? (format t "Created ~A (state, action) pairs~%" (length data)))
@@ -279,6 +297,28 @@
                (list "direct" (list 81 81) 0.25)
                ))
 
+(defconstant *lon*
+             (list 
+               "full-conn-0.25"
+               "full-conn-0.5" 
+               "full-conn-0.75"
+               "full-conn-1" 
+               "small-conn-0.25"
+               "small-conn-0.5"
+               "small-conn-0.75"
+               "small-conn-1"
+               "full-conv-0.25"
+               "full-conv-0.5"
+               "full-conv-0.75"
+               "full-conv-1"
+               "small-conv-0.25"
+               "small-conv-0.5"
+               "small-conv-0.75"
+               "small-conv-1"
+               "charles" 
+               "direct" 
+               ))
+
 ;;  TRAIN-NETWORKS
 ;; ---------------------
 ;; INPUTS: LOT, a list of triples 
@@ -319,7 +359,7 @@
   )
 
 (defun new-competetor (net id)
-  (make-comptetor :net net 
+  (make-competetor :net net 
                   :age 0
                   :fitness 0
                   :dominated nil
@@ -329,14 +369,14 @@
 ;; pairs of two networks provided
 ;; These lists are akin to the pareto fronts in AFPO
 (defmacro make-pairs (loc)
-  (let ((pairs (list))
-        (comp1 nil)
-        )
-    (loop while (< 0 (length ,loc))
-          do (setq comp1 (pop ,loc))
-          (dolist (comp2 ,loc)
-            (push (list comp1 comp2) pairs)))
-    pairs))
+  `(let ((pairs (list))
+         (comp1 nil)
+         )
+     (loop while (< 0 (length ,loc))
+           do (setq comp1 (pop ,loc))
+           (dolist (comp2 ,loc)
+             (push (list comp1 comp2) pairs)))
+     pairs))
 
 
 ;; Non-dominated before dominated then 
@@ -352,42 +392,45 @@
 ;; competetors
 (defmacro get-next-gen (generation)
   `(let ((next-gen (list))
-        (gen-id 0)
-        )
-    ;; Sort the list by highest fitness
-    (sort ,generation :test #'most-fit)
+         (gen-id 0)
+         )
+     ;; Sort the list by highest fitness
+     (sort ,generation :test #'most-fit)
 
-    ;; For each member of the population
-    (dolist (comp population)
-      ;; Every non-dominated ID gets a mutant offspring 
-      ;; added to the next-generation
-      (unless (c-domniated comp)
-        (push (new-competetor (mutate-network (c-net comp)) gen-id)
-              next-gen)
-        (incf gen-id))
-      ;; Increment age
-      (incf (c-age comp))
-      ;; Reset fitness
-      (setf (c-fitness comp) 0)
-      ;; Reset dominated
-      (setf (c-domniated comp) nil)
-      ;; Add it to the next generation
-      (push comp next-gen)
+     ;; For each member of the population
+     (dolist (comp population)
+       ;; Every non-dominated ID gets a mutant offspring 
+       ;; added to the next-generation
+       (unless (c-domniated comp)
+         (push (new-competetor (mutate-network (c-net comp)) gen-id)
+               next-gen)
+         (incf gen-id))
+       ;; Increment age
+       (incf (c-age comp))
+       ;; Reset fitness
+       (setf (c-fitness comp) 0)
+       ;; Reset dominated
+       (setf (c-domniated comp) nil)
+       ;; Add it to the next generation
+       (push comp next-gen)
 
-      ;; Return when all non-dominated networks
-      ;; are added and the previous population size
-      ;; has been reached
-      (when (and 
-              (c-dominated comp)
-              (>= (length next-gen)
-                  (length ,generation)))
-        (return)))
-    ;; Return the next generation
-    next-gen))
+       ;; Return when all non-dominated networks
+       ;; are added and the previous population size
+       ;; has been reached
+       (when (and 
+               (c-dominated comp)
+               (>= (length next-gen)
+                   (length ,generation)))
+         (return)))
+     ;; Return the next generation
+     next-gen))
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 gen)
-  (compete 1000 1 1000 1 nil nil net1 net2 nil t 
+  (compete 500 1 500 1 nil nil 
+           (net-to-string net1)
+           (net-to-string net2) 
+           nil t 
            (concatenate 'string "../game-records/game-history-gen-" 
                         (write-to-string gen)) 
            nil))
@@ -468,9 +511,9 @@
 ;; Run evolutionary trials pitting networks against
 ;; networks and store a few game state pairs from the 
 ;; game
-(defun evolve-networks (lon generations)
+(defun evolve-networks (lon generations num-fronts &optional (threads? nil))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
-        (fronts (make-array *num-fronts*) :initial-element (list))
+        (fronts (make-array num-fronts :initial-element (list)))
         (population (list))
         (pairs nil) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
@@ -484,27 +527,29 @@
     (dotimes (gen generations)
       ;; Randomly distribute the networks among the fronts
       (dolist (comp population)
-        (push comp (svref fronts (random *num-fronts*))))
+        (push comp (svref fronts (random num-fronts))))
       ;; Reset the fronts as pairs
-      (dotimes (i *num-fronts*)
+      (dotimes (i num-fronts)
         (setf (svref fronts i)
               (make-pairs (svref fronts i))))
       ;; Add all the pairs into one list
-      (dotimes (i *num-front*)
+      (dotimes (i num-fronts)
         (dolist (pair (svref fronts i))
           (push pair pairs)))
       ;; Evaluate each network's fitness
       (dolist (pair pairs)
-        (mp:process-run-function (write-to-string pair) 
-                                 #'face-off
-                                 pair
-                                 gen
-                                 barrier
-                                 ))
+        (if threads? 
+          (mp:process-run-function (write-to-string pair) 
+                                   #'face-off
+                                   pair
+                                   gen
+                                   barrier
+                                   )
+          (face-off pair gen barrier)))
       ;; Wait for all the trials to finish
       (mp:barrier-wait barrier)
       ;; Get the next generation
       (setq generation (get-next-gen generation))
       ;; Reset the barrier
-      (setq barrier mp:make-barrier (+ 1 (length generation)))
+      (setq barrier (mp:make-barrier (+ 1 (length generation))))
       )))

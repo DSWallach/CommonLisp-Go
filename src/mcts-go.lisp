@@ -551,4 +551,3 @@
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
                                        (mc-tree-hashy tree)) c t)))))))
-
