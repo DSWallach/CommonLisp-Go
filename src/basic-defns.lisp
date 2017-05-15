@@ -1,9 +1,9 @@
-(defconstant *num-cores* 16)
+(defconstant *num-cores* 48)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
-;(setq compiler:tail-call-self-merge-switch t)
-;(setq compiler:tail-call-non-self-merge-switch t) 
+(setq compiler:tail-call-self-merge-switch t)
+(setq compiler:tail-call-non-self-merge-switch t) 
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
@@ -12,9 +12,9 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-;  (sys:resize-areas :new 30000000000 :old 8000000000) ;; Allocate extra memory to minize garbage collection
-;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
+  ;(sys:resize-areas :new 30000000000 :old 10000) ;; Allocate extra memory to minize garbage collection
+  ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  (declaim (optimize (speed 2) (safety 0) (space 3) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -388,8 +388,11 @@
 
     ;; If a record from the game is to be used
     (when filename
-      ;; Macro defined in nn-go.lisp
-      (record-game g))
+;; Record 4 states b/c don'thave much time
+(dotimes (i 4) 
+      (record-game g)
+)
+)
 
     ;; Return the final game state if requested
     (when return-game? g))))
