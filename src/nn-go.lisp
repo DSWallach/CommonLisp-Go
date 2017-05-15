@@ -298,26 +298,26 @@
                ))
 
 (defconstant *lon*
-             (read-nets (list 
-                              "full-conn-0.25-0"
-                              "full-conn-0.5-0" 
-                              "full-conn-0.75-0"
-                              "full-conn-1-0" 
-                              "small-conn-0.25-0"
+             (list 
+                    ;          "full-conn-0.25-0"
+                    ;          "full-conn-0.5-0" 
+                    ;          "full-conn-0.75-0"
+                    ;          "full-conn-1-0" 
+                    ;          "small-conn-0.25-0"
                               "small-conn-0.5-0"
                               "small-conn-0.75-0"
-                              "small-conn-1-0"
-                              "full-conv-0.25-0"
-                              "full-conv-0.5-0"
-                              "full-conv-0.75-0"
-                              "full-conv-1-0"
+                    ;          "small-conn-1-0"
+                    ;          "full-conv-0.25-0"
+                    ;          "full-conv-0.5-0"
+                    ;          "full-conv-0.75-0"
+                    ;          "full-conv-1-0"
                               "small-conv-0.25-0"
                               "small-conv-0.5-0"
-                              "small-conv-0.75-0"
-                              "small-conv-1-0"
-                              "charles-0" 
-                              "direct-0" 
-                              )))
+                    ;          "small-conv-0.75-0"
+                    ;          "small-conv-1-0"
+                    ;          "charles-0" 
+                    ;          "direct-0" 
+                              ))
              ;;  TRAIN-NETWORKS
 ;; ---------------------
 ;; INPUTS: LOT, a list of triples 
@@ -421,6 +421,9 @@
                (>= (length next-gen)
                    (length ,generation)))
          (return)))
+	
+;; Clear generation
+(setq generation nil)
      ;; Return the next generation
      next-gen))
 
@@ -499,6 +502,10 @@
          (decf (c-fitness comp1))
          ;; Set dominated 
          (setf (c-dominated comp1) t))))
+
+    ;; Trigger a garbage collection
+	(gc t)
+
     ;; If there is a tie, neither is dominated 
     ;; or has a change in fitness
 
@@ -508,59 +515,66 @@
 ;; Run evolutionary trials pitting networks against
 ;; networks and store a few game state pairs from the 
 ;; game
-(defun evolve-networks (lon generations num-fronts &optional (threads? nil))
+(defun evolve-networks (lon generations num-fronts &optional (threads? t))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
-        (fronts (make-array num-fronts :initial-element (list)))
+        (fronts nil)
         (generation (list))
         (pairs nil) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
         (barrier nil)
-        (file-lock  nil)
-        )
-    (dolist (net lon)
-      (push (new-competetor net gen-id) 
-            generation)
-      (incf gen-id))
-    ;; Run the evolutionary algorithm
-    (dotimes (gen generations)
-      (format t "Running Generation ~A~%" gen)
-      ;; Create the lock for this gen's file
-      (setq file-lock
-            (make-file-lock :path 
-                            (make-pathname :name 
-                                           (concatenate 'string 
-                                                        "../game-records/game-history-gen-" 
-                                                        (write-to-string gen)))))
+	(file-lock  nil)
+       )
+   (dolist (net lon)
+    (push (new-competetor net gen-id) 
+     generation)
+    (incf gen-id))
+   ;; Run the evolutionary algorithm
+   (dotimes (gen generations)
+    (format t "Running Generation ~A~%" gen)
+    (setq fronts (make-array num-fronts :initial-element (list)))
+    ;; Create the lock for this gen's file
+    (setq file-lock
+     (make-file-lock :path 
+      (make-pathname :name 
+       (concatenate 'string 
+	"../game-records/game-history-gen-" 
+	(write-to-string gen)))))
 
-      ;; Randomly distribute the networks among the fronts
-      (dolist (comp generation)
-        (push comp (svref fronts (random num-fronts))))
-      ;; Reset the fronts as pairs
-      (dotimes (i num-fronts)
-        (setf (svref fronts i)
-              (make-pairs (svref fronts i))))
-      ;; Add all the pairs into one list
-      (dotimes (i num-fronts)
-        (dolist (pair (svref fronts i))
-          (push pair pairs)))
-      ;; Reset the barrier
-      (setq barrier (mp:make-barrier (+ 1 (length pairs))))
-      ;; Evaluate each network's fitness
-      (dolist (pair pairs)
-        (if threads? 
-          (mp:process-run-function (write-to-string pair) 
-                                   #'face-off
-                                   pair
-                                   gen
-                                   barrier
-                                   file-lock)
-          (face-off pair gen barrier file-lock)))
-      (format t "Waiting for threads to finish~%")
-      ;; Wait for all the trials to finish
-      (mp:barrier-wait barrier)
-      (format t "Creating next generation~%")
-      ;; Get the next generation
-      (setq generation (get-next-gen generation))
-      )
-    (format t "Done!~%")
+    ;; Randomly distribute the networks among the fronts
+    (dolist (comp generation)
+     (push comp (svref fronts (random num-fronts))))
+    ;; Reset the fronts as pairs
+    (dotimes (i num-fronts)
+     (setf (svref fronts i)
+      (make-pairs (svref fronts i))))
+    ;; Add all the pairs into one list
+    (dotimes (i num-fronts)
+     (dolist (pair (svref fronts i))
+      (push pair pairs)))
+	;; Reset the barrier
+(setq barrier (mp:make-barrier (+ 1 (length pairs))))
+
+	;; Do in sets of 4 to reduce memory load
+	;; Clear fronts 
+	(setq fronts nil)
+
+
+	 ;; Evaluate each network's fitness
+	 (dolist (pair pairs)
+	  (if threads? 
+	   (mp:process-run-function (write-to-string pair) 
+#'face-off
+	    pair
+	    gen
+	    barrier
+	    file-lock)
+	   (face-off pair gen barrier file-lock)))
+	 (format t "Waiting for threads to finish~%")
+	 ;; Wait for all the trials to finish
+	 (mp:barrier-wait barrier)
+	 (format t "Creating next generation~%")
+	 ;; Get the next generation
+	 (setq generation (get-next-gen generation))
+	)
+	(format t "Done!~%")
     ))

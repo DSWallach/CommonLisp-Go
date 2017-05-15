@@ -2,8 +2,8 @@
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
-(setq compiler:tail-call-self-merge-switch t)
-(setq compiler:tail-call-non-self-merge-switch t) 
+;(setq compiler:tail-call-self-merge-switch t)
+;(setq compiler:tail-call-non-self-merge-switch t) 
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
@@ -12,8 +12,8 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 4000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
-  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+;  (sys:resize-areas :new 30000000000 :old 8000000000) ;; Allocate extra memory to minize garbage collection
+;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
   (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
 
 (defun ttest (num threads?)
