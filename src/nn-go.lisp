@@ -46,7 +46,7 @@
         (setf (svref move-scores i)
               ;; i.e. the value of the network's output for 
               ;; that board position
-              (svref output (svref legal-moves i))))
+              (ssvref output (svref legal-moves i))))
       )
     ;; Return the scores
     move-scores))
@@ -73,8 +73,8 @@
       (setq move (svref legal-moves i))
       ;; Skip passing
       (unless (= *board-size* move)
-        (when (> (svref output move) best-score)
-          (setq best-score (svref output move))
+        (when (> (ssvref output move) best-score)
+          (setq best-score (ssvref output move))
           (setq best-move move)
           )))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
@@ -88,10 +88,11 @@
 
 
 (defun net-to-string (nn)
-  (concatenate 'string 
+  (string-downcase 
+    (concatenate 'string 
                (write-to-string (nn-family-name nn))
                "-"
-               (write-to-string (nn-id nn))))
+               (write-to-string (nn-id nn)))))
 
 ;; NOTE: I cannot believe that it's this easy to read/write from files
 
@@ -102,16 +103,20 @@
 ;; ---------------------------------------------
 ;;  Writes a NN to a space deliminated text file
 (defun write-network 
-  (nn &optional (filename nil) (force? nil))
-      (unless filename
-        (setq filename (string-downcase (net-to-string nn))))
+  (nn &optional (force? nil))
+
   ;; Network files are put in the 'networks' sub directory
-  (let ((file-path (make-pathname :name (concatenate 'string "../networks/" filename ".net")))
-        (file nil))
+  (let* ((filename (net-to-string nn))
+         (file-path (make-pathname :name (concatenate 'string "../networks/" filename ".net")))
+         (file nil))
     ;; Overwrite the existing file on close if the force flag is set
     (if force? 
-      (setq file (open file-path :direction :output :if-exists :supersede))
-      (setq file (open file-path :direction :output)))
+      (setq file (open file-path :direction :output 
+                       :if-does-not-exist :create
+                       :if-exists :supersede))
+      (setq file (open file-path :direction :output 
+                       :if-does-not-exist :create
+                       :if-exists :rename)))
     ;; Write the family-name
     (write-string "family-name " file) 
     (write-line (write-to-string (nn-family-name nn)) file)
@@ -149,6 +154,7 @@
 ;;              and WEIGHT-ARRAYS as the network written to FILENAME
 (defun read-network (filename)
   (let ((file-path (make-pathname :name (string-downcase (concatenate 'string "../networks/" filename ".net"))))
+        (read-nn nil)
         (name nil)
         (id 0)
         (layer-sizes nil)
@@ -178,7 +184,14 @@
       (push (svref layer-sizes (- (length layer-sizes) i 1))
             size-list))
 
-    (init-nn size-list weight-arrays name id)))
+    ;; Make the new nn
+    (setq read-nn (init-nn size-list weight-arrays name id))
+    ;; Explicitly clear the read in values
+    (setq layer-sizes nil)
+    (setq layer-weights nil)
+    (setq size-list nil)
+    ;; Return the networks
+    read-nn))
 
 
 (defmacro read-nets (lof)
@@ -464,7 +477,7 @@
   )
 
 (defun play-b-net (net)
-  (compete 250 1 81 1 4 4 net nil nil nil t)
+  (compete 250 1 81 1 nil nil net nil nil nil t)
   )
 
 (defun play-mcts (b-num w-num)
@@ -507,38 +520,39 @@
      (loop while (< 0 (length ,loc))
            do (setq comp1 (pop ,loc))
            (dolist (comp2 ,loc)
+             (when (and comp1 comp2)
              (push (list comp1 comp2) pairs)))
+           )
      pairs))
-
 
 ;; Non-dominated before dominated then 
 ;; by fitness
 (defun most-fit (comp1 comp2)
-  (if (or (and (not (c-domniated comp1))
+  (if (or (and (not (c-dominated comp1))
                (c-dominated comp2))
-          (> (c-fit comp1) 
-             (c-fit comp2)))
+          (> (c-fitness comp1) 
+             (c-fitness comp2)))
     t nil))
 
 ;; Macro for returning the next generation of 
 ;; competetors
 (defmacro get-next-gen (generation)
   `(let ((next-gen (list))
+         (gen nil)
          (child nil)
          (gen-id 0)
          )
-     (format t "Sorting gen~%")
      ;; Sort the list by highest fitness
-     (sort ,generation :test #'most-fit)
-     (format t "Sorting gen~%")
+     (setq gen (sort ,generation #'most-fit))
 
      ;; For each member of the population
-     (dolist (comp population)
+     (dolist (comp gen)
        ;; Every non-dominated ID gets a mutant offspring 
        ;; added to the next-generation
-       (unless (c-domniated comp)
-         (setq child (new-competetor (nn-mutate (c-net comp)) gen-id))
-         (write-network child)
+       (unless (c-dominated comp)
+         (setq child (new-competetor (nn-mutate (c-net comp) 0.25) gen-id))
+         (format t "Child ~A~%" child)
+         (write-network (c-net child))
          (push child 
                next-gen)
          (incf gen-id))
@@ -547,18 +561,19 @@
        ;; Reset fitness
        (setf (c-fitness comp) 0)
        ;; Reset dominated
-       (setf (c-domniated comp) nil)
-       ;; Add it to the next generation
-       (push comp next-gen)
+       (setf (c-dominated comp) nil)
 
        ;; Return when all non-dominated networks
        ;; are added and the previous population size
        ;; has been reached
-       (when (and 
-               (c-dominated comp)
-               (>= (length next-gen)
+       (if (or (not (c-dominated comp))
+               (<= (length next-gen)
                    (length ,generation)))
-         (return)))
+       ;; Add it to the next generation
+       (push comp next-gen)
+       ;; Otherwise discard it
+       (setq comp nil)))
+
      ;; Return the next generation
      next-gen))
 
@@ -583,6 +598,7 @@
         (game nil)
         )
 
+    (format t "Round 1 ~A" pair)
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
@@ -598,6 +614,7 @@
         (incf score2 (svref (gg-subtotals game) *white*))
         ))
 
+    (format t "Round 2 ~A" pair)
     ;; Then they switch
     (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
     (cond
@@ -657,12 +674,13 @@
         (front-count 0)
         )
     ;(format t "LON: ~A~%" lon)
-    (dolist (net lon)
+    (time (dolist (net lon)
       (push (new-competetor net gen-id)
             generation)
-      (incf gen-id))
+      (incf gen-id)))
 
     (format t "Initial Population ~A~%" generation)
+
     ;; Run the evolutionary algorithm
     (dotimes (gen generations)
       (format t "Running Generation ~A~%" gen)
@@ -678,46 +696,58 @@
                                                         ))))
 
       ;; Randomly distribute the networks among the fronts
-      (dolist (comp generation)
+      (time (dolist (comp generation)
         (push comp (svref fronts front-count))
         (incf front-count)
         (when (= num-fronts front-count)
-          (setq front-count 0))
-        )
+          (setq front-count 0))))
+
       ;; Reset the fronts as pairs
-      (dotimes (i num-fronts)
+      (time (dotimes (i num-fronts)
         (setf (svref fronts i)
-              (make-pairs (svref fronts i))))
+              (make-pairs (svref fronts i)))))
 
       ;; Add all the pairs into one list
-      (dotimes (i num-fronts)
+      (time (dotimes (i num-fronts)
         (dolist (pair (svref fronts i))
-          (push pair pairs)))
+          (push pair pairs))))
+
       ;; Evaluate each network's fitness
       ;; Do the fronts one at a time to make better use of memory
       ;(dotimes (i num-fronts)
       ;; Reset the barrier
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
+        (format t "Pairs: ~A ~%" pairs)
       (dolist (pair pairs);(svref fronts i))
         (format t "Face Off: ~A ~%" pair)
         (if threads? 
-          (mp:process-run-function (write-to-string pair) 
-                                   #'face-off
-                                   pair
-                                   gen
-                                   barrier
-                                   file-lock)
+         (mp:process-run-function (write-to-string pair) 
+                                  #'face-off
+                                  pair
+                                  gen
+                                  barrier
+                                  file-lock)
           (face-off pair gen barrier file-lock))
         ;    )
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
         )
+
       (mp:barrier-wait barrier)
+
       (format t "Creating next generation~%")
       ;; Get the next generation
       (setq generation (get-next-gen generation))
       ;; Reset pairs
       (setq pairs (list))
+      (setq file-lock nil) 
       )
     (format t "Done!~%")
     ))
+
+(defmacro prep-nets (num)
+  `(read-nets (subseq *lon* 0 ,num)))
+
+(defmacro run-evo (nets gens fronts)
+  `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets)))
+                              #'evolve-networks ,nets ,gens ,fronts))

@@ -4,6 +4,10 @@
 ;;; ===============================
 ;;;  Implementation of neural networks
 
+(eval-when (compile)
+  (declaim (optimize (speed 3) (safety 1) (space 0) (debug 0))))
+
+
 ;;;  NN struct
 ;;; ------------------------------------------------------
 ;;;  Neurons and edges are not explicitly represented.  Instead, the 
@@ -56,6 +60,18 @@
   delta-vecks   
   )
 
+
+;; Only for 2-d arrays
+(defun copy-array (arr)
+  (let* ((dims (array-dimensions arr))
+        (new-arr (make-array dims))
+        )
+    (dotimes (i (first dims))
+      (dotimes (j (second dims))
+        (setf (aref new-arr i j)
+              (aref arr i j))))
+    new-arr))
+
 ;;  NN-MUTATE
 ;; -----------------------------
 ;;  Returns a fresh NN with weights slightly modified from NN
@@ -64,13 +80,12 @@
   (let ((name (nn-family-name nn))
         (id (+ 1 (nn-id nn)))
         (num-layers (nn-num-layers nn))
-        (layer-sizes (copy-seq (nn-layer-sizes nn)))
-        (weight-arrays (copy-seq (nn-weight-arrays nn)))
+        (layer-sizes (copy-vector (nn-layer-sizes nn)))
+        (size-list (list))
+        (weight-arrays (copy-vector (nn-weight-arrays nn) #'copy-array))
         )
     (dotimes (lay-num (1- num-layers))
-      (let ((weight-array (svref weight-arrays lay-num))
-            (delta-veck (svref delta-vecks (1+ lay-num)))
-            (output-veck (svref output-vecks lay-num)))
+      (let ((weight-array (svref weight-arrays lay-num)))
         ;; For each neuron N_i in that layer...
         (dotimes (i (svref layer-sizes lay-num))
           ;; For each neuron N_j in the following layer...
@@ -83,10 +98,15 @@
                 (incf (aref weight-array i j)
                       (random mutation-rate))
                 (decf (aref weight-array i j)
-                      (random mutation-rate)))
-              )))))
+                      (random mutation-rate))))))))
+
+    ;; Convert layer sizes to list from vector
+    (dotimes (i (length layer-sizes))
+      (push (svref layer-sizes (- (length layer-sizes) i 1))
+            size-list))
+    (format t "Mutated ~A-~A~%" name id)
     ;; Return a fresh 
-    (init-nn layer-sizes weight-arrays name id)))
+    (init-nn size-list weight-arrays name id)))
 
 
 ;;  NN-EQUAL
@@ -119,10 +139,17 @@
         (layers (nn-num-layers nn))
         (sizes (nn-layer-sizes nn))
         ;; New memory is allocated for outputs 
-        (outputs (copy-vector (nn-output-vecks nn) #'copy-vector))
+        (outputs (make-array (length (nn-output-vecks nn))))
         (weights (nn-weight-arrays nn))
         (deltas (nn-delta-vecks nn))
         )
+
+    (dotimes (i layers)
+      (setf (svref outputs i) 
+            (make-array (svref sizes i)
+                        :short t
+                        :initial-element 0.0)))
+
     (make-nn :family-name name
              :id id
              :num-layers layers
@@ -133,15 +160,18 @@
 
 
 
-;; Only necessary because the trained networks use single-float
-(defun map-short (arr num-rows num-cols)
-  (let ((new-arr (make-array (list num-rows num-cols) :element-type 'short-float)))
-     (dotimes (i num-rows)
-       (dotimes (j num-cols)
-         (setf (aref new-arr i j)
-               (coerce (aref arr i j) 'short-float))
-         ))
-     new-arr))
+(defun map-short (arr)
+  ;; Create the new array
+  (let* ((num-rows (first (array-dimensions arr)))
+         (num-cols (second (array-dimensions arr)))
+         (new-arr (make-array (list num-rows num-cols) :element-type 'short-float :short t))
+         )
+    (dotimes (i num-rows)
+      (dotimes (j num-cols)
+        (setf (aref new-arr i j)
+              (coerce (aref arr i j) 'short-float))))
+    ;; Return the finished array
+    new-arr))
 
 
 
@@ -181,28 +211,28 @@
                       :weight-arrays weight-arrays
                       :delta-vecks delta-vecks)))
 
+    (format t "INit: ~A-~A~%" name id)
     ;; For each layer...
     (dotimes (i num-layers)
       ;; Set the size of that layer (i.e., how many neurons)
       (setf (svref layer-sizes i) (nth i sizes-of-layers))
       ;; Create a vector of output values for the neurons in that layer
       (setf (svref output-vecks i) (make-array (svref layer-sizes i)
-                                               :initial-element nil))
+                                               :short t
+                                               :initial-element 0.0))
       ;; Create a vector of delta values for the neurons in that layer
       (setf (svref delta-vecks i) (make-array (svref layer-sizes i)
                                               :element-type 'short-float
-                                              :initial-element 0.0))
+                                              :short t 
+                                              :initial-element 0.0
+                                              ))
       ;; For non-input neurons, create an array of weights
       ;; corresponding to edges between current layer and previous layer
       (when (> i 0)
         (if weight-arrays-init 
-          ;; When provided the layer weights use them instead
-          ;; of random values
-          (let ((num-rows (svref layer-sizes (1- i)))
-                (num-cols (svref layer-sizes i)))
             ;; The array of weights
             (setf (svref weight-arrays (1- i)) 
-                  (map-short (svref weight-arrays-init (1- i)) num-rows num-cols)))
+                  (map-short (svref weight-arrays-init (1- i))))
 
           ;; Otherwise use random values
           (let* ((num-rows (svref layer-sizes (1- i)))
@@ -230,16 +260,17 @@
 
 (defun erase-outputs (nn)
   (let ((out-vecks (nn-output-vecks nn))
-	(num (nn-num-layers nn))
-	(lay-sizes (nn-layer-sizes nn)))
+        (num (nn-num-layers nn))
+        (lay-sizes (nn-layer-sizes nn)))
     ;; For each layer...
     (dotimes (i num)
       (let ((num-neurons (svref lay-sizes i))
-	    (outputs (svref out-vecks i)))
-	;; For each neuron in that layer...
-	(dotimes (j num-neurons)
-	  ;; Set that neuron's output value to NIL
-	  (setf (svref outputs j) nil))))
+            (outputs (svref out-vecks i)))
+        ;; For each neuron in that layer...
+        (dotimes (j num-neurons)
+          ;; Set that neuron's output value to NIL
+          ;; ssvref is for short arrays
+          (setf (ssvref outputs j) 0.0))))
     t))
 
 ;;;  SET-INPUTS
@@ -251,6 +282,7 @@
 ;;;    input layer to the corresponding value in INPUTS.
 
 (defun set-inputs (nn inputs)
+  (declare (:explain :types :variables :calls))
   (let* ((out-vecks (nn-output-vecks nn))
 	 ;; OUT-VECK-ZERO:  the vector of "output" values for layer 0 
 	 (out-veck-zero (svref out-vecks 0))
@@ -261,7 +293,7 @@
       ;; For each input value...
       (dotimes (i num-inputs)
 	;; Set the "output" value for the corresponding neuron in layer 0 
-	(setf (svref out-veck-zero i) (svref inputs i)))
+	(setf (ssvref out-veck-zero i) (coerce (svref inputs i) 'float)))
       ;; return the NN
       nn)
      ;; Case 2:  Error!
@@ -273,6 +305,7 @@
 ;;;  SIGMOID(X) = 1/(1 + e^(-x)) -- the sigmoid (or logistic) function
      
 (defun sigmoid (x)
+  (declare (type 'single-float x))
   (/ 1.0 (+ 1 (exp (- x)))))
 
 ;;;  FEED-FORWARD
@@ -285,42 +318,43 @@
 ;;;   in the network.
 
 (defun feed-forward (nn inputs)
+  (declare (:explain :types :variables :calls))
   ;; First, set the output value for each neuron to NIL
   (erase-outputs nn)
   ;; Next, set the "output" value for each neuron in the input layer
   ;; to the corresponding value in INPUTS
   (set-inputs nn inputs)
-  
+
   (let ((num-layers (nn-num-layers nn))
-	(layer-sizes (nn-layer-sizes nn))
-	(output-vecks (nn-output-vecks nn))
-	(weight-arrays (nn-weight-arrays nn)))
-  
+        (layer-sizes (nn-layer-sizes nn))
+        (output-vecks (nn-output-vecks nn))
+        (weight-arrays (nn-weight-arrays nn)))
+
     ;; For each LAYER from 1 onward (i.e., not including the input layer)
     (do ((lay-num 1 (1+ lay-num)))
 
-	;; Exit Condition
-	((= lay-num num-layers)
-	 nn)
-      
+      ;; Exit Condition
+      ((= lay-num num-layers)
+       nn)
+
       ;; Body of DO
       (let* ((outputs (svref output-vecks lay-num))
-	     (prev-outputs (svref output-vecks (1- lay-num)))
-	     (num-prev-outputs (length prev-outputs))
-	     (weight-array (svref weight-arrays (1- lay-num))))
-	;; For each neuron in that layer...
-	(dotimes (neuron-num (svref layer-sizes lay-num))
-	  ;; Compute output value of that neuron 
-	  (setf (svref outputs neuron-num)
-	    ;; SIGMOID of the DOT-PRODUCT of WEIGHTS and INPUT VALUES
-	    ;;  (INPUTS for this neuron are OUTPUTS from neurons 
-	    ;;     in previous layer)
-	    (sigmoid (let ((dot-prod 0))
-		       (dotimes (j num-prev-outputs)
-			 (incf dot-prod
-			       (* (svref prev-outputs j)
-				  (aref weight-array j neuron-num))))
-		       dot-prod))))))))
+             (prev-outputs (svref output-vecks (1- lay-num)))
+             (num-prev-outputs (length prev-outputs))
+             (weight-array (svref weight-arrays (1- lay-num))))
+        ;; For each neuron in that layer...
+        (dotimes (neuron-num (svref layer-sizes lay-num))
+          ;; Compute output value of that neuron 
+          (setf (ssvref outputs neuron-num)
+                ;; SIGMOID of the DOT-PRODUCT of WEIGHTS and INPUT VALUES
+                ;;  (INPUTS for this neuron are OUTPUTS from neurons 
+                ;;     in previous layer)
+                (sigmoid (let ((dot-prod 0))
+                           (dotimes (j num-prev-outputs)
+                             (incf dot-prod
+                                   (* (ssvref prev-outputs j)
+                                      (aref weight-array j neuron-num))))
+                           dot-prod))))))))
 
 ;;;  TRAIN-ONE
 ;;; ----------------------------------------------------
@@ -338,6 +372,7 @@
 ;;;   to update each non-input neuron.
 
 (defun train-one (nn alpha inputs target-outputs)
+  (declare (:explain :types :variables :calls))
   (feed-forward nn inputs)
 
   ;; Back prop algorithm...
@@ -366,7 +401,7 @@
         ;;   DELTA_J = G'(IN_J) * (Y_J - A_J)
         ;;           = G(IN_J)*(1 - G(IN_J))*(Y_J - A_J)
         ;;           = A_J * (1 - A_J) * (Y_J - A_J)
-        (setf (svref last-delta-veck neuron-num)
+        (setf (ssvref last-delta-veck neuron-num)
               (* my-output (- 1 my-output) diffy))))
 
     ;; for each hidden layer...
@@ -387,13 +422,13 @@
           ;; DELTA_I = G'(IN_I) SUM [W_I_J DELTA_J]
           ;;         = G(IN_I) * (1 - G(IN_I)) * SUM [ W_I_J DELTA_J ]
           ;;         = A_I * (1 - A_I) * SUM [ W_I_J DELTA_J ]
-          (let* ((my-output (svref curr-out-veck i))
+          (let* ((my-output (ssvref curr-out-veck i))
                  (sum (let ((dotty 0))
                         (dotimes (j num-neurons-next-layer)
                           (incf dotty (* (aref curr-weight-array i j)
-                                         (svref next-delta-veck j))))
+                                         (ssvref next-delta-veck j))))
                         dotty)))
-            (setf (svref my-delta-veck i)
+            (setf (ssvref my-delta-veck i)
                   (* my-output (- 1 my-output) sum))))))
 
     ;; Now, update all of the weights in the network using the DELTA values
@@ -410,8 +445,8 @@
             ;; W_I_J += ALPHA * A_I * DELTA_J
             (incf (aref weight-array i j)
                   (* alpha 
-                     (svref output-veck i) 
-                     (svref delta-veck j)))))))
+                     (ssvref output-veck i) 
+                     (ssvref delta-veck j)))))))
 
     ;; return the NN
     nn))
@@ -460,6 +495,7 @@
 ;;;            (resulting from doing FEED-FORWARD)
 
 (defun get-output-for (nn inputs)
+  (declare (:explain :types :variables :calls))
   (feed-forward nn inputs)
   (let* ((num-layers (nn-num-layers nn))
 	 (out-vecks (nn-output-vecks nn))
