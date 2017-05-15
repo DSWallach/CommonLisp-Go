@@ -115,10 +115,10 @@
 ;;  need to be unique between the networks
 (defun deep-copy-nn-outputs (nn)
   (let ((layers (nn-num-layers nn))
-        (sizes (copy-vector (nn-layer-sizes nn)))
-        (outputs (copy-vector (nn-output-vecks nn) 'copy-vector))
-        (weights (copy-seq (nn-weight-arrays nn)))
-        (deltas (copy-vector (nn-delta-vecks nn) 'copy-vector))
+        (sizes (nn-layer-sizes nn))
+        (outputs (copy-seq (nn-output-vecks nn)))
+        (weights (nn-weight-arrays nn))
+        (deltas (nn-delta-vecks nn))
         )
     (make-nn :num-layers layers
              :layer-sizes sizes
@@ -415,7 +415,6 @@
 
 (defun train-for-sine (alpha listy num-trials)
   (let ((nn (init-nn listy)))
-    
     (dotimes (i num-trials)
       (let* ((x (/ (random 100) 16.0))
 	     (y (sin (/ x 2))))

@@ -12,8 +12,9 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-;  (sys:resize-areas :new 30000000000 :old 8000000000) ;; Allocate extra memory to minize garbage collection
-;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  (sys:resize-areas :new 3000000000 :old 800000000) ;; Allocate extra memory to minize garbage collection
+  (setf (sys:gc-parameter :generation-spread) 25)
+  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
   (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
 
 (defun ttest (num threads?)
@@ -376,11 +377,11 @@
            (cond
              ((= (gg-whose-turn? g) *black*)
               (when verbose? (format t "BLACK'S TURN!~%"))
-              (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p))
+              (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
               (when verbose? (print-go g t nil t nil nil)))
              (t
                (when verbose? (format t "WHITE'S TURN!~%"))
-               (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p))
+               (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
                (when verbose? (print-go g t nil t nil nil)))))
 
     ;; Show all game information
