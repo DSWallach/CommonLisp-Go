@@ -38,7 +38,7 @@
               :pieces (copy-seq (group-pieces group))
               :area (copy-seq (group-area group))
               :liberties (group-liberties group)
-              :merge-marker (group-merge-marker group)
+              :merge-marker (copy-seq (group-merge-marker group))
               :last-pos (group-last-pos group)
               :territory (group-territory group)))
 

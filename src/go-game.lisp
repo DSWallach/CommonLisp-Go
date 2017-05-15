@@ -403,8 +403,6 @@
             (return-from find-and-return-group 
                          group)))))))
 
-
-
 ;;  REMOVE-DEAD-GROUPS! : GAME
 ;; ----------------------------------
 ;;  Captures all groups that don't have two eyes or
@@ -443,11 +441,11 @@
       (setf (gg-groups game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-groups w-groups (copy-seq b-groups) (copy-seq w-groups))) 
+            (vector b-groups w-groups (deep-copy-list b-groups #'deep-copy-group) (deep-copy-list w-groups #'deep-copy-group)))
       (setf (gg-captures game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-caps w-caps (copy-seq b-caps) (copy-seq w-caps)))
+            (vector b-caps w-caps (deep-copy-list b-caps #'deep-copy-group) (deep-copy-list w-caps #'deep-copy-group)))
 
       ;; Sort the groups so those with the fewest liberties come first
       (dolist (group (svref (gg-groups game) *black*))
@@ -528,7 +526,16 @@
 ;;      a tie. I'm using 6 and setting it as a rule of
 ;;      game evaluation function that white wins if there
 ;;      is a tie.
-(defun init-game (&optional (handicap -1) (komi 6))
+;; NOTE: Komi may be a good idea for humans but I think
+;;       it gives too much of an advantage to white for
+;;       for the A.I. When competing with an equal number
+;;       of sims, white often wins by 6~7 points. I think
+;;       this is because by playing second white always has
+;;       a smaller search space than black so each simulation
+;;       is more valuable. This I think more tahn balances out
+;;       black's advantage of playing first. So for the A.I. 
+;;       competitions I'm setting komi to 0
+(defun init-game (&optional (handicap -1) (komi 0))
   (when (= handicap -1)
     (make-go-game :komi komi)))
 

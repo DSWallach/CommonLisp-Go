@@ -430,11 +430,13 @@
              (cond
                ((= (gg-whose-turn? g) *black*)
                 (when verbose? (format t "BLACK'S TURN!~%"))
-                (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+                (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+                  (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
                 (when verbose? (print-go g t nil t nil nil)))
                (t
                  (when verbose? (format t "WHITE'S TURN!~%"))
-                 (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                 (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                   (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
                  (when verbose? (print-go g t nil t nil nil)))))
 
       ;; Show all game information
@@ -460,7 +462,7 @@
   )
 
 (defun play-b-net (net)
-  (compete 500 1 500 1 2 2 net nil nil nil t)
+  (compete 250 1 81 1 4 4 net nil nil nil t)
   )
 
 (defun play-mcts (b-num w-num)
@@ -474,6 +476,7 @@
 ;; try something else
 (defstruct (competetor
              (:conc-name c-)
+             (:print-function print-comp)
              (:include synchronizing-structure))
   id        ;; A number that is unique within each generation
   net       ;; A NN
@@ -481,13 +484,16 @@
   fitness   ;; The fitness of this competetor in the current generation
   dominated ;; A parameter for use with AFPO
   )
+(defun print-comp (comp str depth)
+  (declare (ignore depth))
+  (format t "~A-~A" (nn-family-name (c-net comp))
+          (nn-id(c-net comp))))
 
 (defun new-competetor (net id)
   (make-competetor :net net 
                   :age 0
                   :fitness 0
-                  :dominated nil
-                  ))
+                  :dominated nil))
 
 ;; Returns a list of pairs containing every combination of 
 ;; pairs of two networks provided
@@ -518,8 +524,10 @@
   `(let ((next-gen (list))
          (gen-id 0)
          )
+     (format t "Sorting gen~%")
      ;; Sort the list by highest fitness
      (sort ,generation :test #'most-fit)
+     (format t "Sorting gen~%")
 
      ;; For each member of the population
      (dolist (comp population)
@@ -570,6 +578,7 @@
         (game nil)
         )
 
+    (format t "Round 1 :~A~% " pair)
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
@@ -585,6 +594,7 @@
         (incf score2 (svref (gg-subtotals game) *white*))
         ))
 
+    (format t "Round 2 :~A~% " pair)
     ;; Then they switch
     (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
     (cond
@@ -637,16 +647,19 @@
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
         (fronts (make-array num-fronts :initial-element (list)))
         (generation (list))
-        (pairs nil) ; A list of pairs containing every combination of networks in the generation
+        (pairs (list)) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
         (barrier nil)
         (file-lock  nil)
-        (lonn (load-files lon))
+        (front-count 0)
         )
-    (dolist (net lonn)
-      (push (new-competetor net gen-id) 
+    ;(format t "LON: ~A~%" lon)
+    (dolist (net lon)
+      (push (new-competetor net gen-id)
             generation)
       (incf gen-id))
+
+    (format t "Initial Population ~A~%" generation)
     ;; Run the evolutionary algorithm
     (dotimes (gen generations)
       (format t "Running Generation ~A~%" gen)
@@ -656,23 +669,33 @@
                             (make-pathname :name 
                                            (concatenate 'string 
                                                         "../game-records/game-history-gen-" 
-                                                        (write-to-string gen)))))
+                                                        (write-to-string gen)
+                                                        "-"
+                                                        (short-site-name) ;; Diff machines record different files
+                                                        ))))
 
       ;; Randomly distribute the networks among the fronts
       (dolist (comp generation)
-        (push comp (svref fronts (random num-fronts))))
+        (push comp (svref fronts front-count))
+        (incf front-count)
+        (when (= num-fronts front-count)
+          (setq front-count 0))
+        )
       ;; Reset the fronts as pairs
       (dotimes (i num-fronts)
         (setf (svref fronts i)
               (make-pairs (svref fronts i))))
+
       ;; Add all the pairs into one list
       (dotimes (i num-fronts)
         (dolist (pair (svref fronts i))
           (push pair pairs)))
+      ;; Evaluate each network's fitness
+      ;; Do the fronts one at a time to make better use of memory
+      ;(dotimes (i num-fronts)
       ;; Reset the barrier
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
-      ;; Evaluate each network's fitness
-      (dolist (pair pairs)
+      (dolist (pair pairs);(svref fronts i))
         (if threads? 
           (mp:process-run-function (write-to-string pair) 
                                    #'face-off
@@ -680,13 +703,17 @@
                                    gen
                                    barrier
                                    file-lock)
-          (face-off pair gen barrier file-lock)))
-      (format t "Waiting for threads to finish~%")
-      ;; Wait for all the trials to finish
+          (face-off pair gen barrier file-lock))
+        ;    )
+        (format t "Waiting for threads to finish~%")
+        ;; Wait for all the trials to finish
+        )
       (mp:barrier-wait barrier)
       (format t "Creating next generation~%")
       ;; Get the next generation
       (setq generation (get-next-gen generation))
+      ;; Reset pairs
+      (setq pairs (list))
       )
     (format t "Done!~%")
     ))
