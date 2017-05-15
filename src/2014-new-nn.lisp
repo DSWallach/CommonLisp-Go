@@ -118,6 +118,7 @@
         (id (nn-id nn))
         (layers (nn-num-layers nn))
         (sizes (nn-layer-sizes nn))
+        ;; New memory is allocated for outputs 
         (outputs (copy-vector (nn-output-vecks nn) #'copy-vector))
         (weights (nn-weight-arrays nn))
         (deltas (nn-delta-vecks nn))
@@ -129,6 +130,20 @@
              :output-vecks outputs
              :weight-arrays weights
              :delta-vecks deltas)))
+
+
+
+;; Only necessary because the trained networks use single-float
+(defun map-short (arr num-rows num-cols)
+  (let ((new-arr (make-array (list num-rows num-cols) :element-type 'short-float)))
+     (dotimes (i num-rows)
+       (dotimes (j num-cols)
+         (setf (aref new-arr i j)
+               (coerce (aref arr i j) 'short-float))
+         ))
+     new-arr))
+
+
 
 ;;;  INIT-NN
 ;;; -----------------------------------------
@@ -149,10 +164,12 @@
          (layer-sizes (make-array num-layers))
          ;; OUTPUT-VECKS:  a vector of vectors.  The ith vector will
          ;;  contain output values for each neuron in layer i
-         (output-vecks (make-array num-layers))
+         (output-vecks (make-array num-layers ));:element-type 'short-float)) 
+         ;; Short floats to save memory
+         ;; NN's are basically approximation functions, they don't need to be super accurate
          ;; DELTA-VECKS:  similar to output-vecks, except they contain
          ;;  the delta values for each neuron
-         (delta-vecks (make-array num-layers))
+         (delta-vecks (make-array num-layers ));:element-type 'short-float))
          ;; WEIGHT-ARRAYS:  see documentation of NN struct
          (weight-arrays (make-array (1- num-layers)))
          ;; NN: the network
@@ -173,15 +190,20 @@
                                                :initial-element nil))
       ;; Create a vector of delta values for the neurons in that layer
       (setf (svref delta-vecks i) (make-array (svref layer-sizes i)
-                                              :initial-element nil))
+                                              :element-type 'short-float
+                                              :initial-element 0.0))
       ;; For non-input neurons, create an array of weights
       ;; corresponding to edges between current layer and previous layer
       (when (> i 0)
         (if weight-arrays-init 
           ;; When provided the layer weights use them instead
           ;; of random values
-          (setf (svref weight-arrays (1- i)) 
-                (aref weight-arrays-init (1- i)))
+          (let ((num-rows (svref layer-sizes (1- i)))
+                (num-cols (svref layer-sizes i)))
+            ;; The array of weights
+            (setf (svref weight-arrays (1- i)) 
+                  (map-short (svref weight-arrays-init (1- i)) num-rows num-cols)))
+
           ;; Otherwise use random values
           (let* ((num-rows (svref layer-sizes (1- i)))
                  (num-cols (svref layer-sizes i))
@@ -196,6 +218,8 @@
       )
     ;; return the NN
     nn))
+
+
 
 ;;;  ERASE-OUTPUTS
 ;;; -----------------------------------------------------

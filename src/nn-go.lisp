@@ -161,8 +161,6 @@
         )
       (when (string-equal "ID" (read line))
         (setq id (read line)))
-      (format t "Read Net ~A of Family ~A~%" id name)
-
 
       ;(format t "Read layer sizes~%")
       ;; Match layer-sizes
@@ -300,7 +298,7 @@
                ))
 
 (defconstant *lon*
-             (list 
+             (reverse (list 
                               "full-conn-0.25-0"
                               "full-conn-0.5-0" 
                               "full-conn-0.75-0"
@@ -319,7 +317,7 @@
                               "small-conv-1-0"
                               "charles-0" 
 ;                              "direct-0" 
-                              ))
+                              )))
              ;;  TRAIN-NETWORKS
 ;; ---------------------
 ;; INPUTS: LOT, a list of triples 
@@ -449,6 +447,10 @@
           (record-game g)
           )
         )
+      ;; Explicitly clear the pool
+      (setq w-p nil)
+      (setq b-p nil)
+
 
     ;; Return the final game state if requested
     (when return-game? g))))
@@ -486,7 +488,7 @@
   )
 (defun print-comp (comp str depth)
   (declare (ignore depth))
-  (format t "~A-~A" (nn-family-name (c-net comp))
+  (format t "~A-~A~%" (nn-family-name (c-net comp))
           (nn-id(c-net comp))))
 
 (defun new-competetor (net id)
@@ -522,6 +524,7 @@
 ;; competetors
 (defmacro get-next-gen (generation)
   `(let ((next-gen (list))
+         (child nil)
          (gen-id 0)
          )
      (format t "Sorting gen~%")
@@ -534,7 +537,9 @@
        ;; Every non-dominated ID gets a mutant offspring 
        ;; added to the next-generation
        (unless (c-domniated comp)
-         (push (new-competetor (mutate-network (c-net comp)) gen-id)
+         (setq child (new-competetor (nn-mutate (c-net comp)) gen-id))
+         (write-network child)
+         (push child 
                next-gen)
          (incf gen-id))
        ;; Increment age
@@ -559,7 +564,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 500 1 500 1 2 2 
+  (compete 100 1 100 1 2 2
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -578,7 +583,6 @@
         (game nil)
         )
 
-    (format t "Round 1 :~A~% " pair)
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
@@ -594,7 +598,6 @@
         (incf score2 (svref (gg-subtotals game) *white*))
         ))
 
-    (format t "Round 2 :~A~% " pair)
     ;; Then they switch
     (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
     (cond
@@ -696,6 +699,7 @@
       ;; Reset the barrier
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
       (dolist (pair pairs);(svref fronts i))
+        (format t "Face Off: ~A ~%" pair)
         (if threads? 
           (mp:process-run-function (write-to-string pair) 
                                    #'face-off
