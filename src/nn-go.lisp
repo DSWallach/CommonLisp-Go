@@ -157,9 +157,11 @@
         )
     (with-open-file (line file-path)
       (when (string-equal "family-name" (read line))
-        (setq name (read line)))
+        (setq name (read line))
+        )
       (when (string-equal "ID" (read line))
         (setq id (read line)))
+      (format t "Read Net ~A of Family ~A~%" id name)
 
 
       ;(format t "Read layer sizes~%")
@@ -299,24 +301,24 @@
 
 (defconstant *lon*
              (list 
-                    ;          "full-conn-0.25-0"
-                    ;          "full-conn-0.5-0" 
-                    ;          "full-conn-0.75-0"
-                    ;          "full-conn-1-0" 
-                    ;          "small-conn-0.25-0"
+                              "full-conn-0.25-0"
+                              "full-conn-0.5-0" 
+                              "full-conn-0.75-0"
+                              "full-conn-1-0" 
+                              "small-conn-0.25-0"
                               "small-conn-0.5-0"
                               "small-conn-0.75-0"
-                    ;          "small-conn-1-0"
-                    ;          "full-conv-0.25-0"
-                    ;          "full-conv-0.5-0"
-                    ;          "full-conv-0.75-0"
-                    ;          "full-conv-1-0"
+                              "small-conn-1-0"
+                              "full-conv-0.25-0"
+                              "full-conv-0.5-0"
+                              "full-conv-0.75-0"
+                              "full-conv-1-0"
                               "small-conv-0.25-0"
                               "small-conv-0.5-0"
-                    ;          "small-conv-0.75-0"
-                    ;          "small-conv-1-0"
-                    ;          "charles-0" 
-                    ;          "direct-0" 
+                              "small-conv-0.75-0"
+                              "small-conv-1-0"
+                              "charles-0" 
+;                              "direct-0" 
                               ))
              ;;  TRAIN-NETWORKS
 ;; ---------------------
@@ -340,6 +342,129 @@
 ;; passed in as a list of triples
 (defmacro p-train-networks (lot)
   `(mp:process-run-function (write-to-string ,lot) #'train-networks ,lot))
+
+;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
+;; --------------------------------------------------
+;;  NOTE:  Compete has a lot of functionality for various situations
+;;           for simply watching two A.I.'s player it's recommended to 
+;;           use one of the macros defined below
+;;  INPUTS:  BLACK-NUM-SIMS, the number of simulations for each of black's moves
+;;           BLACK-C, the exploration/exploitation constant used by black
+;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
+;;           WHITE-C, the exploration/exploitation constant used by white
+;;  OUTPUT:  Don't care
+;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
+;;    for both players according to the specified parameters.
+
+(defun compete
+  (black-num-sims black-c white-num-sims white-c 
+                  &optional 
+                  (black-threads? nil)
+                  (white-threads? nil)
+                  (black-network  nil)
+                  (white-network  nil)
+                  (pool nil)
+                  (return-game? nil)
+                  (filename nil)
+                  (verbose? t)
+                  )
+  (let ((g (init-game))
+        (b-p nil)
+        (w-p nil)
+        )
+
+    ;; Record a random board state from the game along with who won the game
+    (labels ((record-game 
+               (game)
+               ;; Get a random board state
+               (let* (
+                      (store-board  (nth (random (length (gg-board-history game)))
+                                         (gg-board-history game)))
+                      (score (- (svref (gg-subtotals game) *black*)
+                                (svref (gg-subtotals game) *white*)))
+                      (winner nil)
+                      (set-struct (make-compete-settings 
+                                    :b-sims black-num-sims 
+                                    :b-c black-c 
+                                    :w-sims white-num-sims 
+                                    :w-c white-c 
+                                    :b-t black-threads?
+                                    :w-t white-threads?
+                                    :b-net black-network
+                                    :w-net white-network
+                                    :pool pool
+                                    )
+                                  )
+                      )
+                 ;; If the score is greater than 0, black won
+                 (if (> score 0)
+                   ;; The network represents black as a 1
+                   (setq winner 1)
+                   ;; Otherwise white won
+                   (setq winner -1))
+
+                 (with-locked-structure 
+                   (filename)
+                   (with-open-file (file (file-lock-path filename) :direction :output 
+                                         :if-does-not-exist :create
+                                         :if-exists :append)
+                     ;; Write the board state
+                     (write-string (write-to-string store-board) file) 
+                     ;; Write who won the game
+                     (write-string (write-to-string winner) file)
+                     (write-line (write-to-string (compete-to-list set-struct )) file)))
+                 ))
+             )
+      (when pool
+        (format t "Pool ~A~%" pool)
+        (setq b-p pool)
+        (setq w-p pool))
+
+      (when black-network
+        (setq b-p (init-nn-pool black-network)))
+
+      (when white-network
+        (setq w-p (init-nn-pool white-network)))
+
+      (while (not (game-over? g))
+             (cond
+               ((= (gg-whose-turn? g) *black*)
+                (when verbose? (format t "BLACK'S TURN!~%"))
+                (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+                (when verbose? (print-go g t nil t nil nil)))
+               (t
+                 (when verbose? (format t "WHITE'S TURN!~%"))
+                 (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                 (when verbose? (print-go g t nil t nil nil)))))
+
+      ;; Show all game information
+      (when verbose? (print-go g t nil t t))
+
+      ;; If a record from the game is to be used
+      (when filename
+        ;; Record 4 states b/c don'thave much time
+        (dotimes (i 4) 
+          (record-game g)
+          )
+        )
+
+    ;; Return the final game state if requested
+    (when return-game? g))))
+
+(defun play-nets-no-t (net1 net2)
+  (compete 81 2 1 2 nil nil net1 net2)
+  )
+
+(defun play-nets (net1 net2)
+  (compete 10 1 1 1 t t net1 net2 nil nil t)
+  )
+
+(defun play-b-net (net)
+  (compete 500 1 500 1 2 2 net nil nil nil t)
+  )
+
+(defun play-mcts (b-num w-num)
+  (compete b-num 2 w-num 2 nil nil nil nil nil))
 
 
 ;; I'm using an evolutionary algorithm instead of 
@@ -421,15 +546,12 @@
                (>= (length next-gen)
                    (length ,generation)))
          (return)))
-	
-;; Clear generation
-(setq generation nil)
      ;; Return the next generation
      next-gen))
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 500 1 500 1 t t 
+  (compete 1000 1 1000 1 t t 
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -502,10 +624,6 @@
          (decf (c-fitness comp1))
          ;; Set dominated 
          (setf (c-dominated comp1) t))))
-
-    ;; Trigger a garbage collection
-	(gc t)
-
     ;; If there is a tie, neither is dominated 
     ;; or has a change in fitness
 
@@ -517,64 +635,57 @@
 ;; game
 (defun evolve-networks (lon generations num-fronts &optional (threads? t))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
-        (fronts nil)
+        (fronts (make-array num-fronts :initial-element (list)))
         (generation (list))
         (pairs nil) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
         (barrier nil)
-	(file-lock  nil)
-       )
-   (dolist (net lon)
-    (push (new-competetor net gen-id) 
-     generation)
-    (incf gen-id))
-   ;; Run the evolutionary algorithm
-   (dotimes (gen generations)
-    (format t "Running Generation ~A~%" gen)
-    (setq fronts (make-array num-fronts :initial-element (list)))
-    ;; Create the lock for this gen's file
-    (setq file-lock
-     (make-file-lock :path 
-      (make-pathname :name 
-       (concatenate 'string 
-	"../game-records/game-history-gen-" 
-	(write-to-string gen)))))
+        (file-lock  nil)
+        )
+    (dolist (net lon)
+      (push (new-competetor net gen-id) 
+            generation)
+      (incf gen-id))
+    ;; Run the evolutionary algorithm
+    (dotimes (gen generations)
+      (format t "Running Generation ~A~%" gen)
+      ;; Create the lock for this gen's file
+      (setq file-lock
+            (make-file-lock :path 
+                            (make-pathname :name 
+                                           (concatenate 'string 
+                                                        "../game-records/game-history-gen-" 
+                                                        (write-to-string gen)))))
 
-    ;; Randomly distribute the networks among the fronts
-    (dolist (comp generation)
-     (push comp (svref fronts (random num-fronts))))
-    ;; Reset the fronts as pairs
-    (dotimes (i num-fronts)
-     (setf (svref fronts i)
-      (make-pairs (svref fronts i))))
-    ;; Add all the pairs into one list
-    (dotimes (i num-fronts)
-     (dolist (pair (svref fronts i))
-      (push pair pairs)))
-	;; Reset the barrier
-(setq barrier (mp:make-barrier (+ 1 (length pairs))))
-
-	;; Do in sets of 4 to reduce memory load
-	;; Clear fronts 
-	(setq fronts nil)
-
-
-	 ;; Evaluate each network's fitness
-	 (dolist (pair pairs)
-	  (if threads? 
-	   (mp:process-run-function (write-to-string pair) 
-#'face-off
-	    pair
-	    gen
-	    barrier
-	    file-lock)
-	   (face-off pair gen barrier file-lock)))
-	 (format t "Waiting for threads to finish~%")
-	 ;; Wait for all the trials to finish
-	 (mp:barrier-wait barrier)
-	 (format t "Creating next generation~%")
-	 ;; Get the next generation
-	 (setq generation (get-next-gen generation))
-	)
-	(format t "Done!~%")
+      ;; Randomly distribute the networks among the fronts
+      (dolist (comp generation)
+        (push comp (svref fronts (random num-fronts))))
+      ;; Reset the fronts as pairs
+      (dotimes (i num-fronts)
+        (setf (svref fronts i)
+              (make-pairs (svref fronts i))))
+      ;; Add all the pairs into one list
+      (dotimes (i num-fronts)
+        (dolist (pair (svref fronts i))
+          (push pair pairs)))
+      ;; Reset the barrier
+      (setq barrier (mp:make-barrier (+ 1 (length pairs))))
+      ;; Evaluate each network's fitness
+      (dolist (pair pairs)
+        (if threads? 
+          (mp:process-run-function (write-to-string pair) 
+                                   #'face-off
+                                   pair
+                                   gen
+                                   barrier
+                                   file-lock)
+          (face-off pair gen barrier file-lock)))
+      (format t "Waiting for threads to finish~%")
+      ;; Wait for all the trials to finish
+      (mp:barrier-wait barrier)
+      (format t "Creating next generation~%")
+      ;; Get the next generation
+      (setq generation (get-next-gen generation))
+      )
+    (format t "Done!~%")
     ))

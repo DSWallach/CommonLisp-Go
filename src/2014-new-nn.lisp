@@ -114,13 +114,17 @@
 ;;  trained during the search only the values of the outputs
 ;;  need to be unique between the networks
 (defun deep-copy-nn-outputs (nn)
-  (let ((layers (nn-num-layers nn))
+  (let ((name (nn-family-name nn))
+        (id (nn-id nn))
+        (layers (nn-num-layers nn))
         (sizes (nn-layer-sizes nn))
-        (outputs (copy-seq (nn-output-vecks nn)))
+        (outputs (copy-vector (nn-output-vecks nn) #'copy-vector))
         (weights (nn-weight-arrays nn))
         (deltas (nn-delta-vecks nn))
         )
-    (make-nn :num-layers layers
+    (make-nn :family-name name
+             :id id
+             :num-layers layers
              :layer-sizes sizes
              :output-vecks outputs
              :weight-arrays weights

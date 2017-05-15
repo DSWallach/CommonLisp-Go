@@ -495,7 +495,7 @@
                (nn nil)
                )
           ;; Spawn the threads
-          (dotimes (i *num-cores*)
+          (dotimes (i use-threads)
             ;; Create a process and start it running with the tree
             ;; The process is killed and cleaned up after when the 
             ;; function returns.

@@ -1,9 +1,8 @@
-(defconstant *num-cores* 16)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
-;(setq compiler:tail-call-self-merge-switch t)
-;(setq compiler:tail-call-non-self-merge-switch t) 
+(setq compiler:tail-call-self-merge-switch t)
+(setq compiler:tail-call-non-self-merge-switch t) 
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
@@ -15,7 +14,7 @@
   (sys:resize-areas :new 3000000000 :old 800000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-parameter :generation-spread) 25)
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
+  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 3))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -290,123 +289,4 @@
              (make-file-lock :path (make-pathname :name 
                                             "../game-records/main-record")))
 
-;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
-;; --------------------------------------------------
-;;  NOTE:  Compete has a lot of functionality for various situations
-;;           for simply watching two A.I.'s player it's recommended to 
-;;           use one of the macros defined below
-;;  INPUTS:  BLACK-NUM-SIMS, the number of simulations for each of black's moves
-;;           BLACK-C, the exploration/exploitation constant used by black
-;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
-;;           WHITE-C, the exploration/exploitation constant used by white
-;;  OUTPUT:  Don't care
-;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
-;;    for both players according to the specified parameters.
-
-(defun compete
-  (black-num-sims black-c white-num-sims white-c 
-                  &optional 
-                  (black-threads? nil)
-                  (white-threads? nil)
-                  (black-network  nil)
-                  (white-network  nil)
-                  (pool nil)
-                  (return-game? nil)
-                  (filename nil)
-                  (verbose? t)
-                  )
-  (let ((g (init-game))
-        (b-p nil)
-        (w-p nil)
-        )
-
-    ;; Record a random board state from the game along with who won the game
-    (labels ((record-game 
-               (game)
-               ;; Get a random board state
-               (let* (
-                      (store-board  (nth (random (length (gg-board-history game)))
-                                         (gg-board-history game)))
-                      (score (- (svref (gg-subtotals game) *black*)
-                                (svref (gg-subtotals game) *white*)))
-                      (winner nil)
-                      (set-struct (make-compete-settings 
-                                    :b-sims black-num-sims 
-                                    :b-c black-c 
-                                    :w-sims white-num-sims 
-                                    :w-c white-c 
-                                    :b-t black-threads?
-                                    :w-t white-threads?
-                                    :b-net black-network
-                                    :w-net white-network
-                                    :pool pool
-                                    )
-                                  )
-                      )
-                 ;; If the score is greater than 0, black won
-                 (if (> score 0)
-                   ;; The network represents black as a 1
-                   (setq winner 1)
-                   ;; Otherwise white won
-                   (setq winner -1))
-
-                 (with-locked-structure 
-                   (filename)
-                   (with-open-file (file (file-lock-path filename) :direction :output 
-                                         :if-does-not-exist :create
-                                         :if-exists :append)
-                     ;; Write the board state
-                     (write-string (write-to-string store-board) file) 
-                     ;; Write who won the game
-                     (write-string (write-to-string winner) file)
-                     (write-line (write-to-string (compete-to-list set-struct )) file)))
-                 ))
-             )
-    (when pool
-      (format t "Pool ~A~%" pool)
-      (setq b-p pool)
-      (setq w-p pool))
-
-    (when black-network
-      (setq b-p (init-nn-pool black-network)))
-
-    (when white-network
-      (setq w-p (init-nn-pool white-network)))
-
-    (while (not (game-over? g))
-           (cond
-             ((= (gg-whose-turn? g) *black*)
-              (when verbose? (format t "BLACK'S TURN!~%"))
-              (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
-              (when verbose? (print-go g t nil t nil nil)))
-             (t
-               (when verbose? (format t "WHITE'S TURN!~%"))
-               (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
-               (when verbose? (print-go g t nil t nil nil)))))
-
-    ;; Show all game information
-    (when verbose? (print-go g t nil t t))
-
-    ;; If a record from the game is to be used
-    (when filename
-      ;; Macro defined in nn-go.lisp
-      (record-game g))
-
-    ;; Return the final game state if requested
-    (when return-game? g))))
-
-(defun play-nets-no-t (net1 net2)
-  (compete 81 2 1 2 nil nil net1 net2)
-  )
-
-(defun play-nets (net1 net2)
-  (compete 10 1 1 1 t t net1 net2 nil nil t)
-  )
-
-(defun play-b-net (net)
-  (compete 500 1 500 1 t t net nil nil nil t)
-  )
-
-(defun play-mcts (b-num w-num)
-  (compete b-num 2 w-num 2 nil nil nil nil nil))
-
+(defconstant *num-cores* 2)
