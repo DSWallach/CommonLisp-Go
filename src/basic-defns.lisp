@@ -1,4 +1,3 @@
-
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
 (setq compiler:tail-call-self-merge-switch t)
@@ -11,11 +10,11 @@
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-  (sys:resize-areas :new 30000000000 :old 100000000) ;; Allocate extra memory to minize garbage collection
+  ;(sys:resize-areas :new 30000000000 :old 100000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-parameter :helper-threads-requested) 8)
   (setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
-  (setf (sys:gc-switch :gc-old-before-expand) nil) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 3) (debug 3))))
+  ;(setf (sys:gc-switch :gc-old-before-expand) nil) ;; Don't request more memory, use old memory
+  (declaim (optimize (speed 2) (safety 1) (space 3) (debug 0))))
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))

@@ -310,6 +310,26 @@
                (list "direct" (list 81 81) 0.25)
                ))
 
+(defconstant *s-conn* (list
+                              "small-conn-0.25-0"
+                              "small-conn-0.5-0"
+                              "small-conn-0.75-0"
+                              "small-conn-1-0"
+))
+(defconstant *s-conv* (list
+                              "small-conv-0.25-0"
+                              "small-conv-0.5-0"
+                              "small-conv-0.75-0"
+                              "small-conv-1-0"
+))
+(defconstant *f-conv* (list
+                              "full-conv-0.25-0"
+                              "full-conv-0.5-0"
+                              "full-conv-0.75-0"
+                              "full-conv-1-0"
+))
+
+
 (defconstant *lon*
              (reverse (list 
              ;                 "full-conn-0.25-0"
@@ -579,7 +599,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 100 1 100 1 2 2
+  (compete 250 1 250 1 48 48
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -597,11 +617,13 @@
         (score2 0)
         (game nil)
         )
-
+	(room t)
     (format t "Round 1 ~A" pair)
+
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
+	(room t)
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -617,6 +639,7 @@
     (format t "Round 2 ~A" pair)
     ;; Then they switch
     (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
+	(room t)
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -628,6 +651,7 @@
         ;; And comp2 is white
         (incf score1 (svref (gg-subtotals game) *white*))
         ))
+	(room t)
     ;; Evaluate the winner
     (cond 
       ;; If comp1 was the victor
@@ -663,7 +687,7 @@
 ;; Run evolutionary trials pitting networks against
 ;; networks and store a few game state pairs from the 
 ;; game
-(defun evolve-networks (lon generations num-fronts &optional (threads? t))
+(defun evolve-networks (lon generations num-fronts &optional (threads? nil))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
         (fronts (make-array num-fronts :initial-element (list)))
         (generation (list))
@@ -729,6 +753,7 @@
                                   file-lock)
           (face-off pair gen barrier file-lock))
         ;    )
+	(room t)
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
         )
@@ -744,6 +769,7 @@
       )
     (format t "Done!~%")
     ))
+
 
 (defmacro prep-nets (num)
   `(read-nets (subseq *lon* 0 ,num)))
