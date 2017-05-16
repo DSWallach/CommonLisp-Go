@@ -355,6 +355,127 @@
   `(let ((key (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0)))
               (bit-xor key (gg-board-hash ,game))))
 
+;;  EVAL-TOTALS! : GAME 
+;; ------------------------------------------
+;;  Evaluate the final scores. Consider the 
+;;  entire board not just the territory of the groups
+(defun eval-totals! (game)
+  (let ((player *black*)
+        (opponent *white*)
+        (board (gg-board game))
+        (territory 0)
+        (player? nil)
+        (total 0)
+        )
+    
+    ;; Calc for black
+    (dotimes (row *board-length*)
+      ;; When a wall is reached 
+      (when (or (= 0 row) (= (- *board-length* 1) row)) 
+        ;; Set the player's flag
+        (setq player? t))
+
+      ;; Check each column 
+      (dotimes (col *board-length*)
+        ;; When a wall is reached 
+        (when (or (=(- *board-length* 1) col) (= 0 col))
+          ;; Set the player's flag
+          (setq player? t))
+        ;; Check the board
+        (case (svref board (row-col->pos row col)) 
+          ;; If it's player's piece, set flag
+          ;; If the player's flag is set
+          (player (when player?  
+                    ;; Add territory to the total
+                    (setq total (+ total territory))
+                    ;; Reset territory
+                    (setq territory 0))
+                  ;; Set player flag
+                  (setq player? t))
+
+          ;; If it's an opponent's piece, and 
+          (opponent (cond
+                      ;; If that piece is part of a group 
+                      ;; that's alive remove flag, clear territory
+                      ((group-alive? (find-group (row-col->pos row col) game))
+                       (setq player? nil)
+                       (setq territory 0)
+                       )
+                      ;; If the group is dead, treat it as 
+                      ;; territory
+                      (t (when player? (setq territory 
+                                             (+ 1 territory))))))
+
+          ;; If the space is open
+          ;; If the player's flag is set and 
+          (0 (when player? (setq territory (+ 1 territory))))))
+
+      ;; If the player;s flag is set
+      (when player? 
+        ;; Update total
+        (setq total (+ total territory))
+        ;; Reset territory
+        (setq territory 0))
+      )
+
+    (setf (svref (gg-subtotals game) *black*) total)
+    (setq total 0)
+
+    (setq player *white*)
+    (setq opponent *black*)
+
+    ;; Calc for white 
+    (dotimes (row *board-length*)
+      ;; When a wall is reached 
+      (when (or (= 0 row) (= (- *board-length* 1) row)) 
+        ;; Set the player's flag
+        (setq player? t))
+
+      ;; Check each column 
+      (dotimes (col *board-length*)
+        ;; When a wall is reached 
+        (when (or (=(- *board-length* 1) col) (= 0 col))
+          ;; Set the player's flag
+          (setq player? t))
+        ;; Check the board
+        (case (svref board (row-col->pos row col)) 
+          ;; If it's player's piece, set flag
+          ;; If the player's flag is set
+          (player (when player?  
+                    ;; Add territory to the total
+                    (setq total (+ total territory))
+                    ;; Reset territory
+                    (setq territory 0))
+                  ;; Set player flag
+                  (setq player? t))
+
+          ;; If it's an opponent's piece, and 
+          (opponent (cond
+                      ;; If that piece is part of a group 
+                      ;; that's alive remove flag, clear territory
+                      ((group-alive? (find-group (row-col->pos row col) game))
+                       (setq player? nil)
+                       (setq territory 0)
+                       )
+                      ;; If the group is dead, treat it as 
+                      ;; territory
+                      (t (when player? (setq territory 
+                                             (+ 1 territory))))))
+
+          ;; If the space is open
+          ;; If the player's flag is set and 
+          (0 (when player? (setq territory (+ 1 territory))))))
+
+      ;; If the player;s flag is set
+      (when player? 
+        ;; Update total
+        (setq total (+ total territory))
+        ;; Reset territory
+        (setq territory 0))
+      )
+    (setf (svref (gg-subtotals game) *white*) total)
+    ))
+
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
 ;;  INPUT: GAME, a GO-GAME struct
