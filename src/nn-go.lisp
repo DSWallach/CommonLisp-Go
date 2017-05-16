@@ -77,18 +77,10 @@
           (setq best-score (ssvref output move))
           (setq best-move move))))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
-    ;; Return the best move
-    (if (eq player *black*)
-      (if (> 0.001 best-move)
-        best-move
-        ;; If isn't above the threashold return pass as the best move 
-        *board-size*)
-      (if (< -0.001 best-move)
-        best-move
-        ;; If isn't below the threashold return pass as the best move 
-        *board-size*)
-      )))
-
+    (if (< 0.001 (abs best-score))
+      best-move
+      ;; If isn't above the threashold return pass as the best move 
+      *board-size*)))
 
 
 (defun net-to-string (nn)
@@ -266,23 +258,14 @@
       (p)
       (dotimes (i num-nets)
         (track (push (deep-copy-nn-outputs nn) (pool-nets p)))))
+    (format t "Create pool of size ~A from net ~A~%"
+            (length (pool-nets p))
+            (net-to-string (first (pool-nets p)))
+            )
     p))
 
-(defun init-nn-pool (&optional (net-name nil) (num-cores 2))
-  (cond
-    (net-name
-        (if num-cores 
-          (init-pool (read-network net-name) num-cores))
-         (init-pool (read-network net-name) 1))
-    (t (let* ((files (load-files 60000))
-              (nn (init-nn (list 81 81 49 81 81)))
-              )
-         ;; Train
-         (train-all nn 0.25 files)
-         ;; Make Copies
-         (init-pool nn num-cores)
-         ))
-    ))
+(defun init-nn-pool (net-name num-cores)
+  (init-pool (read-network net-name) num-cores))
 
 (defmacro process-store-nn (name layers rate files)
   `(mp:process-run-function ,name #'store-nn ,name ,layers ,rate ,files))
