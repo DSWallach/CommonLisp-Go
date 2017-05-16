@@ -469,8 +469,16 @@
 ;;  PLAY-MOVE!
 ;; ------------------------------
 ;;  Basic wrapper for DO-MOVE!
-(defun play-move! (game row col)
-  (do-move! game (row-col->pos row col)))
+(defun play-move! (game row col &optional (check-legality? nil))
+  (if check-legality?
+    (let ((legal-moves (legal-moves game)))
+      ;; Passing is always legal for Humans but not for computers
+      (if (or (= *board-size* (row-col->pos row col))
+              (find (row-col->pos row col) legal-moves :test #'=))
+        (do-move! game (row-col->pos row col))
+        (format t "Illegal Move!~%")
+        ))
+    (do-move! game (row-col->pos row col))))
 
 ;;  LEGAL-MOVE?
 ;; -------------------------------
@@ -542,7 +550,7 @@
 ;;  OUTPUT: A list of legal moves 
 (defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list ))  ; Passing is always legal
-        (valid-moves (list *board-size*))
+        (valid-moves (list ))
         (player (gg-whose-turn? game))
         (moves nil) 
         (board (gg-board game))
@@ -554,9 +562,7 @@
         ((> 4 (length (gg-move-history game)))
          (dolist (pos *opening-moves*)
            (when (legal-move? game pos)
-             (push pos valid-moves)
-             )
-           ))
+             (push pos valid-moves))))
 
         ;; More lenient in the mid game
         ((> 20 (length (gg-move-history game)))
@@ -568,11 +574,9 @@
                                       (row-col->pos row col))))
                  (push (row-col->pos row col) moves))))))
 
-
         (t (dotimes (pos *board-size*)
              (when (= 0 (svref board pos))
-               (push pos moves))))
-        )
+               (push pos moves)))))
 
       ;; Allow all moves
       (dotimes (pos *board-size*)
@@ -582,66 +586,68 @@
     ;; Check for suicidal play, not allowed under Chinese or
     ;; Japanese rules so it's not allowed here.
     (dolist (pos moves)
-        ;; If there is a space adjacent to the move, it's not suicidal
-        (cond 
-          ((or (= 0 (check-board pos board *check-left*))
-               (= 0 (check-board pos board *check-right*))
-               (= 0 (check-board pos board *check-above*))
-               (= 0 (check-board pos board *check-below*)))
+      ;; If there is a space adjacent to the move, it's not suicidal
+      (cond 
+        ((or (= 0 (check-board pos board *check-left*))
+             (= 0 (check-board pos board *check-right*))
+             (= 0 (check-board pos board *check-above*))
+             (= 0 (check-board pos board *check-below*)))
 
-           ;; Add the move to legal-moves
-           (push pos valid-moves))
+         ;; Add the move to legal-moves
+         (push pos valid-moves))
 
-          ;; Or if the move connects to a group 
-          ;; Check that the group has more than one liberty 
-          ;; (i.e. a group that wont be captured by the move)
-          ((and (= (+ 1 player) (check-board pos board *check-left*))
-                (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
-           (push pos valid-moves))
+        ;; Or if the move connects to a group 
+        ;; Check that the group has more than one liberty 
+        ;; (i.e. a group that wont be captured by the move)
+        ((and (= (+ 1 player) (check-board pos board *check-left*))
+              (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-right*))
-                (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
-           (push pos valid-moves))
+        ((and (= (+ 1 player) (check-board pos board *check-right*))
+              (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-above*))
-                (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
-           (push pos valid-moves))
+        ((and (= (+ 1 player) (check-board pos board *check-above*))
+              (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-below*))
-                (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
-           (push pos valid-moves))))
+        ((and (= (+ 1 player) (check-board pos board *check-below*))
+              (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
+         (push pos valid-moves))))
 
     ;; If necessary...
-    (if (and (gg-ko? game) 
-             (< 3 (length (gg-board-history game))))
-      ;; Check for for infringement of the Ko rule
-      (unless (dolist (move valid-moves)
-                ;; Passing is always an options
-                (if (= move *board-size*)
-                  (push move legal-moves)
-                  ;; Check that the board is not returning to 
-                  ;; the state prior to your opponents last
-                  ;; move. (Ko Rule)
+    (cond
+      ((and (gg-ko? game) 
+            (< 3 (length (gg-board-history game))))
+       ;; Check for for infringement of the Ko rule
+       (dolist (move valid-moves)
+         ;; Passing is always an options
+         (when (< 30 (length (gg-move-history game)))
+           (push *board-size* legal-moves))
+         ;; Check that the board is not returning to 
+         ;; the state prior to your opponents last
+         ;; move. (Ko Rule)
 
-                  ;; Playing with fire
-                  (let ((new-board nil)
-                        (old-board nil))
+         ;; Playing with fire
+         (let ((new-board nil)
+               (old-board nil))
 
-                    ;; Get the old board
-                    (setq old-board (first (gg-board-history game)))
+           ;; Get the old board
+           (setq old-board (first (gg-board-history game)))
 
-                    ;; Mod Game
-                    (do-move! game move)
-                    ;; Get board
-                    (setq new-board (copy-vector (gg-board game)))
-                    ;; Unmod game 
-                    (undo-move! game)
-                    (unless (equal-board? new-board old-board)
-                      (push move legal-moves))))
-                )
+           ;; Mod Game
+           (do-move! game move)
+           ;; Get board
+           (setq new-board (copy-vector (gg-board game)))
+           ;; Unmod game 
+           (undo-move! game)
+           (unless (equal-board? new-board old-board)
+             (push move legal-moves))))
+      ;; Return legal moves
+      (make-array (length legal-moves) :initial-contents legal-moves))
 
-        ;; Return legal moves
-        (make-array (length legal-moves) :initial-contents legal-moves))
-
+    (t 
+      (when (< 30 (length (gg-move-history game)))
+        (push *board-size* valid-moves))
       ;; Otherwise return the valid moves
-      (make-array (length valid-moves) :initial-contents valid-moves))))
+      (make-array (length valid-moves) :initial-contents valid-moves)))))

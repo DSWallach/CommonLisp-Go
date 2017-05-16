@@ -4,23 +4,6 @@
 ;; =================================
 
 
-(defconstant *zobrist-vectors*
-             (vector
-               ;; Black
-               (make-array *board-size*)
-               ;; White
-               (make-array *board-size*)))
-
-(defun init-z-vectors ()
-  (dotimes (i 2)
-    (dotimes (j *board-size*)
-      ;; Set the vector
-      (setf (svref (svref *zobrist-vectors* i) j)
-            (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0))
-      ;; Give it a unique bit
-      (setf (sbit (svref (svref *zobrist-vectors* i) j) (* (+ 1 i) j)) 1))))
-
-(init-z-vectors)
 
 
 ;;;;; GO-GAME STRUCT/FUNCS 
@@ -79,15 +62,6 @@
 ;;      a tie. I'm using 6 and setting it as a rule of
 ;;      game evaluation function that white wins if there
 ;;      is a tie.
-;; NOTE: Komi may be a good idea for humans but I think
-;;       it gives too much of an advantage to white for
-;;       for the A.I. When competing with an equal number
-;;       of sims, white often wins by 6~7 points. I think
-;;       this is because by playing second white always has
-;;       a smaller search space than black so each simulation
-;;       is more valuable. This I think more tahn balances out
-;;       black's advantage of playing first. So for the A.I. 
-;;       competitions I'm setting komi to 0
 (defun init-game (&optional (handicap -1) (komi 6))
   (when (= handicap -1)
     (make-go-game 
@@ -249,7 +223,7 @@
 
 ;;  EQUAL-GO?
 ;; -----------------------
-(defun equal-go? (game0 game1 &optional (print-to nil))
+(defun equal-go? (game0 game1 &optional (verbose? nil))
   ;; If their hashes are different return immediately
  ;(unless (equal (gg-board-hash game0)
  ;             (gg-board-hash game1)

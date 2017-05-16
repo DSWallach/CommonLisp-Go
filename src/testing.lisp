@@ -762,7 +762,6 @@
   (test-undo 10)
   (test-undo 15)
   (test-undo 30)
-  (test-undo 40)
   )
 
 ;; TEST-BENCH : Test performance of game

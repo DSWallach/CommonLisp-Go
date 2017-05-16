@@ -52,7 +52,6 @@
 
 
 (defun print-mc-tree (tree str depth)
-  (declare (ignore depth) (ignore str))
   (format str "MC-TREE~%")
   (maphash #'hash-print (mc-tree-hashy tree)))
 
@@ -143,11 +142,8 @@
 ;;           KEY, a hash-key representing the state of the game
 ;;  OUTPUT:  The newly created and inserted node
 ;;  SIDE EFFECT:  Inserts a new node into TREE using KEY.
-(defun insert-new-node (game tree key &optional (pid nil))
-  (declare (ignore pid))
-  ;; (format t "Insert new node~%")
+(defun insert-new-node (game tree key)
   (let ((moves (legal-moves game))
-        (node-holder nil)
         (new-node nil))
     (setq new-node (make-mc-node 
                      :key key
@@ -157,23 +153,23 @@
                      :veck-visits (make-array (length moves) :initial-element 0)
                      :veck-scores (make-array (length moves) :initial-element 0)
                      ))
-
-    ;; Use the network allocated for the current process
-
-
     ;; If the node has been created by another thread
     (if (gethash key (mc-tree-hashy tree))
       ;; Lock the node
       (with-locked-structure
         ((gethash key (mc-tree-hashy tree)))
-
         ;; Update N(S_t)
         (incf (mc-node-num-visits (gethash key (mc-tree-hashy tree)))))
-
       ;; Otherwise just insert the node
       (setf (gethash key (mc-tree-hashy tree)) new-node))
-
     new-node))
+
+;;  INSERT-NEW-NODE-NN
+;; --------------------------------------
+;(defun insert-new-node-nn (game tree key nn)
+
+    ;; Use the network allocated for the current process
+;    (when nn))
 
 ;;  SELECT-MOVE : NODEY C
 ;; ------------------------------------------
@@ -192,10 +188,8 @@
         (max-so-far 0)
         (best-move-so-far 0)
         (new_q 0)
-        (ifblack 1)
         )
 
-  ;  (when game-move (format t "Node: ~A~%" nodey))
     ;; Compare all the potential moves
     (dotimes (i (length scores))
       (cond
@@ -213,7 +207,7 @@
       ;; Set the value, adding or subtracting depending on the player
       (cond
         ;; If it's black the best score is the highest
-        ((= player *black*)
+        ((eq player *black*)
          (setf (svref scores i)
                (+ (svref scores i)
                   new_q))
@@ -227,10 +221,8 @@
                    new_q))
           (when (> max-so-far (svref scores i))
             (setq max-so-far (svref scores i))
-            (setq best-move-so-far i))))
-      )
+            (setq best-move-so-far i)))))
 
-  ;  (when game-move (format t "Post scores: ~A~%" scores) )
     (with-locked-structure 
       (nodey)
       ;; Update the scores in the node
@@ -242,9 +234,8 @@
       ;; Increment the number of visits to this node
       (incf (mc-node-num-visits nodey)))
 
-   (when game-move (format t "Move score: ~A~%" max-so-far))
+    (when game-move (format t "Move score: ~A~%" max-so-far))
 
-   ; (when game-move (format t "Post post scores: ~A~%" scores) )
     ;; Return the best move found
     best-move-so-far))
 
@@ -258,110 +249,63 @@
 ;;    where each state_i is a key into the hashtable, and each move_i
 ;;    is an index into the MOVES vector of the node assoc with state_i.
 (defun sim-tree 
-  (game tree c &optional (imp t) (pid 0))
-
- ; (format t "Sim Tree~%")
+  (game tree c)
   ;; When you hit a node not in the hastable then you are done with
   ;; sim tree. Add the one move and then start using the random play out
   ;; value only keeping track of the store at the end.
-  (cond 
-    (imp
-      (let (;; KEY-MOVE-ACC:  accumulator of KEYs and MOVEs
-            (key-move-acc nil)
-            (hashy (mc-tree-hashy tree)))
-        (while (not (game-over? game))
-               (let* (;; KEY:  Hash key for current state of game
-                      (key (make-hash-key-from-game game))
-                      ;; NODEY:  The MC-NODE corresponding to KEY (or NIL if not in tree)
-                      (nodey (gethash key hashy)))
-                 ;; Case 1:  When key not yet in tree...
-                 (when (null nodey)
-                   ;; Create new node and insert it into tree
-                   (setf nodey (insert-new-node game tree key pid))
-                  ; (format t "NODEY: ~A~%" nodey)
-                   (let* ((mv-index (select-move nodey c))
-                          (move-veck (mc-node-veck-moves nodey))
-                          (move (svref move-veck mv-index)))
-                     ;(format t "Move: <% <%  %> %>")
-                     (do-move! game move)
-                     (push key key-move-acc)
-                     (push mv-index key-move-acc)
-                     ;; return the accumulator prepended with selected MOVE
-                     ;; and KEY for current state
-                     (return-from sim-tree (reverse key-move-acc))))
+  (let ((state-move-list nil)
+        (moves (legal-moves game))
+        (s_t nil)
+        (m_t 0))
+    (dotimes (i 1000000)
+      ;; Get the state (hash key)
+      (setq s_t (make-hash-key-from-game game))
+      (setq state-move-list
+            (append state-move-list (list s_t)))
+      ;; If the state doesn't already exist
+      (unless (gethash s_t (mc-tree-hashy tree) nil)
+        (let ((cur-score 0)
+              (best-score 0)
+              (best-move 0))
+          ;; Add the new state
+          (insert-new-node game tree s_t)
+          (dotimes (move (length moves))
+            ;; Update the best-score and best-move
+            (when (< best-score cur-score)
+              (setq best-move move)
+              (setq best-score cur-score)))
+          ;; Return the state-move list
+          (return-from sim-tree (append state-move-list
+                                        (list best-move)))))
 
-                 ;; Case 2:  Key already in tree!
-                 (let* ((mv-index (select-move nodey c))
-                        (move-veck (mc-node-veck-moves nodey))
-                        (move (svref move-veck mv-index)))
-                   (do-move! game move)
-                   (push key key-move-acc)
-                   (push mv-index key-move-acc))))
+      ;; Otherwise the state does already exist so use select-move
+      (setq m_t (select-move (gethash (make-hash-key-from-game game)
+                                      (mc-tree-hashy tree)) c))
+      ;; Do the move
+      (do-move! game (svref moves m_t))
 
-        ;; After the WHILE... return the accumulated key/move list
-        (reverse key-move-acc)))
+      ;; Add it to the move list
+      (setq state-move-list
+            (append state-move-list (list m_t)))
 
-    (t 
-      (let ((state-move-list nil)
-            (moves (legal-moves game))
-            (s_t nil)
-            (m_t 0))
+      ;; When the game is over break out of the loop
+      (when (game-over? game) 
+        (return-from sim-tree state-move-list)))
 
-        (dotimes (i 1000000)
-          ;; Get the state (hash key)
-          (setq s_t (make-hash-key-from-game game))
-          (setq state-move-list
-                (append state-move-list (list s_t)))
-          ;; If the state doesn't already exist
-          (unless (gethash s_t (mc-tree-hashy tree) nil)
-            (let ((cur-score 0)
-                  (best-score 0)
-                  (best-move 0)
-                  )
-              ;; Add the new state
-              (insert-new-node game tree s_t pid)
-              (dotimes (move (length moves))
-                ;; Update the best-score and best-move
-                (when (< best-score cur-score)
-                  (setq best-move move)
-                  (setq best-score cur-score)))
-              ;; Return the state-move list
-              (return-from sim-tree (append state-move-list
-                                            (list best-move)))))
+    ;; Once the game is over return the state-move list
+    state-move-list))
 
-          ;; Otherwise the state does already exist so use select-move
-          (setq m_t (select-move (gethash (make-hash-key-from-game game)
-                                          (mc-tree-hashy tree)) c))
-
-          ;; Do the move
-          (do-move! game (svref moves m_t))
-
-          ;; Add it to the move list
-          (setq state-move-list
-                (append state-move-list (list m_t)))
-
-          ;; When the game is over break out of the loop
-          (when (game-over? game) 
-            (return-from sim-tree state-move-list)))
-
-        ;; Once the game is over return the state-move list
-        state-move-list))
-    )
-  
- ; (format t "SIm Root: ~A~%" (get-root-node tree))
-  )
 ;;  SIM-DEFAULT : GAME
 ;; ----------------------------------------------
 ;;  INPUT:  GAME, a game struct
 ;;  OUTPUT:  The result of following the game's default policy
 ;;             (domain-dependent method)
 
-(defun sim-default
+(defmacro sim-default
   (game &optional (nn nil))
-  (if nn
-    (default-policy game nn)
-    (random-policy game)))
-
+  `(if ,nn
+    (default-policy ,game ,nn)
+    (random-policy ,game)))
 
 ;;  BACKUP : HASHY KEY-MOVE-ACC RESULT
 ;; ---------------------------------------------------
@@ -445,13 +389,15 @@
       ;; Get a network 
       (with-locked-structure 
         (pool)
-        (setq nn (pop (pool-nets pool)))))
+        (setq nn (pop (pool-nets pool))))
+      (format t "Got ~A~%" (net-to-string nn))
+      )
 
     (dotimes (i total-sim)
       ;; Make a copy of the game state
       (setq game (deep-copy-go orig-game))
       ;; Run sim-tree
-      (setq state-move-list (sim-tree game orig-tree c id))
+      (time (setq state-move-list (sim-tree game orig-tree c)))
       ;; Run default
       (setq z (sim-default game nn))
       ;; Run backup
@@ -482,20 +428,20 @@
 ;;           C, the exploration/exploitation parameter
 ;;  OUTPUT:  The best move according to monte-carlo tree search.
 (defun uct-search (orig-game num-sims c &optional 
-                             (return-tree nil) 
+                             (return-tree? nil) 
                              (use-threads nil)
                              (pool nil)
                              (time-limit 10000))
-  (let ((start-time (get-internal-real-time))
-        )
+  (if pool 
+    (format t "Searching with network ~A~%" (net-to-string (first (pool-nets pool))))
+    (format t "Random search~%"))
+  (let ((start-time (get-internal-real-time)))
     (cond
       ;; Use threaded implementation
       (use-threads
         (let* ((tree (new-mc-tree orig-game num-sims))
                (barrier (mp:make-barrier (+ use-threads 1)))
-               (sims-per-thread (ceiling (/ num-sims use-threads)))
-               (nn nil)
-               )
+               (sims-per-thread (ceiling (/ num-sims use-threads))))
           ;; Spawn the threads
           (dotimes (i use-threads)
             ;; Create a process and start it running with the tree
@@ -513,10 +459,8 @@
           ;; Wait until all the threads are finished
           (mp:barrier-wait barrier)
 
-          (format t "Number of nodes ~A~%" 
-                  (hash-table-count (mc-tree-hashy tree))
-         ;         (length (legal-moves orig-game)))
-          )
+          (when return-tree? (format t "Number of nodes ~A~%" 
+                                     (hash-table-count (mc-tree-hashy tree))))
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
@@ -530,9 +474,8 @@
               (z 0)
               (cur-time 0)
               (game nil))
-          (when pool
-            (setq nn (pop (pool-nets pool)))
-            )
+          (when (< 0 (length (pool-nets pool)))
+            (setq nn (pop (pool-nets pool))))
           (dotimes (i num-sims)
             ;; Make a copy of the game state
             (setq game (deep-copy-go orig-game))
@@ -542,13 +485,13 @@
             (setq z (sim-default game nn))
             ;; Run backup
             (backup tree state-move-list z)
+
             (when (= 0 (mod i 100))
               (setq cur-time (get-internal-real-time))
               (when (< time-limit (- cur-time start-time))
                 (return))))
           (when nn
-            (push nn (pool-nets pool))
-            )
+            (push nn (pool-nets pool)))
 
           ;; Select the best move
           (svref (legal-moves orig-game) 

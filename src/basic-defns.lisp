@@ -59,6 +59,24 @@
 (defconstant *check-above* 2)
 (defconstant *check-below* 3)
 
+(defconstant *zobrist-vectors*
+             (vector
+               ;; Black
+               (make-array *board-size*)
+               ;; White
+               (make-array *board-size*)))
+
+(defun init-z-vectors ()
+  (dotimes (i 2)
+    (dotimes (j *board-size*)
+      ;; Set the vector
+      (setf (svref (svref *zobrist-vectors* i) j)
+            (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0))
+      ;; Give it a unique bit
+      (setf (sbit (svref (svref *zobrist-vectors* i) j) (* (+ 1 i) j)) 1))))
+;; Initialize vectors
+(init-z-vectors)
+
 ;; For compiling
 (defun cl (filename)
   ;;  COMPILER-FLAGS
