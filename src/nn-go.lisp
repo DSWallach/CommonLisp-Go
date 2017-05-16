@@ -507,11 +507,22 @@
 (defun play-nets (net1 net2 file-lock)
   (compete 750 1 750 1 16 16 net1 net2 nil nil file-lock))
 
+(defun play-nets-sims (net1 net2 sims1 sims2 file-lock)
+  (compete sims2 1 sims1 1 16 16 net1 net2 nil nil file-lock))
+
 (defun play-b-net (net)
   (compete 750 1 750 1 16 16  net nil nil nil nil))
 
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))
+
+(defun run-sims (num)
+  (init-lock 17)
+  (dolist (net1 *lon*)
+    (dolist (net2 *lon*)
+      (unless (equalp net1 net2)
+        (dotimes (i num)
+          (play-nets-sims net1 net2 (+ 250 i) (+ 250 i) file-lock))))))
 
 
 ;; I'm using an evolutionary algorithm instead of 

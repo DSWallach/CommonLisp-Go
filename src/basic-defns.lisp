@@ -16,7 +16,7 @@
   (setf (sys:gc-parameter :helper-threads-requested) 8)
   ;(setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
   ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 0) (safety 1) (space 0) (debug 3))))
+  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
 
 (defmacro track (funcal)
   `(gcpath:collected-newstuff () ,funcal)
