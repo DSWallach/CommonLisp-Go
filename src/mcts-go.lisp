@@ -80,7 +80,7 @@
          (new-tree (make-mc-tree :root-key root-key
                                  :hashy (make-hash-table
                                           :test #'equal
-                                          :weak-keys t ;; Lets the garbage collector 
+    ;                                      :weak-keys t ;; Lets the garbage collector 
                                                        ;; collect entries when their keys
                                                        ;; have no more references
                                           :size num-sims))))
