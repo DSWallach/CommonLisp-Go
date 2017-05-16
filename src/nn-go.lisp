@@ -332,10 +332,10 @@
 
 (defconstant *lon*
              (reverse (list 
-             ;                 "full-conn-0.25-0"
-             ;                 "full-conn-0.5-0" 
-             ;                 "full-conn-0.75-0"
-             ;                 "full-conn-1-0" 
+                              "full-conn-0.25-0"
+                              "full-conn-0.5-0" 
+                              "full-conn-0.75-0"
+                              "full-conn-1-0" 
                               "small-conn-0.25-0"
                               "small-conn-0.5-0"
                               "small-conn-0.75-0"
@@ -599,7 +599,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 250 1 250 1 48 48
+  (compete 250 1 250 1 2 2 
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -617,13 +617,11 @@
         (score2 0)
         (game nil)
         )
-	(room t)
     (format t "Round 1 ~A" pair)
 
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
-	(room t)
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -639,7 +637,6 @@
     (format t "Round 2 ~A" pair)
     ;; Then they switch
     (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
-	(room t)
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -651,7 +648,6 @@
         ;; And comp2 is white
         (incf score1 (svref (gg-subtotals game) *white*))
         ))
-	(room t)
     ;; Evaluate the winner
     (cond 
       ;; If comp1 was the victor
@@ -753,7 +749,6 @@
                                   file-lock)
           (face-off pair gen barrier file-lock))
         ;    )
-	(room t)
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
         )
