@@ -151,7 +151,7 @@
 
               ;; Merge it with the remaining groups 
               (dolist (group connected-groups)
-                (merge-groups! new-group group)) 
+                (setq new-group (merge-groups! new-group group)))
 
               ;; Update it with the new piece 
               (add-piece! new-group)
@@ -167,6 +167,7 @@
 ;;  Works like the chess-solns function of the same name
 (defun do-move! (game pos &optional (verbose? nil))
   (declare (ignore verbose?))
+  (format t "Groups ~A~%" (gg-groups game))
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
@@ -462,8 +463,7 @@
                       (list group)
                       #'group-order?
                       ))
-         )
-        )
+         ))
       )))
 
 ;;  PLAY-MOVE!

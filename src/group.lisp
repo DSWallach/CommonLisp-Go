@@ -49,7 +49,7 @@
   (declare (ignore depth))
   (format str "{~A," (group-alive? group))
   (format str "~A," (group-pieces group))
- ; (format str "~A," (group-merge-marker group))
+  (format str "~A," (group-merge-marker group))
   (format str "~A," (group-area group))
   (format str "~A," (group-liberties group))
   (format str "~A} " (group-territory group)))
@@ -58,24 +58,25 @@
 ;; --------------------------------------
 ;;  Initializes a group with a piece at ROW, COL
 (defun init-group (&optional (row nil) (col nil))
+  (format t "Row ~A Col ~A~%" row col)
   (if (and row col)
     (make-group 
       :alive? -1
       :pieces (list (row-col->pos row col))
       :area (vector row col row col)
       :liberties 0
-      :merge-marker nil
+      :merge-marker (list)
       :last-pos 0
-      :territory 0))
+      :territory 0)
     (make-group 
       :alive? -1
       :pieces (list)
       :area (vector 0 0 0 0)
       :liberties 0
-      :merge-marker nil
+      :merge-marker (list) 
       :last-pos 0
       :territory 0)
-    )
+    ))
 
 
 ;;  EYE-AT? : BOARD PLAYER POSN
@@ -522,7 +523,7 @@
     :pieces (copy-seq (group-pieces ,group)) 
     :area (copy-seq (group-area ,group)) 
     :liberties (group-liberties ,group) 
-    :merge-marker (copy-seq (group-merge-marker ,group)) 
+    :merge-marker (deep-copy-list (group-merge-marker ,group) 'copy-seq) 
     :last-pos (group-last-pos ,group)
     :territory (group-territory ,group)))
 
@@ -536,7 +537,6 @@
         (max-col (svref (group-area group-two) *max-col*))
         (new-group (make-new-group group-one))
         )
-    (format t "New Group ~A~%" new-group)
 
     ;; Create the merger from the first piece of a group
     ;; and its merge markers
@@ -561,19 +561,22 @@
       (setf (svref (group-area new-group) *max-row*) max-row))
 
     (when (> max-col (svref (group-area group-one) *max-col*))
-      (setf (svref (group-area new-group) *max-col*) max-col))))
+      (setf (svref (group-area new-group) *max-col*) max-col))
+    (format t "New Group ~A~%" new-group)
+    new-group))
 
 ;;  SEPERATE-GROUP! : GROUP GAME
 ;; -------------------------------
 ;;  Reverse MERGE-GROUPS!, for use by UNDO-MOVE!
 (defun seperate-group! (group game)
+  (format t "Seperate ~A~%" group)
   (let* ((new-group (init-group))
          (old-group (make-new-group group))
-        (piece nil)
-        (mark-vec (pop (group-merge-marker old-group)))
-        (mark (svref mark-vec 0)) 
-        (merge-marker (svref mark-vec 1))
-        )
+         (piece nil)
+         (mark-vec (pop (group-merge-marker old-group)))
+         (mark (svref mark-vec 0)) 
+         (merge-marker (svref mark-vec 1))
+         )
 
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
@@ -595,7 +598,7 @@
                    (t
                      ;; Push the piece
                      (push piece (group-pieces new-group))))))
-             )
+            )
 
       ;; Get the pieces
       (get-pieces (length (group-pieces old-group)))
@@ -603,7 +606,7 @@
       ;; Return the merge marker
       (setf (group-merge-marker new-group)
             merge-marker)
-      
+
       ;; Calculate areas
       (calc-area! old-group)
       (calc-area! new-group)
