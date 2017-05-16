@@ -63,8 +63,6 @@
               :territory 0))
 
 
-
-
 ;;  EYE-AT? : BOARD PLAYER POSN
 ;; --------------------------
 ;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
@@ -492,9 +490,14 @@
     ;; Add them to player's captures
     (push group (svref (gg-captures game) player))
 
-    ;; Remove the pieces from the board
+    ;; For each piece
    (dolist (p (group-pieces group)) 
-     (setf (svref (gg-board game) p) 0))
+    ;; Remove the piece from the board
+     (setf (svref (gg-board game) p) 0)
+     ;; Update the hash
+     (setf (gg-board-hash game)
+           (bit-xor (gg-board-hash game)
+                    (svref (svref *zobrist-vectors* player) p))))
    ))
 
 ;;  MERGE-GROUPS! : GAME GROUP-ONE GROUP-TWO

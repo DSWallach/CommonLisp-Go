@@ -487,13 +487,11 @@
   (compete 81 2 1 2 nil nil net1 net2)
   )
 
-(defun play-nets (net1 net2)
-  (compete 500 1 500 1 16 16 net1 net2 nil nil t)
-  )
+(defun play-nets (net1 net2 file-lock)
+  (compete 500 1 500 1 16 16 net1 net2 nil nil file-lock))
 
 (defun play-b-net (net)
-  (compete 250 1 81 1 nil nil net nil nil nil t)
-  )
+  (compete 500 1 500 1 16 16  net nil nil nil t))
 
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))

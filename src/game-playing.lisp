@@ -82,8 +82,13 @@
        )
 
       ;; Put the piece on the board 
-      (setf (svref (gg-board game) pos) 
-            (+ (player->piece player)))
+      (incf (svref (gg-board game) pos) 
+            (player->piece player))
+      ;; Update the hash key
+
+      (setf (gg-board-hash game)
+            (bit-xor (gg-board-hash game)
+                     (svref (svref *zobrist-vectors* player) pos)))
 
       ;; If there are no groups 
       (if (null (svref (gg-groups game) player)) 
@@ -340,9 +345,16 @@
 
               (setq group (pop (svref (gg-captures game) opponent)))
 
-              ;; Add the group's pieces to the board
+              ;; For each piece in the group
               (dolist (p (group-pieces group))
-                (setf (svref (gg-board game) p) (player->piece player)))
+              ;; Add the group's pieces to the board
+                (setf (svref (gg-board game) p) 
+                      (player->piece player))
+                ;; Update the hash
+                (setf (gg-board-hash game)
+                      (bit-xor (gg-board-hash game)
+                               (svref (svref *zobrist-vectors* player) p)))
+                )
 
               ;; Add the group back in it's previous position
               (setf (svref (gg-groups game) player)
@@ -406,6 +418,11 @@
 
       ;; Remove the piece from the game board
       (setf (svref (gg-board game) pos) 0)
+
+      ;; Remove the piece from the hash key
+      (setf (gg-board-hash game)
+            (bit-xor (gg-board-hash game)
+                     (svref (svref *zobrist-vectors* player) pos)))
 
       ;; Remove the piece from its group
       (pop (group-pieces group))

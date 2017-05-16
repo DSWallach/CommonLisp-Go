@@ -80,8 +80,10 @@
          (new-tree (make-mc-tree :root-key root-key
                                  :hashy (make-hash-table
                                           :test #'equal
-                                          :size num-sims)))
-         )
+                                          :weak-keys t ;; Lets the garbage collector 
+                                                       ;; collect entries when their keys
+                                                       ;; have no more references
+                                          :size num-sims))))
     (insert-new-node game new-tree root-key)
     new-tree))
 
@@ -491,7 +493,7 @@
     (cond
       ;; Use threaded implementation
       (use-threads
-        (let* ((tree (new-mc-tree orig-game))
+        (let* ((tree (new-mc-tree orig-game num-sims))
                (barrier (mp:make-barrier (+ use-threads 1)))
                (sims-per-thread (ceiling (/ num-sims use-threads)))
                (nn nil)

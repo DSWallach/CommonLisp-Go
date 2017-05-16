@@ -1,0 +1,75 @@
+Mappings from /proc/self/maps:
+00400000-00404000 r-xp 00000000 00:27 343304                             /opt/acl10.1-smp.64/alisp
+00603000-00604000 rw-p 00003000 00:27 343304                             /opt/acl10.1-smp.64/alisp
+00604000-00608000 rw-p 00000000 00:00 0 
+00815000-00836000 rw-p 00000000 00:00 0                                  [heap]
+10000000000-10000834000 rwxp 0001c000 00:27 1101210                      /opt/acl10.1-smp.64/alisp.dxl
+10000834000-10000a40000 rwxp 00000000 00:00 0 
+10000a40000-10000bc2000 rwxp 00850000 00:27 1101210                      /opt/acl10.1-smp.64/alisp.dxl
+10000bc2000-10000cc8000 rwxp 00000000 00:00 0 
+10000cc8000-10000cca000 rwxp 009d2000 00:27 1101210                      /opt/acl10.1-smp.64/alisp.dxl
+10000cca000-10000dc8000 rwxp 00000000 00:00 0 
+10000dc8000-10000dce000 rwxp 009d4000 00:27 1101210                      /opt/acl10.1-smp.64/alisp.dxl
+10000dce000-1003d38e000 rwxp 00000000 00:00 0 
+80000000000-8000001c000 rwxp 009da000 00:27 1101210                      /opt/acl10.1-smp.64/alisp.dxl
+8000001c000-800000fa000 rwxp 00000000 00:00 0 
+7f560e4ba000-7f560ef7a000 r-xs 00000000 00:27 343428                     /opt/acl10.1-smp.64/acli10196s.pll
+7fd3d8000000-7fd3d8021000 rw-p 00000000 00:00 0 
+7fd3d8021000-7fd3dc000000 ---p 00000000 00:00 0 
+7fd3dc000000-7fd3dc021000 rw-p 00000000 00:00 0 
+7fd3dc021000-7fd3e0000000 ---p 00000000 00:00 0 
+7fd3e0000000-7fd3e0021000 rw-p 00000000 00:00 0 
+7fd3e0021000-7fd3e4000000 ---p 00000000 00:00 0 
+7fd3e49a3000-7fd3e49a4000 ---p 00000000 00:00 0 
+7fd3e49a4000-7fd3e4ba4000 rwxp 00000000 00:00 0 
+7fd3e4ba4000-7fd3e4ba5000 ---p 00000000 00:00 0 
+7fd3e4ba5000-7fd3e4da5000 rwxp 00000000 00:00 0 
+7fd3e4da5000-7fd3e4da6000 ---p 00000000 00:00 0 
+7fd3e4da6000-7fd3e4fa6000 rwxp 00000000 00:00 0 
+7fd3e4fa6000-7fd3e4fa7000 ---p 00000000 00:00 0 
+7fd3e4fa7000-7fd3e51a7000 rwxp 00000000 00:00 0 
+7fd3e51a7000-7fd3ebd41000 r--p 00000000 00:27 835615                     /usr/lib/locale/locale-archive
+7fd3ebd41000-7fd3ebd4c000 r-xp 00000000 00:27 584867                     /usr/lib64/libnss_files-2.25.so
+7fd3ebd4c000-7fd3ebf4b000 ---p 0000b000 00:27 584867                     /usr/lib64/libnss_files-2.25.so
+7fd3ebf4b000-7fd3ebf4c000 r--p 0000a000 00:27 584867                     /usr/lib64/libnss_files-2.25.so
+7fd3ebf4c000-7fd3ebf4d000 rw-p 0000b000 00:27 584867                     /usr/lib64/libnss_files-2.25.so
+7fd3ebf4d000-7fd3ebf53000 rw-p 00000000 00:00 0 
+7fd3ebf53000-7fd3ecf53000 rwxp 00000000 00:00 0 
+7fd3ecf53000-7fd3ecf54000 ---p 00000000 00:00 0 
+7fd3ecf54000-7fd3ed154000 rwxp 00000000 00:00 0 
+7fd3ed154000-7fd3ed243000 r-xp 00000000 00:27 1100884                    /opt/acl10.1-smp.64/libacli10196s.so
+7fd3ed243000-7fd3ed443000 ---p 000ef000 00:27 1100884                    /opt/acl10.1-smp.64/libacli10196s.so
+7fd3ed443000-7fd3ed451000 rw-p 000ef000 00:27 1100884                    /opt/acl10.1-smp.64/libacli10196s.so
+7fd3ed451000-7fd3ed636000 rw-p 00000000 00:00 0 
+7fd3ed636000-7fd3ed7fd000 r-xp 00000000 00:27 584853                     /usr/lib64/libc-2.25.so
+7fd3ed7fd000-7fd3ed9fd000 ---p 001c7000 00:27 584853                     /usr/lib64/libc-2.25.so
+7fd3ed9fd000-7fd3eda01000 r--p 001c7000 00:27 584853                     /usr/lib64/libc-2.25.so
+7fd3eda01000-7fd3eda03000 rw-p 001cb000 00:27 584853                     /usr/lib64/libc-2.25.so
+7fd3eda03000-7fd3eda07000 rw-p 00000000 00:00 0 
+7fd3eda07000-7fd3eda0a000 r-xp 00000000 00:27 584857                     /usr/lib64/libdl-2.25.so
+7fd3eda0a000-7fd3edc09000 ---p 00003000 00:27 584857                     /usr/lib64/libdl-2.25.so
+7fd3edc09000-7fd3edc0a000 r--p 00002000 00:27 584857                     /usr/lib64/libdl-2.25.so
+7fd3edc0a000-7fd3edc0b000 rw-p 00003000 00:27 584857                     /usr/lib64/libdl-2.25.so
+7fd3edc0b000-7fd3edd20000 r-xp 00000000 00:27 584859                     /usr/lib64/libm-2.25.so
+7fd3edd20000-7fd3edf1f000 ---p 00115000 00:27 584859                     /usr/lib64/libm-2.25.so
+7fd3edf1f000-7fd3edf20000 r--p 00114000 00:27 584859                     /usr/lib64/libm-2.25.so
+7fd3edf20000-7fd3edf21000 rw-p 00115000 00:27 584859                     /usr/lib64/libm-2.25.so
+7fd3edf21000-7fd3edf28000 r-xp 00000000 00:27 584873                     /usr/lib64/librt-2.25.so
+7fd3edf28000-7fd3ee127000 ---p 00007000 00:27 584873                     /usr/lib64/librt-2.25.so
+7fd3ee127000-7fd3ee128000 r--p 00006000 00:27 584873                     /usr/lib64/librt-2.25.so
+7fd3ee128000-7fd3ee129000 rw-p 00007000 00:27 584873                     /usr/lib64/librt-2.25.so
+7fd3ee129000-7fd3ee142000 r-xp 00000000 00:27 584869                     /usr/lib64/libpthread-2.25.so
+7fd3ee142000-7fd3ee341000 ---p 00019000 00:27 584869                     /usr/lib64/libpthread-2.25.so
+7fd3ee341000-7fd3ee342000 r--p 00018000 00:27 584869                     /usr/lib64/libpthread-2.25.so
+7fd3ee342000-7fd3ee343000 rw-p 00019000 00:27 584869                     /usr/lib64/libpthread-2.25.so
+7fd3ee343000-7fd3ee347000 rw-p 00000000 00:00 0 
+7fd3ee347000-7fd3ee36d000 r-xp 00000000 00:27 584846                     /usr/lib64/ld-2.25.so
+7fd3ee540000-7fd3ee544000 rw-p 00000000 00:00 0 
+7fd3ee56b000-7fd3ee56d000 rw-p 00000000 00:00 0 
+7fd3ee56d000-7fd3ee56e000 r--p 00026000 00:27 584846                     /usr/lib64/ld-2.25.so
+7fd3ee56e000-7fd3ee570000 rw-p 00027000 00:27 584846                     /usr/lib64/ld-2.25.so
+7ffd809ba000-7ffd809f2000 rwxp 00000000 00:00 0                          [stack]
+7ffd809f2000-7ffd809f5000 rw-p 00000000 00:00 0 
+7ffd809f7000-7ffd809f9000 r--p 00000000 00:00 0                          [vvar]
+7ffd809f9000-7ffd809fb000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]

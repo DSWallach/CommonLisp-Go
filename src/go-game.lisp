@@ -4,6 +4,25 @@
 ;; =================================
 
 
+(defconstant *zobrist-vectors*
+             (vector
+               ;; Black
+               (make-array *board-size*)
+               ;; White
+               (make-array *board-size*)))
+
+(defun init-z-vectors ()
+  (dotimes (i 2)
+    (dotimes (j *board-size*)
+      ;; Set the vector
+      (setf (svref (svref *zobrist-vectors* i) j)
+            (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0))
+      ;; Give it a unique bit
+      (setf (sbit (svref (svref *zobrist-vectors* i) j) (* (+ 1 i) j)) 1))))
+
+(init-z-vectors)
+
+
 ;;;;; GO-GAME STRUCT/FUNCS 
 
 ;;  GO-GAME struct
@@ -11,33 +30,96 @@
                     (:conc-name gg-))
   ;; The board is a simple vector. Positions on the
   ;; board are referenced using the go-position function 
-  (board (make-array *board-size* :initial-element 0))
+  board
+  ;; The hash key for the current board state
+  board-hash 
   ;; Groups captured by each player
   ;; necessary to be able to destructively undo moves
-  (captures (vector () ()))
+  captures 
   ;; Vector with pointers to the lists containing Black and White groups
-  (groups (vector () ()))
+  groups
   ;; Black plays first
-  (whose-turn? *black*)
+  whose-turn?
   ;; Points for white
-  (komi 0)
+  komi
   ;; When true get-legal-moves will check for Ko situations
-  (ko? nil)
-  ;; Current scores for each player (hold over from Alpha Beta)
-  (subtotals (vector 0 0))
+  ko?
+  ;; Current scores for each player hold over from Alpha Beta)
+  subtotals
   ;; Arrays indicating what board positions are eyes
-  (eyes (vector (make-array *board-size* :initial-element 0)
-                (make-array *board-size* :initial-element 0)))
+  eyes
   ;; So groups aren't captured twice
-  (over? nil)
-  ;; List of vectors #(a b c) where
+  over? 
+  ;; List of vectors #a b c) where
   ;; a == row played at
   ;; b == col played at
   ;; c == number of groups captured by the move
-  (move-history nil)
+  move-history
   ;; History of the board state, used to check for ko
-  (board-history nil) 
-  )
+  board-history)
+
+
+;;  INIT-GAME
+;; ---------------------------------------
+;;  INPUTS:  HANDICAP, an integer representing the number 
+;;           of pieces to be set by the black player 
+;;           before the game begins. A value of 0
+;;           will have start the game with a komi of 0
+;;           effectively a handicap for the black player.
+;;
+;;           KOMI, the number of points given to the white 
+;;           player at the beginning of non-handicap games 
+;;           to balance out black getting to place the first move
+;;   
+;;  OUTPUS: A go-game struct. If no handicap 
+;;      or komi is provided, komi is set at
+;;      6.5 for komi. Standard under most 
+;;      go rules. Since the effect of the ".5" is
+;;      to ensure white wins if there otherwise would 
+;;      a tie. I'm using 6 and setting it as a rule of
+;;      game evaluation function that white wins if there
+;;      is a tie.
+;; NOTE: Komi may be a good idea for humans but I think
+;;       it gives too much of an advantage to white for
+;;       for the A.I. When competing with an equal number
+;;       of sims, white often wins by 6~7 points. I think
+;;       this is because by playing second white always has
+;;       a smaller search space than black so each simulation
+;;       is more valuable. This I think more tahn balances out
+;;       black's advantage of playing first. So for the A.I. 
+;;       competitions I'm setting komi to 0
+(defun init-game (&optional (handicap -1) (komi 0))
+  (when (= handicap -1)
+    (make-go-game 
+      ;; board are referenced using the go-position function 
+      :board (make-array *board-size* :initial-element 0)
+      ;; The hash key for the current board state
+      :board-hash (make-array (* 2 *board-size*):element-type 'bit :initial-element 0)
+      ;; Groups captured by each player
+      ;; necessary to be able to destructively undo moves
+      :captures (vector '() '())
+      ;; Vector with pointers to the lists containing Black and White groups
+      :groups (vector '() '())
+      ;; Black plays first
+      :whose-turn? *black*
+      ;; Points for white
+      :komi komi
+      ;; When true get-legal-moves will check for Ko situations
+      :ko? nil
+      ;; Current scores for each player :hold over from Alpha Beta)
+      :subtotals (vector 0 0)
+      ;; Arrays indicating what board positions are eyes
+      :eyes (vector (make-array *board-size* :initial-element 0)
+                    (make-array *board-size* :initial-element 0))
+    ;; So groups aren't captured twice
+    :over? nil
+    ;; List of vectors #:a b c) where
+    ;; a == row played at
+    ;; b == col played at
+    ;; c == number of groups captured by the move
+    :move-history nil
+    ;; History of the board state, used to check for ko
+    :board-history nil)))
 
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
@@ -168,6 +250,11 @@
 ;;  EQUAL-GO?
 ;; -----------------------
 (defun equal-go? (game0 game1 &optional (print-to nil))
+  ;; If their hashes are different return immediately
+  (unless (eql (gg-board-hash game0)
+               (gg-board-hash game1)
+               )
+    (return-from equal-go? nil))
   (let ((board-0 (gg-board game0))
         (board-1 (gg-board game1))
         (black-groups-0 (svref (gg-groups game0) *black*))
@@ -257,25 +344,14 @@
 
 ;;  MAKE-HASH-KEY-FROM-GAME : GAME
 ;; ---------------------------------
-;; The hash key is the current state of the board.
-;; Represented as a bit vector twice the size of the
-;; board, 1's in the first board size represent black's
-;; pieces. 1's after that are white's pieces
+;; Using Zobrist hashing. Defined above is a randomly generated
+;; bitvector unique to each piece (white or black), and board 
+;; position. The hash is the xor of all these bitvectors
 (defmacro make-hash-key-from-game (game)
-  `(let ((board-vec (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0)))
-     (dotimes (i (length (gg-board ,game)))
-       (cond 
-         ((= 1 (svref (gg-board ,game) i))
-          (setf (sbit board-vec i) 1)
-          )
-         ((= -1 (svref (gg-board ,game) i))
-          (setf (sbit board-vec (+ i *board-size*)) 1)
-          )))
-     ;; Indicate who'se turn
-     (when (= (gg-whose-turn? ,game) *white*)
-       (setf (sbit board-vec (* 2 *board-size*)) 1))
-     board-vec))
-
+  ;; The hash is computed when a move is performed
+  ;; so just make a indenticate bit vector
+  `(let ((key (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0)))
+              (bit-xor key (gg-board-hash ,game))))
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
@@ -358,6 +434,7 @@
                   :captures (vector b-caps w-caps)
                   :groups (vector b-groups w-groups)
                   :whose-turn? (gg-whose-turn? game)
+                  :board-hash (copy-seq (gg-board-hash game))
                   :komi (gg-komi game)
                   :ko? (gg-ko? game)
                   :subtotals (vector b-subs w-subs)
@@ -506,38 +583,6 @@
     ;; Otherwise the game is still going
     ))
 
-;;  INIT-GAME
-;; ---------------------------------------
-;;  INPUTS:  HANDICAP, an integer representing the number 
-;;           of pieces to be set by the black player 
-;;           before the game begins. A value of 0
-;;           will have start the game with a komi of 0
-;;           effectively a handicap for the black player.
-;;
-;;           KOMI, the number of points given to the white 
-;;           player at the beginning of non-handicap games 
-;;           to balance out black getting to place the first move
-;;   
-;;  OUTPUS: A go-game struct. If no handicap 
-;;      or komi is provided, komi is set at
-;;      6.5 for komi. Standard under most 
-;;      go rules. Since the effect of the ".5" is
-;;      to ensure white wins if there otherwise would 
-;;      a tie. I'm using 6 and setting it as a rule of
-;;      game evaluation function that white wins if there
-;;      is a tie.
-;; NOTE: Komi may be a good idea for humans but I think
-;;       it gives too much of an advantage to white for
-;;       for the A.I. When competing with an equal number
-;;       of sims, white often wins by 6~7 points. I think
-;;       this is because by playing second white always has
-;;       a smaller search space than black so each simulation
-;;       is more valuable. This I think more tahn balances out
-;;       black's advantage of playing first. So for the A.I. 
-;;       competitions I'm setting komi to 0
-(defun init-game (&optional (handicap -1) (komi 0))
-  (when (= handicap -1)
-    (make-go-game :komi komi)))
 
 ;;  CHECK-ORDER? : GAME
 ;; -----------------------------------
