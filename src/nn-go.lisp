@@ -252,12 +252,16 @@
   nets
   )
 
+
+;; Needs to start with a fresh nn
+;; having multiple pools of the same nn causes memory issues
 (defun init-pool (nn num-nets)
-  (let ((p (make-pool)))
+  (let ((p (make-pool))
+        (net (deep-copy-nn nn)))
     (with-locked-structure 
       (p)
       (dotimes (i num-nets)
-        (push (deep-copy-nn-outputs nn) (pool-nets p))))
+        (track (push (deep-copy-nn-outputs nn) (pool-nets p)))))
     p))
 
 (defun init-nn-pool (&optional (net-name nil) (num-cores 2))
@@ -488,10 +492,10 @@
   (compete 81 2 1 2 nil nil net1 net2))
 
 (defun play-nets (net1 net2 file-lock)
-  (compete 500 1 500 1 nil nil net1 net2 nil nil file-lock))
+  (compete 500 1 500 1 16 16 net1 net2 nil nil file-lock))
 
 (defun play-b-net (net)
-  (compete 500 1 500 1 16 16  net nil nil nil t))
+  (compete 500 1 500 1 2 2  net nil nil nil nil))
 
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))

@@ -526,7 +526,7 @@
       ;; Otherwise perform the operations sequentially
       (t
         (let ((state-move-list nil)
-              (tree (new-mc-tree orig-game))
+              (tree (new-mc-tree orig-game num-sims))
               (nn nil)
               (z 0)
               (cur-time 0)

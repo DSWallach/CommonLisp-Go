@@ -7,15 +7,15 @@
 ;;  is added to their score estimate
 (defstruct (group (:print-function print-group)
                   )
-  alive? ;; Possible values: 1 = definitely alive
-  ;;                  0 = definitely dead
-  ;;                 -1 = indeterminate at current time
-  pieces 
-  area
-  liberties
-  merge-marker
-  last-pos ; Set when a group is captured
-  territory)
+  (alive? -1) ;; Possible values: 1 = definitely alive
+              ;;                  0 = definitely dead
+              ;;                 -1 = indeterminate at current time
+  (pieces ())
+  (area (vector 0 0 0 0))
+  (liberties 0)
+  (merge-marker nil)
+  (last-pos 0) ; Set when a group is captured
+  (territory 0))
 
 ;;  EQUAL-GROUP? GROUP-ONE GROUP-TWO
 ;; ------------------------------------
@@ -38,7 +38,7 @@
               :pieces (copy-seq (group-pieces group))
               :area (copy-seq (group-area group))
               :liberties (group-liberties group)
-              :merge-marker (deep-copy-list (group-merge-marker group) 'deep-copy-list)
+              :merge-marker (copy-seq (group-merge-marker group))
               :last-pos (group-last-pos group)
               :territory (group-territory group)))
 
@@ -49,7 +49,7 @@
   (declare (ignore depth))
   (format str "{~A," (group-alive? group))
   (format str "~A," (group-pieces group))
-  (format str "~A," (group-merge-marker group))
+ ; (format str "~A," (group-merge-marker group))
   (format str "~A," (group-area group))
   (format str "~A," (group-liberties group))
   (format str "~A} " (group-territory group)))
@@ -57,26 +57,10 @@
 ;;  INIT-GROUP : ROW COL BOARD
 ;; --------------------------------------
 ;;  Initializes a group with a piece at ROW, COL
-(defun init-group (&optional (row nil) (col nil))
-  (format t "Row ~A Col ~A~%" row col)
-  (if (and row col)
-    (make-group 
-      :alive? -1
-      :pieces (list (row-col->pos row col))
-      :area (vector row col row col)
-      :liberties 0
-      :merge-marker (list)
-      :last-pos 0
-      :territory 0)
-    (make-group 
-      :alive? -1
-      :pieces (list)
-      :area (vector 0 0 0 0)
-      :liberties 0
-      :merge-marker (list) 
-      :last-pos 0
-      :territory 0)
-    ))
+(defun init-group (row col)
+  (make-group :pieces (list (row-col->pos row col))
+              :area (vector row col row col)
+              :territory 0))
 
 
 ;;  EYE-AT? : BOARD PLAYER POSN
@@ -516,17 +500,6 @@
                     (svref (svref *zobrist-vectors* player) p))))
    ))
 
-
-(defmacro make-new-group (group)
-`(make-group 
-    :alive? (group-alive? ,group) 
-    :pieces (copy-seq (group-pieces ,group)) 
-    :area (copy-seq (group-area ,group)) 
-    :liberties (group-liberties ,group) 
-    :merge-marker (deep-copy-list (group-merge-marker ,group) 'copy-seq) 
-    :last-pos (group-last-pos ,group)
-    :territory (group-territory ,group)))
-
 ;;  MERGE-GROUPS! : GAME GROUP-ONE GROUP-TWO
 ;; -------------------------------------------
 ;;  Merge two groups into one larger group
@@ -535,48 +508,46 @@
         (min-col (svref (group-area group-two) *min-col*))
         (max-row (svref (group-area group-two) *max-row*))
         (max-col (svref (group-area group-two) *max-col*))
-        (new-group (make-new-group group-one))
+        (merger nil)
         )
-
+    
     ;; Create the merger from the first piece of a group
     ;; and its merge markers
+    (setq merger (vector (first (group-pieces group-two))
+                         (group-merge-marker group-two)))
 
     ;; Push the first piece from the group onto the merge-marker
-    (push (vector (first (group-pieces group-two))
-                  (group-merge-marker group-two))
-          (group-merge-marker new-group))
+    (push merger 
+          (group-merge-marker group-one))
 
     ;; Push all the pieces of group-two onto group-one
     (dolist (piece (group-pieces group-two))
-      (push piece (group-pieces new-group)))
+      (push piece (group-pieces group-one)))
 
     ;; Update Area where necessary
     (when (< min-row (svref (group-area group-one) *min-row*))
-      (setf (svref (group-area new-group) *min-row*) min-row))
+      (setf (svref (group-area group-one) *min-row*) min-row))
 
     (when (< min-col (svref (group-area group-one) *min-col*))
-      (setf (svref (group-area new-group) *min-col*) min-col))
+      (setf (svref (group-area group-one) *min-col*) min-col))
 
     (when (> max-row (svref (group-area group-one) *max-row*))
-      (setf (svref (group-area new-group) *max-row*) max-row))
+      (setf (svref (group-area group-one) *max-row*) max-row))
 
     (when (> max-col (svref (group-area group-one) *max-col*))
-      (setf (svref (group-area new-group) *max-col*) max-col))
-    (format t "New Group ~A~%" new-group)
-    new-group))
+      (setf (svref (group-area group-one) *max-col*) max-col))
+    ))
 
 ;;  SEPERATE-GROUP! : GROUP GAME
 ;; -------------------------------
 ;;  Reverse MERGE-GROUPS!, for use by UNDO-MOVE!
 (defun seperate-group! (group game)
-  (format t "Seperate ~A~%" group)
-  (let* ((new-group (init-group))
-         (old-group (make-new-group group))
-         (piece nil)
-         (mark-vec (pop (group-merge-marker old-group)))
-         (mark (svref mark-vec 0)) 
-         (merge-marker (svref mark-vec 1))
-         )
+  (let* ((new-group (make-group))
+        (piece nil)
+        (mark-vec (pop (group-merge-marker group)))
+        (mark (svref mark-vec 0)) 
+        (merge-marker (svref mark-vec 1))
+        )
 
     ;; Seperate-group! shouldn't be called if there are no 
     ;; merged groups.
@@ -585,7 +556,7 @@
                ;; Remove all the the pieces from the most recent merge 
                ;; and add them to the new group
                (dotimes (i times)
-                 (setq piece (pop (group-pieces old-group)))
+                 (setq piece (pop (group-pieces group)))
 
                  ;; If the piece is equal to the mark
                  (cond 
@@ -598,25 +569,25 @@
                    (t
                      ;; Push the piece
                      (push piece (group-pieces new-group))))))
-            )
+             )
 
       ;; Get the pieces
-      (get-pieces (length (group-pieces old-group)))
+      (get-pieces (length (group-pieces group)))
 
       ;; Return the merge marker
       (setf (group-merge-marker new-group)
             merge-marker)
-
+      
       ;; Calculate areas
-      (calc-area! old-group)
+      (calc-area! group)
       (calc-area! new-group)
 
       ;; Update groups
-      (update-group! old-group game)
+      (update-group! group game)
       (update-group! new-group game)
 
-      ;; Return the groups 
-      (list old-group new-group))))
+      ;; Return the new group 
+      new-group)))
 
 ;;  UPDATE-GROUP! : GAME GROUP PLAYER
 ;; -----------------------------------------------

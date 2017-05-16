@@ -421,7 +421,6 @@
 ;;  Creates a deep copy of a go game struct
 ;;  Doesn't dopy copy game history
 (defun deep-copy-go (game)
-  (format t "Deep Copy Go ~A~%" game)
   (let ((b-caps (deep-copy-list (svref (gg-captures game) *black*) 'deep-copy-group))
         (w-caps (deep-copy-list (svref (gg-captures game) *white*) 'deep-copy-group))
         (b-groups (deep-copy-list (svref (gg-groups game) *black*) 'deep-copy-group))
@@ -446,7 +445,6 @@
                   :board-history (deep-copy-list (gg-board-history game) 'copy-seq)
                   :move-history (deep-copy-list (gg-move-history game) 'copy-seq)
                   ))
-    (format t "New Game ~A~%" new-game)
     new-game)
   )
 

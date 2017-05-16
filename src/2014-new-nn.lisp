@@ -158,6 +158,20 @@
              :weight-arrays weights
              :delta-vecks deltas)))
 
+(defun deep-copy-nn (nn)
+  (let ((name (nn-family-name nn))
+        (id (nn-id nn))
+        (sizes (nn-layer-sizes nn))
+        (size-list (list))
+        ;; New memory is allocated for outputs 
+        (weights (nn-weight-arrays nn))
+        )
+    (dotimes (i (length sizes))
+      (push (svref sizes (- (length sizes) i 1))
+            size-list))
+
+
+    (init-nn size-list weights name id)))
 
 
 (defun map-short (arr)
