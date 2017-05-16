@@ -88,7 +88,7 @@
 ;;       is more valuable. This I think more tahn balances out
 ;;       black's advantage of playing first. So for the A.I. 
 ;;       competitions I'm setting komi to 0
-(defun init-game (&optional (handicap -1) (komi 0))
+(defun init-game (&optional (handicap -1) (komi 6))
   (when (= handicap -1)
     (make-go-game 
       ;; board are referenced using the go-position function 

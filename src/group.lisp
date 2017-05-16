@@ -81,7 +81,9 @@
                  (t (setq ,eye-case (svref ,board (+ ,posn 1)))
                     (cond 
                       ((= ,player ,eye-case) (incf ,player-counter))
-                      ((= ,opponent ,eye-case) (incf ,opponent-counter)))
+                      ((= ,opponent ,eye-case) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                      )
                     t)))
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -92,29 +94,42 @@
                  (t(setq ,eye-case (svref ,board (- ,posn 1)))
                    (cond 
                      ((= ,player ,eye-case) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ;; Handle the corner case where going off the board
+                 ;; will be a legitimate board position b/c the board
+                 ;; is a simple vector
+                 ((= 0 ,posn) 
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (+ ,posn (- *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (- *board-length* 1))))
                    (cond 
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= ,posn (- *board-size* 1))
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (- ,posn (- *board-length* 1))))
                   (incf ,player-counter) 
                   t)
                  (t(setq ,eye-case (svref ,board (- ,posn (- *board-length* 1))))
                    (cond 
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -125,7 +140,9 @@
                  (t(setq ,eye-case (svref ,board (+ ,posn *board-length*)))
                    (cond
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -133,32 +150,42 @@
                  ((= 1 (svref ,eyes (- ,posn *board-length*)))
                   (incf ,player-counter)
                   t)
-                 (t(setq ,eye-case (svref ,board (- ,posn *board-length*)))
+                 (t (setq ,eye-case (svref ,board (- ,posn *board-length*)))
                    (cond
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= (- *board-length* 1)) 
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (+ ,posn (+ *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (+ *board-length* 1))))
                    (cond 
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= ,posn (- *board-size* *board-length*))
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (- ,posn (+ *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (- ,posn (+ *board-length* 1))))
                    (cond
                      ((= ,eye-case ,player) (incf ,player-counter))
-                     ((= ,eye-case ,opponent) (incf ,opponent-counter)))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t)))
        (incf ,player-counter))
      (cond 
@@ -173,7 +200,6 @@
        (t 
          (setq ,eye-case -1))
        )))
-
 
 ;; A second eye cannot be formed directly adjacent
 ;; to another eye.

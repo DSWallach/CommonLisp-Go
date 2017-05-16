@@ -75,15 +75,19 @@
       (unless (= *board-size* move)
         (when (> (ssvref output move) best-score)
           (setq best-score (ssvref output move))
-          (setq best-move move)
-          )))
+          (setq best-move move))))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
     ;; Return the best move
-    (if (< 0.0004 best-move)
-      best-move
-      ;; If isn't above the threashold return pass as the best move 
-      *board-size*)
-    ))
+    (if (eq player *black*)
+      (if (> 0.001 best-move)
+        best-move
+        ;; If isn't above the threashold return pass as the best move 
+        *board-size*)
+      (if (< -0.001 best-move)
+        best-move
+        ;; If isn't below the threashold return pass as the best move 
+        *board-size*)
+      )))
 
 
 
@@ -452,23 +456,32 @@
                  ))
              )
       (when black-network
-        (setq b-p (init-nn-pool black-network black-threads?)))
-
+        ;; When provided a string
+        (if (stringp black-network)
+          ;; Load the network
+        (setq b-p (init-nn-pool black-network black-threads?))
+        ;; Otherwise were provided a network so use it
+        (setq b-p (new-pool black-network black-thread?))))
       (when white-network
-        (setq w-p (init-nn-pool white-network white-threads?)))
+        ;; When provided a string
+        (if (stringp white-network)
+          ;; Load the network
+        (setq w-p (init-nn-pool white-network white-threads?))
+        ;; Otherwise were provided a network so use it
+        (setq w-p (new-pool white-network white-thread?))))
 
-      (while (not (game-over? g))
-             (cond
-               ((= (gg-whose-turn? g) *black*)
-                (when verbose? (format t "BLACK'S TURN!~%"))
-                (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
-                  (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
-                (when verbose? (print-go g t nil t nil nil)))
-               (t
-                 (when verbose? (format t "WHITE'S TURN!~%"))
-                 (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
-                   (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
-                 (when verbose? (print-go g t nil t nil nil)))))
+      (loop while (not (game-over? g))
+            do (cond
+              ((= (gg-whose-turn? g) *black*)
+               (when verbose? (format t "BLACK'S TURN!~%"))
+               (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+                 (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+               (when verbose? (print-go g t nil nil nil nil)))
+              (t
+                (when verbose? (format t "WHITE'S TURN!~%"))
+                (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                  (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                (when verbose? (print-go g t nil nil nil nil)))))
 
       ;; Show all game information
       (when verbose? (print-go g t nil t t))
@@ -492,10 +505,10 @@
   (compete 81 2 1 2 nil nil net1 net2))
 
 (defun play-nets (net1 net2 file-lock)
-  (compete 500 1 500 1 16 16 net1 net2 nil nil file-lock))
+  (compete 750 1 750 1 16 16 net1 net2 nil nil file-lock))
 
 (defun play-b-net (net)
-  (compete 500 1 500 1 2 2  net nil nil nil nil))
+  (compete 750 1 750 1 16 16  net nil nil nil nil))
 
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))
