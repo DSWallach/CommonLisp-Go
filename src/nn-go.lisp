@@ -260,10 +260,10 @@
         (push (deep-copy-nn-outputs nn) (pool-nets p))))
     p))
 
-(defun init-nn-pool (&optional (net-name nil))
+(defun init-nn-pool (&optional (net-name nil) (num-cores 2))
   (cond
     (net-name
-      (init-pool (read-network net-name) *num-cores*)
+      (init-pool (read-network net-name) num-cores)
       )
     (t (let* ((files (load-files 60000))
               (nn (init-nn (list 81 81 49 81 81)))
@@ -271,7 +271,7 @@
          ;; Train
          (train-all nn 0.25 files)
          ;; Make Copies
-         (init-pool nn *num-cores*)
+         (init-pool nn num-cores)
          ))
     ))
 
@@ -446,16 +446,11 @@
                      (write-line (write-to-string (compete-to-list set-struct )) file)))
                  ))
              )
-      (when pool
-        (format t "Pool ~A~%" pool)
-        (setq b-p pool)
-        (setq w-p pool))
-
       (when black-network
-        (setq b-p (init-nn-pool black-network)))
+        (setq b-p (init-nn-pool black-network black-threads?)))
 
       (when white-network
-        (setq w-p (init-nn-pool white-network)))
+        (setq w-p (init-nn-pool white-network white-threads?)))
 
       (while (not (game-over? g))
              (cond
@@ -493,7 +488,7 @@
   )
 
 (defun play-nets (net1 net2)
-  (compete 10 1 1 1 t t net1 net2 nil nil t)
+  (compete 500 1 500 1 16 16 net1 net2 nil nil t)
   )
 
 (defun play-b-net (net)
@@ -519,6 +514,7 @@
   fitness   ;; The fitness of this competetor in the current generation
   dominated ;; A parameter for use with AFPO
   )
+
 (defun print-comp (comp str depth)
   (declare (ignore depth))
   (format t "~A-~A~%" (nn-family-name (c-net comp))
@@ -599,7 +595,7 @@
 
 ;; Basically a wrapper for compete
 (defun gaunlet (net1 net2 file-lock)
-  (compete 250 1 250 1 2 2 
+  (compete 250 1 250 1 2 2
            (net-to-string net1)
            (net-to-string net2) 
            nil t 
@@ -695,9 +691,9 @@
         )
     ;(format t "LON: ~A~%" lon)
     (time (dolist (net lon)
-      (push (new-competetor net gen-id)
-            generation)
-      (incf gen-id)))
+            (push (new-competetor net gen-id)
+                  generation)
+            (incf gen-id)))
 
     (format t "Initial Population ~A~%" generation)
 
@@ -716,38 +712,39 @@
                                                         ))))
 
       ;; Randomly distribute the networks among the fronts
-      (time (dolist (comp generation)
-        (push comp (svref fronts front-count))
-        (incf front-count)
-        (when (= num-fronts front-count)
-          (setq front-count 0))))
+      (dolist (comp generation)
+              (push comp (svref fronts front-count))
+              (incf front-count)
+              (when (= num-fronts front-count)
+                (setq front-count 0)))
 
       ;; Reset the fronts as pairs
-      (time (dotimes (i num-fronts)
-        (setf (svref fronts i)
-              (make-pairs (svref fronts i)))))
+      (dotimes (i num-fronts)
+              (setf (svref fronts i)
+                    (make-pairs (svref fronts i))))
 
       ;; Add all the pairs into one list
-      (time (dotimes (i num-fronts)
-        (dolist (pair (svref fronts i))
-          (push pair pairs))))
+      (dotimes (i num-fronts)
+              (dolist (pair (svref fronts i))
+                (push pair pairs)))
 
       ;; Evaluate each network's fitness
       ;; Do the fronts one at a time to make better use of memory
       ;(dotimes (i num-fronts)
       ;; Reset the barrier
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
-        (format t "Pairs: ~A ~%" pairs)
+      (format t "Pairs: ~A ~%" pairs)
       (dolist (pair pairs);(svref fronts i))
         (format t "Face Off: ~A ~%" pair)
         (if threads? 
-         (mp:process-run-function (write-to-string pair) 
-                                  #'face-off
-                                  pair
-                                  gen
-                                  barrier
-                                  file-lock)
-          (face-off pair gen barrier file-lock))
+          (mp:process-run-function (write-to-string pair) 
+                                   #'face-off
+                                   pair
+                                   gen
+                                   barrier
+                                   file-lock)
+          (face-off pair gen barrier file-lock)
+          )
         ;    )
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
@@ -771,4 +768,4 @@
 
 (defmacro run-evo (nets gens fronts)
   `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets)))
-                              #'evolve-networks ,nets ,gens ,fronts))
+                            #'evolve-networks ,nets ,gens ,fronts))

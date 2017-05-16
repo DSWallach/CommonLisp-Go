@@ -454,6 +454,8 @@
       (setq z (sim-default game nn))
       ;; Run backup
       (backup orig-tree state-move-list z)
+      ;; Explicitly destroy the old game
+      (setq game nil)
 
       ;; When it's over the time limit return
       (when (< time-limit (- (get-internal-real-time) start-time))
@@ -490,8 +492,8 @@
       ;; Use threaded implementation
       (use-threads
         (let* ((tree (new-mc-tree orig-game))
-               (barrier (mp:make-barrier (+ *num-cores* 1)))
-               (sims-per-thread (ceiling (/ num-sims *num-cores*)))
+               (barrier (mp:make-barrier (+ use-threads 1)))
+               (sims-per-thread (ceiling (/ num-sims use-threads)))
                (nn nil)
                )
           ;; Spawn the threads
