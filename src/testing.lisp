@@ -694,15 +694,38 @@
 
 
 ;; TEST-EYE-AT
-(defun test-eye-at ()
-
+(defun test-eye-at (&optional (verbose? nil))
   (let* ((new-g (init-game))
-         (old-g (deep-copy-go new-g))
          )
-    (play-game new-g 1 1 t nil)
-    (test "Deep-Copy" 
-          (equal-go? old-g (init-game)))))
+    (play-move! new-g 0 1)
+    (play-move! new-g 5 5)
 
+    (play-move! new-g 1 0)
+    (play-move! new-g 5 6)
+
+    (play-move! new-g 1 1)
+    (play-move! new-g 7 5)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 6 5)
+
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 7 7)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 6 7)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 5 7)
+
+    (do-move! new-g *board-size*)
+    (play-move! new-g 7 6)
+
+    (when verbose? (print-go new-g t nil t))
+    (test "Eye-At" 
+          (and (= 1 (svref (svref (gg-eyes new-g) *black*) 0))
+               (= 1 (svref (svref (gg-eyes new-g) *white*) (row-col->pos 6 6)))))))
 
 ;;  TEST-ROBUST 
 ;; ------------------------------
@@ -728,6 +751,7 @@
   (test-put-pull-piece)
   (test-legal-moves)
   (test-ko-legality)
+  (test-eye-at)
   (test-undo-capture)
   (test-undo-surround-capture)
   (test-undo-two-captures)

@@ -32,7 +32,7 @@
          ;; Update area
          (calc-new-area! group row col)
          ;; Update group 
-         (update-group! group game))
+         (update-group! group game player))
 
        ;; FIND-GROUP (GROUP), Check it the piece at row col, is connected to GROUP
        (find-group 
@@ -256,12 +256,12 @@
         ;; Update player's groups
         (dolist (group (svref (gg-groups game) player))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game player))
 
         ;; Update opponent's groups
         (dolist (group (svref (gg-groups game) opponent))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game opponent))
 
         ;; Evaluate each players score
         (eval-subtotals! game)
@@ -297,9 +297,9 @@
 
       ;; Update groups
       (dolist (group (svref (gg-groups game) *black*))
-        (update-group! group game))
+        (update-group! group game *black*))
       (dolist (group (svref (gg-groups game) *white*))
-        (update-group! group game))
+        (update-group! group game *white*))
       ;; Update scores
       (eval-subtotals! game)
       ;; Pop the move
@@ -369,12 +369,12 @@
         ;; Update player's groups
         (dolist (group (svref (gg-groups game) player))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game player))
 
         ;; Update opponent's groups
         (dolist (group (svref (gg-groups game) opponent))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game opponent))
 
         ;; Evaluate each players score
         (eval-subtotals! game))
@@ -455,7 +455,7 @@
         ((< 0 (length (group-pieces group)))
          ;; Update and add back to groups
          (calc-area! group) 
-         (update-group! group game)
+         (update-group! group game opponent)
          (setf (svref (gg-groups game) opponent)
                (merge 'list
                       (svref (gg-groups game) opponent)

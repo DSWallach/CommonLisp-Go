@@ -4,6 +4,9 @@
 ;;; ===============================
 ;;;  Implementation of neural networks
 
+;; These calculations need to happen quickly and flaoting
+;; point operations don't always need to return the same 
+;; results for the lowest bits
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 0) (space 3) (debug 0))))
 

@@ -251,10 +251,10 @@
 ;; -----------------------
 (defun equal-go? (game0 game1 &optional (print-to nil))
   ;; If their hashes are different return immediately
-  (unless (eql (gg-board-hash game0)
-               (gg-board-hash game1)
-               )
-    (return-from equal-go? nil))
+ ;(unless (equal (gg-board-hash game0)
+ ;             (gg-board-hash game1)
+ ;             )
+ ;  (return-from equal-go? nil))
   (let ((board-0 (gg-board game0))
         (board-1 (gg-board game1))
         (black-groups-0 (svref (gg-groups game0) *black*))
@@ -286,49 +286,51 @@
 
     ;; Check the equality of the board
     (unless (equal-board? board-0 board-1)
-      (format print-to "Boards are not equal~%")
+      (when verbose? (format t "Boards are not equal~%"))
       (return-from equal-go? nil))
 
     ;; Check the equality of black's groups (the order doesn't have to be the same)
     (when (mismatch black-groups-0 black-groups-1 :test #'equal-group?)
-        (format print-to "Black groups are not equal~%~A~%~A~%"
-                black-groups-0 black-groups-1)
+        (when verbose? (format t "Black groups are not equal~%~A~%~A~%"
+                black-groups-0 black-groups-1))
         (return-from equal-go? nil))
 
     ;; Check the equality of white's groups (the order doesn't have to be the same)
     (when (mismatch white-groups-0 white-groups-1 :test #'equal-group?)
-        (format print-to "white groups are not equal~%~A~%~A~%"
-                white-groups-0 white-groups-1)
+        (when verbose? (format t "white groups are not equal~%~A~%~A~%"
+                white-groups-0 white-groups-1))
         (return-from equal-go? nil))
 
     ;; Check the equality of black's captures (the order doesn't have to be the same)
     (when (mismatch black-captures-0 black-captures-1 :test #'equal-group?)
-      (format print-to "Black captures are not equal~%~A~%~A~%"
-              black-captures-0 black-captures-1)
+      (when verbose? (format t "Black captures are not equal~%~A~%~A~%"
+              black-captures-0 black-captures-1))
       (return-from equal-go? nil))
 
     ;; Check the equality of white's captures (the order doesn't have to be the same)
     (when (mismatch white-captures-0 white-captures-1 :test #'equal-group?)
-      (format print-to "white captures are not equal~%~A~%~A~%"
-              white-captures-0 white-captures-1)
+      (when verbose? (format t "white captures are not equal~%~A~%~A~%"
+              white-captures-0 white-captures-1))
       (return-from equal-go? nil))
 
     ;; Check the equality of the move history
     (when (mismatch move-history-0 move-history-1 :test #'equalp)
-      (format print-to "Move Histories are not equal~% ~A~%"
-              (mismatch move-history-0 move-history-1 :test #'equalp))
+      (when verbose? (format t "Move Histories are not equal~% ~A~%"
+              (mismatch move-history-0 move-history-1 :test #'equalp)))
       (return-from equal-go? nil))
 
     ;; Check the equality of the board history
     (when (mismatch board-history-0 board-history-1 :test #'equalp)
-      (format print-to "board Histories are not equal~% ~A~%"
-              (mismatch board-history-0 board-history-1 :test #'equalp))
+      (when verbose? (format t "board Histories are not equal~% ~A~%"
+              (mismatch board-history-0 board-history-1 :test #'equalp)))
       (return-from equal-go? nil))
 
     ;; Check the equality of the ko-flag
     (unless (equal (gg-ko? game0) (gg-ko? game1))
-      (format print-to "Game ko's are not equal. ~%~A, ~A~%" 
+      (when verbose? (format t "Game ko's are not equal. ~%~A, ~A~%" 
               (gg-ko? game0) (gg-ko? game1)))
+      (return-from equal-go? nil))
+      
 
     ;; If all tests pass return true 
     t))
