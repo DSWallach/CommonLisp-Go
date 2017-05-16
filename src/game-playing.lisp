@@ -170,8 +170,8 @@
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
-         (opponent (- 1 player))
-         (groups (svref (gg-groups game) (- 1 player)))
+         (opponent (other-player player))
+         (groups (svref (gg-groups game) (other-player player)))
          )
 
     ;; Function for finding and capturing groups
@@ -205,7 +205,7 @@
              ;; Capture the group
              (capture-group! c-group game)
 
-             (when (find c-group (svref (gg-groups game) (- 1 player)))
+             (when (find c-group (svref (gg-groups game) (other-player player)))
                ;;(format debug? "Group wasn't removed~%")
                (break))
              )
@@ -268,7 +268,7 @@
         ))
     ;; Change turn
     (setf (gg-whose-turn? game) 
-          (- 1 player))
+          (other-player player))
 
     ;; Return the game
     game)))
@@ -317,7 +317,7 @@
            (move (pop (gg-move-history game)))
            (pos (svref move 0))
            (player (gg-whose-turn? game))
-           (opponent (- 1 player))
+           (opponent (other-player player))
            )
 
       ;; Delete the previous board 
@@ -395,7 +395,7 @@
 (defun pull-piece! (game move)
   ;; The player of the previous turn is the opponent this turn
   (let* ((player (gg-whose-turn? game))
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (pos (svref move 0))
          (group (pop (svref (gg-groups game)
                             opponent)))

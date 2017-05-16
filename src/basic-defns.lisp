@@ -89,6 +89,11 @@
 
 ;;   MACROS
 ;; --------------------------------
+(defmacro other-player (player)
+  `(if (eq ,player *black*)
+     *white*
+     *black*))
+
 (defmacro row-col->pos (row col)
   `(+ (* *board-length* ,row) ,col))
 

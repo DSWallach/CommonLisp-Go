@@ -220,7 +220,7 @@
 (defun calc-life! (group game player)
   (let* ((area (group-area group))
          (board (gg-board game))
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (player-piece (player->piece player))
          (opponent-piece (player->piece opponent))
          (eyes (svref (gg-eyes game) player))
@@ -399,7 +399,7 @@
          (max-row (+ (svref area 2) 0))
          (max-col (+ (svref area 3) 0))
          (territory 0)
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (player? nil)
          (total 0)
          )
@@ -503,7 +503,7 @@
 (defun capture-group! (group game &optional (player nil))
   (unless player
     (setq player (gg-whose-turn? game)))
-  (let ((opponent (- 1 player))
+  (let ((opponent (other-player player))
         )
 
     ;; Remove the groups from the opponent's groups

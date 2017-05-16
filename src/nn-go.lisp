@@ -63,7 +63,7 @@
         (best-score -1000000)
         )
     ;; If it's white's turn invert the board state
-    (if (eq player *white*)
+    (if (= player *white*)
       (setq output (get-output-for nn (invert-board board)))
       (setq output (get-output-for nn board)))
 
@@ -77,10 +77,11 @@
           (setq best-score (ssvref output move))
           (setq best-move move))))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
-    (if (< 0.001 (abs best-score))
+    ;(if (< 0.001 (abs best-score))
       best-move
       ;; If isn't above the threashold return pass as the best move 
-      *board-size*)))
+    ;  *board-size*)
+    ))
 
 
 (defun net-to-string (nn)

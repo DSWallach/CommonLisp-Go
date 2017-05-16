@@ -242,7 +242,7 @@
       ;; Increment the number of visits to this node
       (incf (mc-node-num-visits nodey)))
 
-   ; (when game-move (format t "Move score: ~A~%" max-so-far))
+   (when game-move (format t "Move score: ~A~%" max-so-far))
 
    ; (when game-move (format t "Post post scores: ~A~%" scores) )
     ;; Return the best move found
@@ -441,7 +441,7 @@
          (game nil))
 
     ;; When provided a pool
-    (when pool
+    (when (< 0 (length (pool-nets pool)))
       ;; Get a network 
       (with-locked-structure 
         (pool)
@@ -461,16 +461,14 @@
 
       ;; When it's over the time limit return
       (when (< time-limit (- (get-internal-real-time) start-time))
-        (return))
-      )
+        (return)))
 
     ;; When you got a network
     (when nn 
       ;; Return the network
       (with-locked-structure 
         (pool)
-        (push nn (pool-nets pool)))
-      )
+        (push nn (pool-nets pool))))
 
     ;; Pass through the barrier to signal the thread is done 
     (mp:barrier-pass-through barrier)
@@ -515,9 +513,10 @@
           ;; Wait until all the threads are finished
           (mp:barrier-wait barrier)
 
-         ; (format t "Number of nodes ~A, num of moves ~A~%" 
-         ;         (hash-table-count (mc-tree-hashy tree))
+          (format t "Number of nodes ~A~%" 
+                  (hash-table-count (mc-tree-hashy tree))
          ;         (length (legal-moves orig-game)))
+          )
           ;; Select the best move
           (svref (legal-moves orig-game) 
                  (select-move (gethash (make-hash-key-from-game orig-game)
