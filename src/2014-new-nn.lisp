@@ -5,7 +5,7 @@
 ;;;  Implementation of neural networks
 
 (eval-when (compile)
-  (declaim (optimize (speed 0) (safety 3) (space 3) (debug 0))))
+  (declaim (optimize (speed 3) (safety 0) (space 3) (debug 0))))
 
 
 ;;;  NN struct

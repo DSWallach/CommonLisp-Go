@@ -679,14 +679,13 @@
 ;; Run evolutionary trials pitting networks against
 ;; networks and store a few game state pairs from the 
 ;; game
-(defun evolve-networks (lon generations num-fronts &optional (threads? nil))
+(defun evolve-networks (lon generations num-fronts file-lock &optional (threads? nil))
   (let ((lineage-counters (make-array (length lon) :initial-element 1))
         (fronts (make-array num-fronts :initial-element (list)))
         (generation (list))
         (pairs (list)) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
         (barrier nil)
-        (file-lock  nil)
         (front-count 0)
         )
     ;(format t "LON: ~A~%" lon)
@@ -700,16 +699,6 @@
     ;; Run the evolutionary algorithm
     (dotimes (gen generations)
       (format t "Running Generation ~A~%" gen)
-      ;; Create the lock for this gen's file
-      (setq file-lock
-            (make-file-lock :path 
-                            (make-pathname :name 
-                                           (concatenate 'string 
-                                                        "../game-records/game-history-gen-" 
-                                                        (write-to-string gen)
-                                                        "-"
-                                                        (short-site-name) ;; Diff machines record different files
-                                                        ))))
 
       ;; Randomly distribute the networks among the fronts
       (dolist (comp generation)
@@ -735,6 +724,8 @@
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
       (format t "Pairs: ~A ~%" pairs)
       (dolist (pair pairs);(svref fronts i))
+(when (and (first pair)
+(second pair))
         (format t "Face Off: ~A ~%" pair)
         (if threads? 
           (mp:process-run-function (write-to-string pair) 
@@ -745,6 +736,7 @@
                                    file-lock)
           (face-off pair gen barrier file-lock)
           )
+)
         ;    )
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
@@ -763,9 +755,36 @@
     ))
 
 
+(defmacro init-lock (gen)
+      ;; Create the lock for this gen's file
+      `(setq file-lock
+            (make-file-lock :path 
+                            (make-pathname :name 
+                                           (concatenate 'string 
+                                                        "../game-records/game-history-gen-" 
+                                                        (write-to-string ,gen)
+                                                        "-"
+                                                        (short-site-name) ;; Diff machines record different files
+							".dat"
+                                                        )))))
+
 (defmacro prep-nets (num)
   `(read-nets (subseq *lon* 0 ,num)))
 
-(defmacro run-evo (nets gens fronts)
-  `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets)))
-                            #'evolve-networks ,nets ,gens ,fronts))
+(defmacro run-evo (nets gens fronts file-lock)
+  `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets))
+"-"
+(write-to-string ,gens)
+"-"
+(write-to-string ,fronts)
+)
+                            #'evolve-networks ,nets ,gens ,fronts ,file-lock nil))
+
+
+
+(defmacro run-evos (num lon lock)
+`(dotimes (i ,num)
+(setq nets (nth (random (length ,lon)) ,lon))
+(run-evo nets (random 10) 2 ,lock)
+)
+)
