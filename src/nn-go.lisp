@@ -312,10 +312,10 @@
 
 (defconstant *lon*
              (reverse (list 
-                              "full-conn-0.25-0"
-                              "full-conn-0.5-0" 
-                              "full-conn-0.75-0"
-                              "full-conn-1-0" 
+             ;                 "full-conn-0.25-0"
+             ;                 "full-conn-0.5-0" 
+             ;                 "full-conn-0.75-0"
+             ;                 "full-conn-1-0" 
                               "small-conn-0.25-0"
                               "small-conn-0.5-0"
                               "small-conn-0.75-0"
@@ -328,7 +328,7 @@
                               "small-conv-0.5-0"
                               "small-conv-0.75-0"
                               "small-conv-1-0"
-                              "charles-0" 
+             ;                 "charles-0" 
 ;                              "direct-0" 
                               )))
              ;;  TRAIN-NETWORKS
