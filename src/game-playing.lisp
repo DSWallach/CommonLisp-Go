@@ -430,17 +430,17 @@
       (cond
         ;; If necessary seperate groups
         ((< 1 (svref move 2))
-         (let ((new-group nil) 
+         (let ((mod-groups (list group nil)) 
                (new-groups nil)
                )
            (dotimes (i (- (svref move 2) 1))
              ;; Get the seperated group
-             (setq new-group 
-                   (seperate-group! group game))
+             (setq mod-groups
+                   (seperate-group! (first mod-groups) game))
              ;; Add the new-group to the list of new groups
-             (push new-group new-groups))
+             (push (second mod-groups) new-groups))
            ;; Push the modified onto the list of groups 
-           (push group new-groups)
+           (push (first mod-groups) new-groups)
            ;; Add the group back into opponent's groups with the 
            ;; correct ordering
            (setf (svref (gg-groups game) opponent)
@@ -615,7 +615,9 @@
     (if (and (gg-ko? game) 
              (< 3 (length (gg-board-history game))))
       ;; Check for for infringement of the Ko rule
-      (unless (dolist (move valid-moves)
+      (unless 
+      (format t "Ko Check!~%")
+        (dolist (move valid-moves)
                 ;; Passing is always an options
                 (if (= move *board-size*)
                   (push move legal-moves)

@@ -111,15 +111,15 @@
       ;; Arrays indicating what board positions are eyes
       :eyes (vector (make-array *board-size* :initial-element 0)
                     (make-array *board-size* :initial-element 0))
-    ;; So groups aren't captured twice
-    :over? nil
-    ;; List of vectors #:a b c) where
-    ;; a == row played at
-    ;; b == col played at
-    ;; c == number of groups captured by the move
-    :move-history nil
-    ;; History of the board state, used to check for ko
-    :board-history nil)))
+      ;; So groups aren't captured twice
+      :over? nil
+      ;; List of vectors #:a b c) where
+      ;; a == row played at
+      ;; b == col played at
+      ;; c == number of groups captured by the move
+      :move-history nil
+      ;; History of the board state, used to check for ko
+      :board-history nil)))
 
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
@@ -421,6 +421,7 @@
 ;;  Creates a deep copy of a go game struct
 ;;  Doesn't dopy copy game history
 (defun deep-copy-go (game)
+  (format t "Deep Copy Go ~A~%" game)
   (let ((b-caps (deep-copy-list (svref (gg-captures game) *black*) 'deep-copy-group))
         (w-caps (deep-copy-list (svref (gg-captures game) *white*) 'deep-copy-group))
         (b-groups (deep-copy-list (svref (gg-groups game) *black*) 'deep-copy-group))
@@ -429,7 +430,9 @@
         (w-subs (svref (gg-subtotals game) *white*))
         (b-eyes (copy-vector (svref (gg-eyes game) *black*)))
         (w-eyes (copy-vector (svref (gg-eyes game) *white*)))
+        (new-game nil)
         )
+    (setq new-game
     (make-go-game :board (copy-vector (gg-board game)) 
                   :captures (vector b-caps w-caps)
                   :groups (vector b-groups w-groups)
@@ -440,9 +443,12 @@
                   :subtotals (vector b-subs w-subs)
                   :eyes (vector b-eyes w-eyes)
                   :over? (gg-over? game)
-                  :board-history (deep-copy-list (gg-board-history game) 'copy-vector)
+                  :board-history (deep-copy-list (gg-board-history game) 'copy-seq)
                   :move-history (deep-copy-list (gg-move-history game) 'copy-seq)
-                  )))
+                  ))
+    (format t "New Game ~A~%" new-game)
+    new-game)
+  )
 
 ;;  EVAL-FUNC : GAME
 ;; ------------------------------------

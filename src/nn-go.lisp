@@ -263,8 +263,9 @@
 (defun init-nn-pool (&optional (net-name nil) (num-cores 2))
   (cond
     (net-name
-      (init-pool (read-network net-name) num-cores)
-      )
+        (if num-cores 
+          (init-pool (read-network net-name) num-cores))
+         (init-pool (read-network net-name) 1))
     (t (let* ((files (load-files 60000))
               (nn (init-nn (list 81 81 49 81 81)))
               )
@@ -484,11 +485,10 @@
     (when return-game? g))))
 
 (defun play-nets-no-t (net1 net2)
-  (compete 81 2 1 2 nil nil net1 net2)
-  )
+  (compete 81 2 1 2 nil nil net1 net2))
 
 (defun play-nets (net1 net2 file-lock)
-  (compete 500 1 500 1 16 16 net1 net2 nil nil file-lock))
+  (compete 500 1 500 1 nil nil net1 net2 nil nil file-lock))
 
 (defun play-b-net (net)
   (compete 500 1 500 1 16 16  net nil nil nil t))
