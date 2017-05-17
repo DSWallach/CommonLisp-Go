@@ -32,7 +32,7 @@
          ;; Update area
          (calc-new-area! group row col)
          ;; Update group 
-         (update-group! group game))
+         (update-group! group game player))
 
        ;; FIND-GROUP (GROUP), Check it the piece at row col, is connected to GROUP
        (find-group 
@@ -83,7 +83,12 @@
 
       ;; Put the piece on the board 
       (setf (svref (gg-board game) pos) 
-            (+ (player->piece player)))
+            (player->piece player))
+      ;; Update the hash key
+
+      (setf (gg-board-hash game)
+            (bit-xor (gg-board-hash game)
+                     (svref (svref *zobrist-vectors* player) pos)))
 
       ;; If there are no groups 
       (if (null (svref (gg-groups game) player)) 
@@ -165,8 +170,8 @@
   (let* ((captured 0)
          (board (gg-board game))
          (player (gg-whose-turn? game))
-         (opponent (- 1 player))
-         (groups (svref (gg-groups game) (- 1 player)))
+         (opponent (other-player player))
+         (groups (svref (gg-groups game) (other-player player)))
          )
 
     ;; Function for finding and capturing groups
@@ -200,7 +205,7 @@
              ;; Capture the group
              (capture-group! c-group game)
 
-             (when (find c-group (svref (gg-groups game) (- 1 player)))
+             (when (find c-group (svref (gg-groups game) (other-player player)))
                ;;(format debug? "Group wasn't removed~%")
                (break))
              )
@@ -251,19 +256,19 @@
         ;; Update player's groups
         (dolist (group (svref (gg-groups game) player))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game player))
 
         ;; Update opponent's groups
         (dolist (group (svref (gg-groups game) opponent))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game opponent))
 
         ;; Evaluate each players score
         (eval-subtotals! game)
         ))
     ;; Change turn
     (setf (gg-whose-turn? game) 
-          (- 1 player))
+          (other-player player))
 
     ;; Return the game
     game)))
@@ -292,9 +297,9 @@
 
       ;; Update groups
       (dolist (group (svref (gg-groups game) *black*))
-        (update-group! group game))
+        (update-group! group game *black*))
       (dolist (group (svref (gg-groups game) *white*))
-        (update-group! group game))
+        (update-group! group game *white*))
       ;; Update scores
       (eval-subtotals! game)
       ;; Pop the move
@@ -312,7 +317,7 @@
            (move (pop (gg-move-history game)))
            (pos (svref move 0))
            (player (gg-whose-turn? game))
-           (opponent (- 1 player))
+           (opponent (other-player player))
            )
 
       ;; Delete the previous board 
@@ -340,9 +345,16 @@
 
               (setq group (pop (svref (gg-captures game) opponent)))
 
-              ;; Add the group's pieces to the board
+              ;; For each piece in the group
               (dolist (p (group-pieces group))
-                (setf (svref (gg-board game) p) (player->piece player)))
+              ;; Add the group's pieces to the board
+                (setf (svref (gg-board game) p) 
+                      (player->piece player))
+                ;; Update the hash
+                (setf (gg-board-hash game)
+                      (bit-xor (gg-board-hash game)
+                               (svref (svref *zobrist-vectors* player) p)))
+                )
 
               ;; Add the group back in it's previous position
               (setf (svref (gg-groups game) player)
@@ -357,12 +369,12 @@
         ;; Update player's groups
         (dolist (group (svref (gg-groups game) player))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game player))
 
         ;; Update opponent's groups
         (dolist (group (svref (gg-groups game) opponent))
           (calc-area! group)
-          (update-group! group game))
+          (update-group! group game opponent))
 
         ;; Evaluate each players score
         (eval-subtotals! game))
@@ -383,7 +395,7 @@
 (defun pull-piece! (game move)
   ;; The player of the previous turn is the opponent this turn
   (let* ((player (gg-whose-turn? game))
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (pos (svref move 0))
          (group (pop (svref (gg-groups game)
                             opponent)))
@@ -406,6 +418,11 @@
 
       ;; Remove the piece from the game board
       (setf (svref (gg-board game) pos) 0)
+
+      ;; Remove the piece from the hash key
+      (setf (gg-board-hash game)
+            (bit-xor (gg-board-hash game)
+                     (svref (svref *zobrist-vectors* player) pos)))
 
       ;; Remove the piece from its group
       (pop (group-pieces group))
@@ -438,7 +455,7 @@
         ((< 0 (length (group-pieces group)))
          ;; Update and add back to groups
          (calc-area! group) 
-         (update-group! group game)
+         (update-group! group game opponent)
          (setf (svref (gg-groups game) opponent)
                (merge 'list
                       (svref (gg-groups game) opponent)
@@ -452,8 +469,16 @@
 ;;  PLAY-MOVE!
 ;; ------------------------------
 ;;  Basic wrapper for DO-MOVE!
-(defun play-move! (game row col)
-  (do-move! game (row-col->pos row col)))
+(defun play-move! (game row col &optional (check-legality? nil))
+  (if check-legality?
+    (let ((legal-moves (legal-moves game)))
+      ;; Passing is always legal for Humans but not for computers
+      (if (or (= *board-size* (row-col->pos row col))
+              (find (row-col->pos row col) legal-moves :test #'=))
+        (do-move! game (row-col->pos row col))
+        (format t "Illegal Move!~%")
+        ))
+    (do-move! game (row-col->pos row col))))
 
 ;;  LEGAL-MOVE?
 ;; -------------------------------
@@ -525,7 +550,7 @@
 ;;  OUTPUT: A list of legal moves 
 (defun legal-moves (game &optional (fast? t))
   (let ((legal-moves (list ))  ; Passing is always legal
-        (valid-moves (list *board-size*))
+        (valid-moves (list ))
         (player (gg-whose-turn? game))
         (moves nil) 
         (board (gg-board game))
@@ -537,9 +562,7 @@
         ((> 4 (length (gg-move-history game)))
          (dolist (pos *opening-moves*)
            (when (legal-move? game pos)
-             (push pos valid-moves)
-             )
-           ))
+             (push pos valid-moves))))
 
         ;; More lenient in the mid game
         ((> 20 (length (gg-move-history game)))
@@ -551,11 +574,9 @@
                                       (row-col->pos row col))))
                  (push (row-col->pos row col) moves))))))
 
-
         (t (dotimes (pos *board-size*)
              (when (= 0 (svref board pos))
-               (push pos moves))))
-        )
+               (push pos moves)))))
 
       ;; Allow all moves
       (dotimes (pos *board-size*)
@@ -565,66 +586,68 @@
     ;; Check for suicidal play, not allowed under Chinese or
     ;; Japanese rules so it's not allowed here.
     (dolist (pos moves)
-        ;; If there is a space adjacent to the move, it's not suicidal
-        (cond 
-          ((or (= 0 (check-board pos board *check-left*))
-               (= 0 (check-board pos board *check-right*))
-               (= 0 (check-board pos board *check-above*))
-               (= 0 (check-board pos board *check-below*)))
+      ;; If there is a space adjacent to the move, it's not suicidal
+      (cond 
+        ((or (= 0 (check-board pos board *check-left*))
+             (= 0 (check-board pos board *check-right*))
+             (= 0 (check-board pos board *check-above*))
+             (= 0 (check-board pos board *check-below*)))
 
-           ;; Add the move to legal-moves
-           (push pos valid-moves))
+         ;; Add the move to legal-moves
+         (push pos valid-moves))
 
-          ;; Or if the move connects to a group 
-          ;; Check that the group has more than one liberty 
-          ;; (i.e. a group that wont be captured by the move)
-          ((and (= (+ 1 player) (check-board pos board *check-left*))
-                (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
-           (push pos valid-moves))
+        ;; Or if the move connects to a group 
+        ;; Check that the group has more than one liberty 
+        ;; (i.e. a group that wont be captured by the move)
+        ((and (= (+ 1 player) (check-board pos board *check-left*))
+              (> 1 (group-liberties (find-and-return-group (- pos 1) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-right*))
-                (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
-           (push pos valid-moves))
+        ((and (= (+ 1 player) (check-board pos board *check-right*))
+              (> 1 (group-liberties (find-and-return-group (+ pos 1) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-above*))
-                (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
-           (push pos valid-moves))
+        ((and (= (+ 1 player) (check-board pos board *check-above*))
+              (> 1 (group-liberties (find-and-return-group (- pos *board-length*) game))))
+         (push pos valid-moves))
 
-          ((and (= (+ 1 player) (check-board pos board *check-below*))
-                (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
-           (push pos valid-moves))))
+        ((and (= (+ 1 player) (check-board pos board *check-below*))
+              (> 1 (group-liberties (find-and-return-group (+ pos *board-length*) game))))
+         (push pos valid-moves))))
 
     ;; If necessary...
-    (if (and (gg-ko? game) 
-             (< 3 (length (gg-board-history game))))
-      ;; Check for for infringement of the Ko rule
-      (unless (dolist (move valid-moves)
-                ;; Passing is always an options
-                (if (= move *board-size*)
-                  (push move legal-moves)
-                  ;; Check that the board is not returning to 
-                  ;; the state prior to your opponents last
-                  ;; move. (Ko Rule)
+    (cond
+      ((and (gg-ko? game) 
+            (< 3 (length (gg-board-history game))))
+       ;; Check for for infringement of the Ko rule
+       (dolist (move valid-moves)
+         ;; Passing is always an options
+         (when (< 30 (length (gg-move-history game)))
+           (push *board-size* legal-moves))
+         ;; Check that the board is not returning to 
+         ;; the state prior to your opponents last
+         ;; move. (Ko Rule)
 
-                  ;; Playing with fire
-                  (let ((new-board nil)
-                        (old-board nil))
+         ;; Playing with fire
+         (let ((new-board nil)
+               (old-board nil))
 
-                    ;; Get the old board
-                    (setq old-board (first (gg-board-history game)))
+           ;; Get the old board
+           (setq old-board (first (gg-board-history game)))
 
-                    ;; Mod Game
-                    (do-move! game move)
-                    ;; Get board
-                    (setq new-board (copy-vector (gg-board game)))
-                    ;; Unmod game 
-                    (undo-move! game)
-                    (unless (equal-board? new-board old-board)
-                      (push move legal-moves))))
-                )
+           ;; Mod Game
+           (do-move! game move)
+           ;; Get board
+           (setq new-board (copy-vector (gg-board game)))
+           ;; Unmod game 
+           (undo-move! game)
+           (unless (equal-board? new-board old-board)
+             (push move legal-moves))))
+      ;; Return legal moves
+      (make-array (length legal-moves) :initial-contents legal-moves))
 
-        ;; Return legal moves
-        (make-array (length legal-moves) :initial-contents legal-moves))
-
+    (t 
+      (when (< 30 (length (gg-move-history game)))
+        (push *board-size* valid-moves))
       ;; Otherwise return the valid moves
-      (make-array (length valid-moves) :initial-contents valid-moves))))
+      (make-array (length valid-moves) :initial-contents valid-moves)))))

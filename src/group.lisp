@@ -38,7 +38,7 @@
               :pieces (copy-seq (group-pieces group))
               :area (copy-seq (group-area group))
               :liberties (group-liberties group)
-              :merge-marker (group-merge-marker group)
+              :merge-marker (copy-seq (group-merge-marker group))
               :last-pos (group-last-pos group)
               :territory (group-territory group)))
 
@@ -63,8 +63,6 @@
               :territory 0))
 
 
-
-
 ;;  EYE-AT? : BOARD PLAYER POSN
 ;; --------------------------
 ;; OUTPUT: 1, if there is an eye for PLAYER centered at POSN
@@ -81,9 +79,11 @@
                   (incf ,player-counter)
                   t)
                  (t (setq ,eye-case (svref ,board (+ ,posn 1)))
-                    (case ,eye-case
-                      (,player (incf ,player-counter))
-                      (,opponent (incf ,opponent-counter)))
+                    (cond 
+                      ((= ,player ,eye-case) (incf ,player-counter))
+                      ((= ,opponent ,eye-case) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                      )
                     t)))
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -92,31 +92,44 @@
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (- ,posn 1)))
-                   (case ,eye-case 
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond 
+                     ((= ,player ,eye-case) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ;; Handle the corner case where going off the board
+                 ;; will be a legitimate board position b/c the board
+                 ;; is a simple vector
+                 ((= 0 ,posn) 
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (+ ,posn (- *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (- *board-length* 1))))
-                   (case ,eye-case 
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond 
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= ,posn (- *board-size* 1))
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (- ,posn (- *board-length* 1))))
                   (incf ,player-counter) 
                   t)
                  (t(setq ,eye-case (svref ,board (- ,posn (- *board-length* 1))))
-                   (case ,eye-case 
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond 
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -125,9 +138,11 @@
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (+ ,posn *board-length*)))
-                   (case ,eye-case
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
@@ -135,41 +150,48 @@
                  ((= 1 (svref ,eyes (- ,posn *board-length*)))
                   (incf ,player-counter)
                   t)
-                 (t(setq ,eye-case (svref ,board (- ,posn *board-length*)))
-                   (case ,eye-case
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                 (t (setq ,eye-case (svref ,board (- ,posn *board-length*)))
+                   (cond
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= (- *board-length* 1)) 
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (+ ,posn (+ *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (+ ,posn (+ *board-length* 1))))
-                   (case ,eye-case 
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond 
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t))) 
        (incf ,player-counter))
      (unless (ignore-errors 
                (cond 
+                 ((= ,posn (- *board-size* *board-length*))
+                  (incf ,player-counter))
                  ((= 1 (svref ,eyes (- ,posn (+ *board-length* 1))))
                   (incf ,player-counter)
                   t)
                  (t(setq ,eye-case (svref ,board (- ,posn (+ *board-length* 1))))
-                   (case ,eye-case
-                     (,player (incf ,player-counter))
-                     (,opponent (incf ,opponent-counter)))
+                   (cond
+                     ((= ,eye-case ,player) (incf ,player-counter))
+                     ((= ,eye-case ,opponent) (incf ,opponent-counter))
+                      (t (decf ,player-counter))
+                     )
                    t)))
        (incf ,player-counter))
      (cond 
        ;; If the player has at least 7/8 there's a true eye
        ((> ,player-counter 6) 
         (setq ,eye-case 1))
-       ((> ,player-counter 4)
-        (format t "Eye Found ~A~%" ,player-counter)
-        )
        ;; If the opponent has more than 1 there's no room for
        ;; an eye
        ((> ,opponent-counter 1) 
@@ -178,7 +200,6 @@
        (t 
          (setq ,eye-case -1))
        )))
-
 
 ;; A second eye cannot be formed directly adjacent
 ;; to another eye.
@@ -199,7 +220,7 @@
 (defun calc-life! (group game player)
   (let* ((area (group-area group))
          (board (gg-board game))
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (player-piece (player->piece player))
          (opponent-piece (player->piece opponent))
          (eyes (svref (gg-eyes game) player))
@@ -378,7 +399,7 @@
          (max-row (+ (svref area 2) 0))
          (max-col (+ (svref area 3) 0))
          (territory 0)
-         (opponent (- 1 player))
+         (opponent (other-player player))
          (player? nil)
          (total 0)
          )
@@ -482,7 +503,7 @@
 (defun capture-group! (group game &optional (player nil))
   (unless player
     (setq player (gg-whose-turn? game)))
-  (let ((opponent (- 1 player))
+  (let ((opponent (other-player player))
         )
 
     ;; Remove the groups from the opponent's groups
@@ -492,9 +513,14 @@
     ;; Add them to player's captures
     (push group (svref (gg-captures game) player))
 
-    ;; Remove the pieces from the board
+    ;; For each piece
    (dolist (p (group-pieces group)) 
-     (setf (svref (gg-board game) p) 0))
+    ;; Remove the piece from the board
+     (setf (svref (gg-board game) p) 0)
+     ;; Update the hash
+     (setf (gg-board-hash game)
+           (bit-xor (gg-board-hash game)
+                    (svref (svref *zobrist-vectors* player) p))))
    ))
 
 ;;  MERGE-GROUPS! : GAME GROUP-ONE GROUP-TWO

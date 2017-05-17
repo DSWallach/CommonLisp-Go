@@ -1,20 +1,26 @@
-(defconstant *num-cores* 8)
-
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
-;(setq compiler:tail-call-self-merge-switch t)
-;(setq compiler:tail-call-non-self-merge-switch t) 
+(setq compiler:tail-call-self-merge-switch t)
+(setq compiler:tail-call-non-self-merge-switch t) 
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
   ;; Require AllegroCache for storing networks
   (require :smputil) ;; Load Allegro mutlithreading
+  (require :gcpath) ;; For tracking down memory
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
-;  (sys:resize-areas :new 30000000000 :old 8000000000) ;; Allocate extra memory to minize garbage collection
-;  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 0) (space 1) (debug 0))))
+  ;; Need more newspace than old as the nn outputs and mc-trees are regularly thrown out
+  (sys:resize-areas :new 4000000000 :old 4000000000) ;; Allocate extra memory to minize garbage collection
+  (setf (sys:gc-parameter :helper-threads-requested) 8)
+  ;(setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
+  ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+
+(defmacro track (funcal)
+  `(gcpath:collected-newstuff () ,funcal))
+
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -52,6 +58,24 @@
 (defconstant *check-above* 2)
 (defconstant *check-below* 3)
 
+(defconstant *zobrist-vectors*
+             (vector
+               ;; Black
+               (make-array *board-size*)
+               ;; White
+               (make-array *board-size*)))
+
+(defun init-z-vectors ()
+  (dotimes (i 2)
+    (dotimes (j *board-size*)
+      ;; Set the vector
+      (setf (svref (svref *zobrist-vectors* i) j)
+            (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0))
+      ;; Give it a unique bit
+      (setf (sbit (svref (svref *zobrist-vectors* i) j) (* (+ 1 i) j)) 1))))
+;; Initialize vectors
+(init-z-vectors)
+
 ;; For compiling
 (defun cl (filename)
   ;;  COMPILER-FLAGS
@@ -70,7 +94,7 @@
   (maker '(
            "basic-defns"
            "nn-go"
-           "2014-new-nn"
+           "nn-operations"
            "go-game"
            "group"
            "game-playing"
@@ -82,6 +106,11 @@
 
 ;;   MACROS
 ;; --------------------------------
+(defmacro other-player (player)
+  `(if (eq ,player *black*)
+     *white*
+     *black*))
+
 (defmacro row-col->pos (row col)
   `(+ (* *board-length* ,row) ,col))
 
@@ -289,6 +318,7 @@
              (make-file-lock :path (make-pathname :name 
                                             "../game-records/main-record")))
 
+<<<<<<< HEAD
 ;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
 ;; --------------------------------------------------
 ;;  NOTE:  Compete has a lot of functionality for various situations
@@ -409,3 +439,6 @@
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))
 
+=======
+(defconstant *num-cores* 2)
+>>>>>>> 1633de004a7374c68a199d0dcda6901736449c80

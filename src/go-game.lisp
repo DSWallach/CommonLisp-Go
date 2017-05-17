@@ -4,6 +4,8 @@
 ;; =================================
 
 
+
+
 ;;;;; GO-GAME STRUCT/FUNCS 
 
 ;;  GO-GAME struct
@@ -11,33 +13,87 @@
                     (:conc-name gg-))
   ;; The board is a simple vector. Positions on the
   ;; board are referenced using the go-position function 
-  (board (make-array *board-size* :initial-element 0))
+  board
+  ;; The hash key for the current board state
+  board-hash 
   ;; Groups captured by each player
   ;; necessary to be able to destructively undo moves
-  (captures (vector () ()))
+  captures 
   ;; Vector with pointers to the lists containing Black and White groups
-  (groups (vector () ()))
+  groups
   ;; Black plays first
-  (whose-turn? *black*)
+  whose-turn?
   ;; Points for white
-  (komi 0)
+  komi
   ;; When true get-legal-moves will check for Ko situations
-  (ko? nil)
-  ;; Current scores for each player (hold over from Alpha Beta)
-  (subtotals (vector 0 0))
+  ko?
+  ;; Current scores for each player hold over from Alpha Beta)
+  subtotals
   ;; Arrays indicating what board positions are eyes
-  (eyes (vector (make-array *board-size* :initial-element 0)
-                (make-array *board-size* :initial-element 0)))
+  eyes
   ;; So groups aren't captured twice
-  (over? nil)
-  ;; List of vectors #(a b c) where
+  over? 
+  ;; List of vectors #a b c) where
   ;; a == row played at
   ;; b == col played at
   ;; c == number of groups captured by the move
-  (move-history nil)
+  move-history
   ;; History of the board state, used to check for ko
-  (board-history nil) 
-  )
+  board-history)
+
+
+;;  INIT-GAME
+;; ---------------------------------------
+;;  INPUTS:  HANDICAP, an integer representing the number 
+;;           of pieces to be set by the black player 
+;;           before the game begins. A value of 0
+;;           will have start the game with a komi of 0
+;;           effectively a handicap for the black player.
+;;
+;;           KOMI, the number of points given to the white 
+;;           player at the beginning of non-handicap games 
+;;           to balance out black getting to place the first move
+;;   
+;;  OUTPUS: A go-game struct. If no handicap 
+;;      or komi is provided, komi is set at
+;;      6.5 for komi. Standard under most 
+;;      go rules. Since the effect of the ".5" is
+;;      to ensure white wins if there otherwise would 
+;;      a tie. I'm using 6 and setting it as a rule of
+;;      game evaluation function that white wins if there
+;;      is a tie.
+(defun init-game (&optional (handicap -1) (komi 6))
+  (when (= handicap -1)
+    (make-go-game 
+      ;; board are referenced using the go-position function 
+      :board (make-array *board-size* :initial-element 0)
+      ;; The hash key for the current board state
+      :board-hash (make-array (* 2 *board-size*):element-type 'bit :initial-element 0)
+      ;; Groups captured by each player
+      ;; necessary to be able to destructively undo moves
+      :captures (vector '() '())
+      ;; Vector with pointers to the lists containing Black and White groups
+      :groups (vector '() '())
+      ;; Black plays first
+      :whose-turn? *black*
+      ;; Points for white
+      :komi komi
+      ;; When true get-legal-moves will check for Ko situations
+      :ko? nil
+      ;; Current scores for each player :hold over from Alpha Beta)
+      :subtotals (vector 0 0)
+      ;; Arrays indicating what board positions are eyes
+      :eyes (vector (make-array *board-size* :initial-element 0)
+                    (make-array *board-size* :initial-element 0))
+      ;; So groups aren't captured twice
+      :over? nil
+      ;; List of vectors #:a b c) where
+      ;; a == row played at
+      ;; b == col played at
+      ;; c == number of groups captured by the move
+      :move-history nil
+      ;; History of the board state, used to check for ko
+      :board-history nil)))
 
 ;;  PRINT-GO : GAME STR DEPTH &op VERBOSE? GROUPS? 
 ;; ----------------------------
@@ -167,7 +223,12 @@
 
 ;;  EQUAL-GO?
 ;; -----------------------
-(defun equal-go? (game0 game1 &optional (print-to nil))
+(defun equal-go? (game0 game1 &optional (verbose? nil))
+  ;; If their hashes are different return immediately
+ ;(unless (equal (gg-board-hash game0)
+ ;             (gg-board-hash game1)
+ ;             )
+ ;  (return-from equal-go? nil))
   (let ((board-0 (gg-board game0))
         (board-1 (gg-board game1))
         (black-groups-0 (svref (gg-groups game0) *black*))
@@ -199,49 +260,51 @@
 
     ;; Check the equality of the board
     (unless (equal-board? board-0 board-1)
-      (format print-to "Boards are not equal~%")
+      (when verbose? (format t "Boards are not equal~%"))
       (return-from equal-go? nil))
 
     ;; Check the equality of black's groups (the order doesn't have to be the same)
     (when (mismatch black-groups-0 black-groups-1 :test #'equal-group?)
-        (format print-to "Black groups are not equal~%~A~%~A~%"
-                black-groups-0 black-groups-1)
+        (when verbose? (format t "Black groups are not equal~%~A~%~A~%"
+                black-groups-0 black-groups-1))
         (return-from equal-go? nil))
 
     ;; Check the equality of white's groups (the order doesn't have to be the same)
     (when (mismatch white-groups-0 white-groups-1 :test #'equal-group?)
-        (format print-to "white groups are not equal~%~A~%~A~%"
-                white-groups-0 white-groups-1)
+        (when verbose? (format t "white groups are not equal~%~A~%~A~%"
+                white-groups-0 white-groups-1))
         (return-from equal-go? nil))
 
     ;; Check the equality of black's captures (the order doesn't have to be the same)
     (when (mismatch black-captures-0 black-captures-1 :test #'equal-group?)
-      (format print-to "Black captures are not equal~%~A~%~A~%"
-              black-captures-0 black-captures-1)
+      (when verbose? (format t "Black captures are not equal~%~A~%~A~%"
+              black-captures-0 black-captures-1))
       (return-from equal-go? nil))
 
     ;; Check the equality of white's captures (the order doesn't have to be the same)
     (when (mismatch white-captures-0 white-captures-1 :test #'equal-group?)
-      (format print-to "white captures are not equal~%~A~%~A~%"
-              white-captures-0 white-captures-1)
+      (when verbose? (format t "white captures are not equal~%~A~%~A~%"
+              white-captures-0 white-captures-1))
       (return-from equal-go? nil))
 
     ;; Check the equality of the move history
     (when (mismatch move-history-0 move-history-1 :test #'equalp)
-      (format print-to "Move Histories are not equal~% ~A~%"
-              (mismatch move-history-0 move-history-1 :test #'equalp))
+      (when verbose? (format t "Move Histories are not equal~% ~A~%"
+              (mismatch move-history-0 move-history-1 :test #'equalp)))
       (return-from equal-go? nil))
 
     ;; Check the equality of the board history
     (when (mismatch board-history-0 board-history-1 :test #'equalp)
-      (format print-to "board Histories are not equal~% ~A~%"
-              (mismatch board-history-0 board-history-1 :test #'equalp))
+      (when verbose? (format t "board Histories are not equal~% ~A~%"
+              (mismatch board-history-0 board-history-1 :test #'equalp)))
       (return-from equal-go? nil))
 
     ;; Check the equality of the ko-flag
     (unless (equal (gg-ko? game0) (gg-ko? game1))
-      (format print-to "Game ko's are not equal. ~%~A, ~A~%" 
+      (when verbose? (format t "Game ko's are not equal. ~%~A, ~A~%" 
               (gg-ko? game0) (gg-ko? game1)))
+      (return-from equal-go? nil))
+      
 
     ;; If all tests pass return true 
     t))
@@ -257,25 +320,135 @@
 
 ;;  MAKE-HASH-KEY-FROM-GAME : GAME
 ;; ---------------------------------
-;; The hash key is the current state of the board.
-;; Represented as a bit vector twice the size of the
-;; board, 1's in the first board size represent black's
-;; pieces. 1's after that are white's pieces
+;; Using Zobrist hashing. Defined above is a randomly generated
+;; bitvector unique to each piece (white or black), and board 
+;; position. The hash is the xor of all these bitvectors
 (defmacro make-hash-key-from-game (game)
-  `(let ((board-vec (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0)))
-     (dotimes (i (length (gg-board ,game)))
-       (cond 
-         ((= 1 (svref (gg-board ,game) i))
-          (setf (sbit board-vec i) 1)
-          )
-         ((= -1 (svref (gg-board ,game) i))
-          (setf (sbit board-vec (+ i *board-size*)) 1)
-          )))
-     ;; Indicate who'se turn
-     (when (= (gg-whose-turn? ,game) *white*)
-       (setf (sbit board-vec (* 2 *board-size*)) 1))
-     board-vec))
+  ;; The hash is computed when a move is performed
+  ;; so just make a indenticate bit vector
+  `(let ((key (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0)))
+              (bit-xor key (gg-board-hash ,game))))
 
+;;  EVAL-TOTALS! : GAME 
+;; ------------------------------------------
+;;  Evaluate the final scores. Consider the 
+;;  entire board not just the territory of the groups
+(defun eval-totals! (game)
+  (let ((player *black*)
+        (opponent *white*)
+        (board (gg-board game))
+        (territory 0)
+        (player? nil)
+        (total 0)
+        )
+    
+    ;; Calc for black
+    (dotimes (row *board-length*)
+      ;; When a wall is reached 
+      (when (or (= 0 row) (= (- *board-length* 1) row)) 
+        ;; Set the player's flag
+        (setq player? t))
+
+      ;; Check each column 
+      (dotimes (col *board-length*)
+        ;; When a wall is reached 
+        (when (or (=(- *board-length* 1) col) (= 0 col))
+          ;; Set the player's flag
+          (setq player? t))
+        ;; Check the board
+        (case (svref board (row-col->pos row col)) 
+          ;; If it's player's piece, set flag
+          ;; If the player's flag is set
+          (player (when player?  
+                    ;; Add territory to the total
+                    (setq total (+ total territory))
+                    ;; Reset territory
+                    (setq territory 0))
+                  ;; Set player flag
+                  (setq player? t))
+
+          ;; If it's an opponent's piece, and 
+          (opponent (cond
+                      ;; If that piece is part of a group 
+                      ;; that's alive remove flag, clear territory
+                      ((group-alive? (find-group (row-col->pos row col) game))
+                       (setq player? nil)
+                       (setq territory 0)
+                       )
+                      ;; If the group is dead, treat it as 
+                      ;; territory
+                      (t (when player? (setq territory 
+                                             (+ 1 territory))))))
+
+          ;; If the space is open
+          ;; If the player's flag is set and 
+          (0 (when player? (setq territory (+ 1 territory))))))
+
+      ;; If the player;s flag is set
+      (when player? 
+        ;; Update total
+        (setq total (+ total territory))
+        ;; Reset territory
+        (setq territory 0))
+      )
+
+    (setf (svref (gg-subtotals game) *black*) total)
+    (setq total 0)
+
+    (setq player *white*)
+    (setq opponent *black*)
+
+    ;; Calc for white 
+    (dotimes (row *board-length*)
+      ;; When a wall is reached 
+      (when (or (= 0 row) (= (- *board-length* 1) row)) 
+        ;; Set the player's flag
+        (setq player? t))
+
+      ;; Check each column 
+      (dotimes (col *board-length*)
+        ;; When a wall is reached 
+        (when (or (=(- *board-length* 1) col) (= 0 col))
+          ;; Set the player's flag
+          (setq player? t))
+        ;; Check the board
+        (case (svref board (row-col->pos row col)) 
+          ;; If it's player's piece, set flag
+          ;; If the player's flag is set
+          (player (when player?  
+                    ;; Add territory to the total
+                    (setq total (+ total territory))
+                    ;; Reset territory
+                    (setq territory 0))
+                  ;; Set player flag
+                  (setq player? t))
+
+          ;; If it's an opponent's piece, and 
+          (opponent (cond
+                      ;; If that piece is part of a group 
+                      ;; that's alive remove flag, clear territory
+                      ((group-alive? (find-group (row-col->pos row col) game))
+                       (setq player? nil)
+                       (setq territory 0)
+                       )
+                      ;; If the group is dead, treat it as 
+                      ;; territory
+                      (t (when player? (setq territory 
+                                             (+ 1 territory))))))
+
+          ;; If the space is open
+          ;; If the player's flag is set and 
+          (0 (when player? (setq territory (+ 1 territory))))))
+
+      ;; If the player;s flag is set
+      (when player? 
+        ;; Update total
+        (setq total (+ total territory))
+        ;; Reset territory
+        (setq territory 0))
+      )
+    (setf (svref (gg-subtotals game) *white*) total)
+    ))
 
 ;;  EVAL-SUBTOTALS! : GAME
 ;; ------------------------
@@ -353,19 +526,24 @@
         (w-subs (svref (gg-subtotals game) *white*))
         (b-eyes (copy-vector (svref (gg-eyes game) *black*)))
         (w-eyes (copy-vector (svref (gg-eyes game) *white*)))
+        (new-game nil)
         )
+    (setq new-game
     (make-go-game :board (copy-vector (gg-board game)) 
                   :captures (vector b-caps w-caps)
                   :groups (vector b-groups w-groups)
                   :whose-turn? (gg-whose-turn? game)
+                  :board-hash (copy-seq (gg-board-hash game))
                   :komi (gg-komi game)
                   :ko? (gg-ko? game)
                   :subtotals (vector b-subs w-subs)
                   :eyes (vector b-eyes w-eyes)
                   :over? (gg-over? game)
-                  :board-history (deep-copy-list (gg-board-history game) 'copy-vector)
+                  :board-history (deep-copy-list (gg-board-history game) 'copy-seq)
                   :move-history (deep-copy-list (gg-move-history game) 'copy-seq)
-                  )))
+                  ))
+    new-game)
+  )
 
 ;;  EVAL-FUNC : GAME
 ;; ------------------------------------
@@ -402,8 +580,6 @@
           (when (find pos (group-pieces group))
             (return-from find-and-return-group 
                          group)))))))
-
-
 
 ;;  REMOVE-DEAD-GROUPS! : GAME
 ;; ----------------------------------
@@ -443,11 +619,11 @@
       (setf (gg-groups game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-groups w-groups (copy-seq b-groups) (copy-seq w-groups))) 
+            (vector b-groups w-groups (deep-copy-list b-groups #'deep-copy-group) (deep-copy-list w-groups #'deep-copy-group)))
       (setf (gg-captures game) 
             ;; Add additional copies of the structure of the lists
             ;; don't need to copy the groups
-            (vector b-caps w-caps (copy-seq b-caps) (copy-seq w-caps)))
+            (vector b-caps w-caps (deep-copy-list b-caps #'deep-copy-group) (deep-copy-list w-caps #'deep-copy-group)))
 
       ;; Sort the groups so those with the fewest liberties come first
       (dolist (group (svref (gg-groups game) *black*))
@@ -508,29 +684,6 @@
     ;; Otherwise the game is still going
     ))
 
-;;  INIT-GAME
-;; ---------------------------------------
-;;  INPUTS:  HANDICAP, an integer representing the number 
-;;           of pieces to be set by the black player 
-;;           before the game begins. A value of 0
-;;           will have start the game with a komi of 0
-;;           effectively a handicap for the black player.
-;;
-;;           KOMI, the number of points given to the white 
-;;           player at the beginning of non-handicap games 
-;;           to balance out black getting to place the first move
-;;   
-;;  OUTPUS: A go-game struct. If no handicap 
-;;      or komi is provided, komi is set at
-;;      6.5 for komi. Standard under most 
-;;      go rules. Since the effect of the ".5" is
-;;      to ensure white wins if there otherwise would 
-;;      a tie. I'm using 6 and setting it as a rule of
-;;      game evaluation function that white wins if there
-;;      is a tie.
-(defun init-game (&optional (handicap -1) (komi 6))
-  (when (= handicap -1)
-    (make-go-game :komi komi)))
 
 ;;  CHECK-ORDER? : GAME
 ;; -----------------------------------
