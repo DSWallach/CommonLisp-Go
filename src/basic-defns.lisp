@@ -5,22 +5,20 @@
 
 ;; Tell the copiler to speed things up
 (eval-when (compile load eval)
-  ;; Require AllegroCache for storing networks
   (require :smputil) ;; Load Allegro mutlithreading
   (require :gcpath) ;; For tracking down memory
   (require :process)
   ;; Not being used currently
   ;(require :acache "acache-3.0.9.fasl")
   ;; Need more newspace than old as the nn outputs and mc-trees are regularly thrown out
-  (sys:resize-areas :new 20000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
+  (sys:resize-areas :new 600000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-parameter :helper-threads-requested) 8)
-  (setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
+  ;(setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
   (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 3) (debug 0))))
+  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
 
 (defmacro track (funcal)
   `(gcpath:collected-newstuff () ,funcal))
-
 
 (defun ttest (num threads?)
   (uct-search (init-game) num 4 nil threads?))
@@ -56,7 +54,7 @@
 (defconstant *check-above* 2)
 (defconstant *check-below* 3)
 
-(defconstant *zobrist-vectors*
+(defparameter *zobrist-vectors*
              (vector
                ;; Black
                (make-array *board-size*)
@@ -68,11 +66,18 @@
     (dotimes (j *board-size*)
       ;; Set the vector
       (setf (svref (svref *zobrist-vectors* i) j)
-            (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0))
+            ;; Additional bit to for ko flag
+            (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0))
       ;; Give it a unique bit
       (setf (sbit (svref (svref *zobrist-vectors* i) j) (* (+ 1 i) j)) 1))))
 ;; Initialize vectors
 (init-z-vectors)
+
+;; Set the hash key for ko
+(defparameter *ko-hash* (make-array (+ 1 (* 2 *board-size*)):element-type 'bit :initial-element 0))
+(defun init-ko ()
+  (setf (sbit *ko-hash* (* 2 *board-size*)) 1))
+(init-ko)
 
 ;; For compiling
 (defun cl (filename)
@@ -312,7 +317,8 @@
              (:include synchronizing-structure))
   path)
 
-(defconstant *game-file*
+;; Was used to lock the file for storing the results of evolve-networks
+(defparameter *game-file*
              (make-file-lock :path (make-pathname :name 
                                             "../game-records/main-record")))
 

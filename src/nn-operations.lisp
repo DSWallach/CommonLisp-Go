@@ -1,10 +1,68 @@
+
+;;;  WRAPPERS FOR COMPETE
+;;; ------------------------------------
+
+;; Use these to compare the performance of MCTS with and without the network
+(defmacro play ()
+ `(mp:process-run-function "asdf" #'play-p-nets "small-conv-0.75-0" "small-conn-0.75-0"))
+(defmacro play-b ()
+ `(mp:process-run-function "asdf" #'play-b-net "small-conv-0.75-0"))
+
+(defun play-threaded-vs-seq ()
+  ;; Give a very large number of sims so they'll be restricted
+  ;; by the time limit for a fair comparison
+  (compete 10000 0.75 10000 0.75 :black-threads 16 :time-limit 15000 :print-game? t))
+
+(defun play-nets-no-t (net1 net2)
+  (compete 81 2 1 2 nil nil net1 net2)
+  (gc t))
+
+(defun play-p-nets (net1 net2 &optional (file-lock nil))
+  (compete 750 1 750 1
+           :black-threads 1
+           :white-threads 1
+           :black-p-network net1
+           :white-p-network net2
+           :file-lock file-lock))
+
+(defun play-nets (net1 net2 net3 net4 file-lock)
+  (compete 750 1 750 1
+           :black-threads 1
+           :white-threads 1
+           :black-p-network net1
+           :white-p-network net2
+           :black-v-network net3
+           :white-v-network net4
+           :file file-lock))
+
+(defun play-nets-sims (net1 net2 sims1 sims2 file-lock)
+  (compete sims2 (+ 1 (random 4)) sims1 (+ 1 (random 4)) 16 16 net1 net2 nil nil file-lock))
+
+
+(defun play-b-net (net)
+  (compete 500 0.75 500 0.75 :black-threads 1 :white-threads 1 :black-p-network net :print-game? t :time-limit 10000))
+
+
+
+;; Used during network evolution
+(defun gauntlet (net1 net2 file-lock)
+  (compete 750 0.5 750 0.5
+           :black-threads 8
+           :white-threads 8
+           :black-p-network net1
+           :white-p-network net2
+           :file file-lock
+           :time-limit 10000
+           ))
+
+;; Read in a bunch of nn's
 (defun read-nets (lof)
   (let ((lon (list)))
     (dolist (filename lof)
       (push (read-network filename) lon))
     lon))
 
-;; Create a list of pathnames to the files to parse
+;; Create a list of pathnames to the files to parse for policy training
 (defun make-parse-list 
   (num)
   (let ((path-list (list )))
@@ -16,7 +74,7 @@
                                         ".csv"))
             path-list))
     path-list))
-
+;; Create a list of pathnames to the file to parse for value training
 (defun make-value-parse-list 
   (num)
   (let ((path-list (list )))
@@ -29,13 +87,6 @@
             path-list))
     path-list))
 
-(defun shuffle-listy (listy)
-  (do* ((listy (copy-listy listy) listy)
-        (length  (length listy) (1- length))
-        (current listy (cdr listy)))
-    ((< 2 length) listy)
-    (rotatef (first current) (elt current (random length)))))
-
 (defun make-fix (num)
   (coerce num 'fixnum))
 
@@ -45,8 +96,7 @@
 (defun load-data (lof &optional (verbose? nil))
   (let ((data (list))
         (in-arr (make-array *board-size* :initial-element 0))
-        (out-arr (make-array *board-size* :initial-element 0))
-        (line nil))
+        (out-arr (make-array *board-size* :initial-element 0)))
     ;; For evey files
     (dolist (file-path lof)
       (when verbose? (format t "Reading file ~A " file-path))
@@ -77,6 +127,7 @@
 ;; Needs to start with a fresh nn otherwise creating 
 ;; multiple pools of the same nn causes memory issues
 (defun init-pool (nn num-nets)
+  (format t "INital pool~%")
   ;; Handle a non-threaded run of compete
   (unless num-nets
     (setq num-nets 1))
@@ -85,7 +136,7 @@
     (with-locked-structure 
       (p)
       (dotimes (i num-nets)
-        (push (deep-copy-nn-outputs nn) (pool-nets p))))
+        (push (deep-copy-nn-outputs net) (pool-nets p))))
     (format t "Create pool of size ~A from net ~A~%"
             (length (pool-nets p))
             (net-to-string (first (pool-nets p))))
@@ -259,7 +310,7 @@
                   (time-limit 15000)
                   (return-game? nil)
                   (file nil)
-                  (verbose? nil)
+                  (print-game? nil)
                   )
 
   ;; Record a random board state from the game along with who won the game
@@ -271,15 +322,15 @@
                     (score (- (svref (gg-subtotals game) *black*)
                               (svref (gg-subtotals game) *white*)))
                     (winner nil)
-                    (set-struct (make-compete-settings 
-                                  :b-sims black-num-sims 
-                                  :b-c black-c 
-                                  :w-sims white-num-sims 
-                                  :w-c white-c 
-                                  :b-t black-threads
-                                  :w-t white-threads
-                                  :b-nets (list black-v-network black-p-network)
-                                  :w-nets (list black-v-network white-p-network)
+                    (set-list (list
+                                  black-num-sims 
+                                  black-c 
+                                  white-num-sims 
+                                  white-c 
+                                  black-threads
+                                  white-threads
+                                  (list black-v-network black-p-network)
+                                  (list black-v-network white-p-network)
                                   )))
                ;; If the score is greater than 0, black won
                (if (> score 0)
@@ -297,7 +348,7 @@
                    (write-string (write-to-string store-board) file) 
                    ;; Write who won the game
                    (write-string (write-to-string winner) file)
-                   (write-line (write-to-string (compete-to-list set-struct)) file))))))
+                   (write-line (write-to-string set-list) file))))))
 
     (let ((g (init-game))
           (b-p-pool nil)
@@ -346,18 +397,18 @@
       (loop while (not (game-over? g))
             do (cond
                  ((eq (gg-whose-turn? g) *black*)
-                  (when verbose? (format t "BLACK'S TURN!~%"))
-                  (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool)))
-                    (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool)))
-                  (when verbose? (print-go g t nil nil nil nil)))
+                  (when print-game? (format t "BLACK'S TURN!~%"))
+                  (if print-game? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool time-limit)))
+                    (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool time-limit)))
+                  (when print-game? (print-go g t nil nil nil nil)))
                  (t
-                   (when verbose? (format t "WHITE'S TURN!~%"))
-                   (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool b-v-pool)))
-                     (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool w-v-pool)))
-                   (when verbose? (print-go g t nil nil nil nil)))))
+                   (when print-game? (format t "WHITE'S TURN!~%"))
+                   (if print-game? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool b-v-pool time-limit)))
+                     (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool w-v-pool time-limit)))
+                   (when print-game? (print-go g t nil nil nil nil)))))
 
       ;; Show most game information at the end
-      (when verbose? (print-go g t nil t t))
+      (when print-game? (print-go g t nil t t))
 
       ;; If a record from the game is to be used
       (when file
@@ -367,297 +418,8 @@
       ;; Return the final game state if requested
       (when return-game? g))))
 
-(defun play-nets-no-t (net1 net2)
-  (compete 81 2 1 2 nil nil net1 net2)
-  (gc t))
-
-(defun play-p-nets (net1 net2 &optional (file-lock nil))
-  (compete 750 1 750 1
-           :black-threads 1
-           :white-threads 1
-           :black-p-network net1
-           :white-p-network net2
-           :file file-lock))
-
-(defun play-nets (net1 net2 net3 net4 file-lock)
-
-  (compete 750 1 750 1
-           :black-threads 1
-           :white-threads 1
-           :black-p-network net1
-           :white-p-network net2
-           :black-v-network net3
-           :white-v-network net4
-           :file file-lock))
-
-(defun play-nets-sims (net1 net2 sims1 sims2 file-lock)
-  (compete sims2 (+ 1 (random 4)) sims1 (+ 1 (random 4)) 16 16 net1 net2 nil nil file-lock))
-
-
-(defun play-b-net (net)
-  (compete 750 1 750 1 8 8 :black-p-network net :file file-lock))
-
-;; Used during network evolution
-(defun gauntlet (net1 net2 file-lock)
-  (compete 750 0.5 750 0.5
-           :black-threads 48
-           :white-threads 48
-           :black-p-network net1
-           :white-p-network net2
-           :file file-lock
-           :time-limit 10000
-           ))
-
-(defun run-sims (num)
-  (dolist (net1 *lon*)
-    (dolist (net2 *lon*)
-      (unless (equalp net1 net2)
-        (dotimes (i num)
-          (play-nets-sims net1 net2 (+ 250 i) (+ 250 i) file-lock))))))
-
 (defmacro p-run-sims (num)
   `(mp:process-run-function (concatenate 'string "number-" (write-to-string ,num)) #'run-sims ,num))
-
-
-;;   Evolutionary Pipline Functions
-;; ======================================
-
-;; I'm using an evolutionary algorithm instead of 
-;; training on the results of the matches b/c the network
-;; trained that way wasn't better when combined with the 
-;; Value network in the original paper so I'm going to 
-;; try something else
-(defstruct (competetor
-             (:conc-name c-)
-             (:print-function print-comp)
-             (:include synchronizing-structure))
-  id        ;; A number that is unique within each generation
-  net       ;; A NN
-  age       ;; The number of gens this network has been a competetor
-  fitness   ;; The fitness of this competetor in the current generation
-  dominated ;; A parameter for use with AFPO
-  )
-
-(defun print-comp (comp str depth)
-  (declare (ignore depth))
-  (format t "~A-~A~%" (nn-family-name (c-net comp))
-          (nn-id(c-net comp))))
-
-(defun new-competetor (net id)
-  (make-competetor :net net 
-                   :age 0
-                   :fitness 0
-                   :dominated nil))
-
-;; Returns a list of pairs containing every combination of 
-;; pairs of two networks provided
-;; These lists are akin to the pareto fronts in AFPO
-(defmacro make-pairs (loc)
-  `(let ((pairs (list))
-         (comp1 nil)
-         )
-     (loop while (< 0 (length ,loc))
-           do (setq comp1 (pop ,loc))
-           (dolist (comp2 ,loc)
-             (when (and comp1 comp2)
-               (push (list comp1 comp2) pairs)))
-           )
-     pairs))
-
-;; Non-dominated before dominated then 
-;; by fitness
-(defun most-fit (comp1 comp2)
-  (if (or (and (not (c-dominated comp1))
-               (c-dominated comp2))
-          (> (c-fitness comp1) 
-             (c-fitness comp2)))
-    t nil))
-
-;; Macro for returning the next generation of 
-;; competetors
-(defmacro get-next-gen (generation)
-  `(let ((next-gen (list))
-         (gen nil)
-         (child nil)
-         (gen-id 0)
-         )
-     ;; Sort the list by highest fitness
-     (setq gen (sort ,generation #'most-fit))
-
-     ;; For each member of the population
-     (dolist (comp gen)
-       ;; Every non-dominated ID gets a mutant offspring 
-       ;; added to the next-generation
-       (unless (c-dominated comp)
-         (setq child (new-competetor (nn-mutate (c-net comp) 0.25) gen-id))
-         (format t "Child ~A~%" child)
-         (write-network (c-net child))
-         (push child 
-               next-gen)
-         (incf gen-id))
-       ;; Increment age
-       (incf (c-age comp))
-       ;; Reset fitness
-       (setf (c-fitness comp) 0)
-       ;; Reset dominated
-       (setf (c-dominated comp) nil)
-
-       ;; Return when all non-dominated networks
-       ;; are added and the previous population size
-       ;; has been reached
-       (if (or (not (c-dominated comp))
-               (<= (length next-gen)
-                   (length ,generation)))
-         ;; Add it to the next generation
-         (push comp next-gen)
-         ;; Otherwise discard it
-         (setq comp nil)))
-
-     ;; Return the next generation
-     next-gen))
-
-
-;; Has two competitors play two games against each other 
-;; once each as black and white. The player with the combined
-;; higher score from both games is the winner (ties are a one 
-;; point win for white)
-(defun face-off (pair gen barrier file-lock)
-  (let ((comp1 (first pair))
-        (comp2 (second pair))
-        (score1 0)
-        (score2 0)
-        (game nil)
-        )
-    (format t "Round 1 ~A" pair)
-
-    ;; Play a game recording two random board states 
-    ;; as well as who won in this generation's game-history
-    (setq game (gauntlet (c-net comp1) (c-net comp2) file-lock))
-
-    (cond
-      ;; If a tie count as a one point victory for white
-      ((= (svref (gg-subtotals game) *black*)
-          (svref (gg-subtotals game) *white*))
-       (incf score2 1))
-      (t 
-        ;; First comp1 is black
-        (incf score1 (svref (gg-subtotals game) *black*))
-        ;; And comp2 is white
-        (incf score2 (svref (gg-subtotals game) *white*))
-        ))
-
-    (format t "Round 2 ~A" pair)
-    ;; Then they switch
-    (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
-    (cond
-      ;; If a tie count as a one point victory for white
-      ((= (svref (gg-subtotals game) *black*)
-          (svref (gg-subtotals game) *white*))
-       (incf score1 1))
-      (t 
-        ;; First comp1 is black
-        (incf score2 (svref (gg-subtotals game) *black*))
-        ;; And comp2 is white
-        (incf score1 (svref (gg-subtotals game) *white*))
-        ))
-    ;; Evaluate the winner
-    (cond 
-      ;; If comp1 was the victor
-      ((> score1 score2)
-       ;; Update it's fitness
-       (with-locked-structure 
-         (comp1)
-         (incf (c-fitness comp1)))
-       (with-locked-structure 
-         (comp2)
-         ;; Update the other fitness
-         (decf (c-fitness comp2))
-         ;; Set dominated 
-         (setf (c-dominated comp2) t)))
-      ;; If comp2 was the victor
-      ((> score2 score1)
-       ;; Update it's fitness
-       (with-locked-structure 
-         (comp2)
-         (incf (c-fitness comp2)))
-       (with-locked-structure 
-         (comp1)
-         ;; Update the other fitness
-         (decf (c-fitness comp1))
-         ;; Set dominated 
-         (setf (c-dominated comp1) t))))
-    ;; If there is a tie, neither is dominated 
-    ;; or has a change in fitness
-
-    (mp:barrier-pass-through barrier)
-    (format t "Thread completing ~A ~%" barrier)))
-
-;; Run evolutionary trials pitting networks against
-;; networks and store a few game state pairs from the 
-;; game
-(defun evolve-networks (lon generations num-fronts file-lock &optional (threads? nil))
-  (let ((fronts (make-array num-fronts :initial-element (list)))
-        (generation (list))
-        (gen-id 0)
-        (barrier nil)
-        (front-count 0))
-
-    (dolist (net lon)
-            (push (new-competetor net gen-id)
-                  generation)
-            (incf gen-id))
-
-    (format t "Initial Population ~A~%" generation)
-
-    ;; Run the evolutionary algorithm
-    (dotimes (gen generations)
-      (format t "Running Generation ~A~%" gen)
-
-      ;; Randomly distribute the networks among the fronts
-      (dolist (comp generation)
-        (push comp (svref fronts front-count))
-        (incf front-count)
-        (when (= num-fronts front-count)
-          (setq front-count 0)))
-
-      ;; Reset the fronts as pairs
-      (dotimes (i num-fronts)
-        (setf (svref fronts i)
-              (make-pairs (svref fronts i))))
-
-      ;; Evaluate each network's fitness
-      ;; Do the competetitions in rounds so as not to
-      ;; overwelm allegro with threads
-      (dotimes (i num-fronts)
-        ;; Reset the barrier
-        (setq barrier (mp:make-barrier (+ 1 (length (svref fronts i)))))
-        (dolist (pair (svref fronts i))
-          (when (and (first pair)
-                     (second pair))
-            (format t "Face Off: ~A ~%" pair)
-            (if threads? 
-              (mp:process-run-function (write-to-string pair) 
-                                       #'face-off
-                                       pair
-                                       gen
-                                       barrier
-                                       file-lock)
-              (face-off pair gen barrier file-lock))
-            )
-          (format t "Waiting for threads to finish~%")
-            ;; So the OS doesn't freak out over memory requests
-            ;; Only necessary when spawning many threads
-            (when (> (length (svref fronts i)) 2) 
-              (sleep 1)))
-
-        ;; Wait for all the networks in the front to finish
-        (mp:barrier-wait barrier))
-
-      (format t "Creating next generation~%")
-      ;; Get the next generation
-      (setq generation (get-next-gen generation)))
-
-    (format t "Done!~%")))
 
 
 (defmacro init-lock (gen)

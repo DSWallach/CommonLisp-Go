@@ -228,7 +228,6 @@
          (min-col (- (svref area 1) 1))
          (max-row (+ (svref area 2) 1))
          (max-col (+ (svref area 3) 1))
-         (eye-next nil)
          (player-counter 0)
          (opponent-counter 0)
          (num-eyes 0)
@@ -236,8 +235,6 @@
          (eye-case 0)
          (posn 0)
          )
-    ;; It is used in a case block
-    (declare (ignore opponent))
 
     ;; Ensure non of the values go out of bounds
     (when (< min-row 0)

@@ -192,7 +192,6 @@
         (player (mc-node-whose-turn ,nodey))
         (max-so-far 0)
         (best-move-so-far 0)
-        (i 0)
         (new_q 0))
 
     ;; Compare all the potential moves
@@ -215,7 +214,7 @@
             ((eq player *black*)
              (with-locked-structure 
                (,nodey) 
-               (incf-atomic (svref scores i) new_q)
+               (incf (svref scores i) new_q)
                )
 
              (when (< max-so-far (svref scores i))
@@ -225,7 +224,11 @@
             (t (with-locked-structure 
                  (,nodey)
                  (decf (svref scores i) new_q))
-               (when (> max-so-far (svref scores i))
+               (when (and (> max-so-far (svref scores i))
+                          ;; Don't pass until the late game
+                          ;; pass is always the last legal move
+                          (or (not (= (- (length scores) 1) i))
+                              (> 10 (length scores))))
                  (setq max-so-far (svref scores i))
                  (setq best-move-so-far i)))))
 
@@ -355,10 +358,58 @@
       ;; When the game is over break out of the loop
       (when (game-over? game) 
         ;; If no leaf nodes the value-network isn't used
-        (return-from sim-tree-nn (append 0 state-move-list))))
+        (return-from sim-tree-nn (push 0 state-move-list))))
 
     ;; Once the game is over return the state-move list
     state-move-list))
+
+;; Like sim-tree but doesn't insert a new node in the hash table
+(defun sim-no-tree
+  (game tree c &optional (p-nn nil) (v-nn nil))
+  (let ((state-move-list nil)
+        (moves (legal-moves game))
+        (s_t nil)
+        (m_t 0))
+    (dotimes (i 1000000)
+      ;; Get the state (hash key)
+      (setq s_t (make-hash-key-from-game game))
+      ;; If the state doesn't already exist
+      (cond 
+        ((gethash s_t (mc-tree-hashy tree) nil)
+
+         ;; Append the state
+         (setq state-move-list
+               (append state-move-list (list s_t)))
+
+         ;; The state does already exist so use select-move
+         (setq m_t (select-move (gethash (make-hash-key-from-game game)
+                                         (mc-tree-hashy tree)) c))
+
+         ;; Do the move
+         (do-move! game (svref moves m_t))
+
+         ;; Add it to the move list
+         (setq state-move-list
+               (append state-move-list (list m_t))))
+        (t 
+          ;; Otherwise use the nn if provided
+          (if p-nn
+            (setq m_t (annalyze-move p-nn (gg-board game) moves (gg-whose-turn? game)))
+            ;; Random if no nn
+            (setq m_t (random (length moves))))
+          ;; Do the move
+          (do-move! game (svref moves m_t))))
+
+      ;; When the game is over break out of the loop
+      (when (game-over? game) 
+        ;; If no leaf nodes the value-network isn't used
+        (if v-nn
+          (return-from sim-no-tree (push 0 state-move-list))
+          (return-from sim-no-tree state-move-list))))
+
+    ;; Once the game is over return the state-move list
+    state-move-list))
+
 
 ;;  BACKUP : HASHY KEY-MOVE-ACC RESULT
 ;; ---------------------------------------------------
@@ -369,7 +420,7 @@
 ;;              recently played out simulation
 ;;  OUTPUT:  doesn't matter
 ;;  SIDE EFFECT:  Updates the relevant nodes in the MC-TREE/HASHY
-(defun backup (tree key-move-acc result &optional (imp t))
+(defun backup (tree key-move-acc result)
       (while key-move-acc
              (let* ((key (pop key-move-acc))
                     (hashy (mc-tree-hashy tree))
@@ -393,26 +444,29 @@
   (orig-game c orig-tree total-sim p-pool v-pool barrier start-time time-limit)
   (let* ((state-move-list nil)
          (z 0)
+         (add-node 1)
          (p-nn nil)
          (v-nn nil)
          (game nil))
 
     ;; When provided a policy pool
-    (when (and p-pool (< 0 (length (pool-nets p-pool))))
+    (when (and p-pool 
+               (< 0 (length (pool-nets p-pool))))
       ;; Get a network 
       (with-locked-structure 
         (p-pool)
         (setq p-nn (pop (pool-nets p-pool))))
-      ;(format t "Got Policy Net ~A~%" (net-to-string p-nn))
+      (format t "Got Policy Net ~A~%" (net-to-string p-nn))
       )
 
     ;; When provided a value pool
-    (when (and v-pool (< 0 (length (pool-nets v-pool))))
+    (when (and v-pool 
+               (< 0 (length (pool-nets v-pool))))
       ;; Get a network 
       (with-locked-structure 
         (v-pool)
         (setq v-nn (pop (pool-nets v-pool))))
-      ;(format t "Got Value Net ~A~%" (net-to-string v-nn))
+      (format t "Got Value Net ~A~%" (net-to-string v-nn))
       )
 
     ;; Keep the logic dealing with different settings out
@@ -426,53 +480,70 @@
          ;; Run sim-tree, 
          ;; State move list now has a value for the node inserted as 
          ;; its first element
-         (setq state-move-list (sim-tree-nn game orig-tree c v-nn))
+         ;; Add a node node every add-node sims
+         (if (= 0 (mod i add-node))
+           (setq state-move-list (sim-tree-nn game orig-tree c v-nn))
+           (setq state-move-list (sim-no-tree game orig-tree c p-nn v-nn)))
          ;; Run default
          (setq z (+ (default-policy game p-nn) (pop state-move-list)))
-         ;; Run backup
-         (backup orig-tree state-move-list z)
+         ;; Run backup if any states were explored
+         (when state-move-list
+           (backup orig-tree state-move-list z))
          ;; When it's over the time limit return
          (when (< time-limit (- (get-internal-real-time) start-time))
            (return))))
-       ;; Search only with policy network
-       (p-nn 
-         (dotimes (i total-sim)
-           ;; Make a copy of the game state
-           (setq game (deep-copy-go orig-game))
-           ;; Run sim-tree
-           (setq state-move-list (sim-tree game orig-tree c))
-           ;; Run default
-           (setq z (default-policy game p-nn))
-           ;; Run backup
-           (backup orig-tree state-move-list z)
-           ;; When it's over the time limit return
-           (when (< time-limit (- (get-internal-real-time) start-time))
-             (return))))
-       ;; Search only with value network
-       (v-nn 
-         (dotimes (i total-sim)
-           ;; Make a copy of the game state
-           (setq game (deep-copy-go orig-game))
-           ;; Run sim-tree
-           (setq state-move-list (sim-tree-nn game orig-tree c v-nn))
-           ;; Run default
-           (setq z (+ (random-policy game) (pop state-move-list)))
-           ;; Run backup
-           (backup orig-tree state-move-list z)
-           ;; When it's over the time limit return
-           (when (< time-limit (- (get-internal-real-time) start-time))
-             (return))))
-      ;; Search with no networks
-      (t 
+      ;; Search only with policy network
+      (p-nn 
         (dotimes (i total-sim)
           ;; Make a copy of the game state
           (setq game (deep-copy-go orig-game))
           ;; Run sim-tree
           (setq state-move-list (sim-tree game orig-tree c))
+          ;; Add a node node every add-node sims
+          ;(if (= 0 (mod i add-node))
+          ;  (setq state-move-list (sim-tree game orig-tree c))
+          ;  (setq state-move-list (sim-no-tree game orig-tree c p-nn)))
+          ;; Run default
+          (setq z (default-policy game p-nn))
+          ;; Run backup if any states were explored
+          (when state-move-list
+            (backup orig-tree state-move-list z))
+          ;; When it's over the time limit return
+          (when (< time-limit (- (get-internal-real-time) start-time))
+            (return))))
+      ;; Search only with value network
+      (v-nn 
+        (dotimes (i total-sim)
+          ;; Make a copy of the game state
+          (setq game (deep-copy-go orig-game))
+          ;; Add a node node every add-node sims
+          (if (= 0 (mod i add-node))
+            (setq state-move-list (sim-tree-nn game orig-tree c v-nn))
+            (setq state-move-list (sim-no-tree game orig-tree c)))
+          ;; Run default
+          (setq z (+ (random-policy game) (pop state-move-list)))
+          ;; Run backup if any states were explored
+          (when state-move-list
+            (backup orig-tree state-move-list z))
+          ;; When it's over the time limit return
+          (when (< time-limit (- (get-internal-real-time) start-time))
+            (return))))
+      ;; Search with no networks
+      (t 
+        (dotimes (i total-sim)
+          ;; Make a copy of the game state
+          (setq game (deep-copy-go orig-game))
+
+          (setq state-move-list (sim-tree game orig-tree c))
+          ;; Add a node node every add-node sims
+          ;(if (= 0 (mod i add-node))
+          ;  (setq state-move-list (sim-tree game orig-tree c))
+          ;  (setq state-move-list (sim-no-tree game orig-tree c)))
           ;; Run default
           (setq z (random-policy game))
-          ;; Run backup
-          (backup orig-tree state-move-list z)
+          ;; Run backup if any states were explored
+          (when state-move-list
+            (backup orig-tree state-move-list z))
           ;; When it's over the time limit return
           (when (< time-limit (- (get-internal-real-time) start-time))
             (return)))))

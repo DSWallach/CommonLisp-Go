@@ -213,8 +213,11 @@
            ;; If only one group containing only one piece 
            ;; was captured set the flag to check for ko
            (when (and (= captured 1) (= 1 (length (group-pieces group)))
-                      (setf (gg-ko? game) t)))))
-       )
+                      (setf (gg-ko? game) t))
+             ;; Set the hash flag for ko
+             (setf (gg-board-hash game)
+                   (bit-xor (gg-board-hash game)
+                            *ko-hash*))))))
 
       ;; Push the board onto board history
       (push (copy-vector board) 
@@ -240,10 +243,12 @@
           (groups-capture group (length groups))
 
           ;; If more groups were captured remove the flag
-          (when (< 1 captured)
-            (setf (gg-ko? game) nil))
-
-          (when (= captured 0)
+          (when (or (= 0 captured) 
+                    (< 1 captured))
+             ;; Set the hash flag for ko
+             (setf (gg-board-hash game)
+                   (bit-xor (gg-board-hash game)
+                            *ko-hash*))
             (setf (gg-ko? game) nil))
 
           ;; Evaluate each players score
@@ -276,6 +281,7 @@
 ;;  UNDO-MOVE! : GAME
 ;; ----------------------------------------
 ;;  Undo the most recently played move
+
 (defun undo-move! (game &optional (verbose? nil))
   (declare (ignore verbose?))
   (if
@@ -313,7 +319,7 @@
       (setf (gg-whose-turn? game) 
             (- 1 (gg-whose-turn? game)))
       )
-    (let* ((captured 0)
+    (let* ((captured (svref (second (gg-move-history game)) 2))
            (move (pop (gg-move-history game)))
            (pos (svref move 0))
            (player (gg-whose-turn? game))
@@ -330,7 +336,13 @@
         (pull-piece! game move) 
 
         ;; If nothing was captured reset the ko flag
-        (when (= captured 0)
+        (when (or (= captured 0)
+                  (> captured 1))
+
+          ;; Set the hash flag for ko
+          (setf (gg-board-hash game)
+                (bit-xor (gg-board-hash game)
+                         *ko-hash*))
           (setf (gg-ko? game) nil))
 
 
@@ -485,32 +497,24 @@
 (defmacro legal-move? (game pos)
     `(= 0 (svref (gg-board ,game) ,pos)))
 
-(defmacro random-policy (game &optional (nn nil))
-  `(let ((moves nil)
-         (rand 0)
-         (score 0)
-         )
-     (dotimes (i 1000000)
-       (setq moves (legal-moves ,game))
-       (setq rand (svref moves (random (length moves))))
-       (do-move! ,game rand)
-       (when (game-over? ,game)
-         (return)
-         ))
+(defun random-policy (game)
+ (let ((moves nil)
+         (score 0))
+     (dotimes (i 1000)
+       (setq moves (legal-moves game))
+       (do-move! game (svref moves (random (length moves))))
+       (when (game-over? game)
+         (return)))
 
-     (setq score (- (svref (gg-subtotals ,game) *black*)
-                    (svref (gg-subtotals ,game) *white*)))
+     (setq score (- (svref (gg-subtotals game) *black*)
+                    (svref (gg-subtotals game) *white*)))
      (cond 
        ;; White wins in case of a tie
-       ((= score 0)
-        (setq score -1))
+       ((= score 0) (setq score -1))
        ;; If black won
-       ((> score 0)
-        (setq score (sqrt (abs score))))
+       ((> score 0) (setq score (sqrt (abs score))))
        ;; If White won
-       (t 
-         (setq score (* -1 (sqrt (abs score)))))
-       )
+       (t (setq score (* -1 (sqrt (abs score))))))
 
      score))
 
@@ -620,21 +624,20 @@
 
     ;; If necessary...
     (cond
+      ;; Check that the board is not returning to 
+      ;; the state prior to your opponents last
+      ;; move. (Ko Rule)
       ((and (gg-ko? game) 
             (< 3 (length (gg-board-history game))))
-       ;; Check for for infringement of the Ko rule
-       (dolist (move valid-moves)
-         ;; Passing is always an options
-         ;(when (< 30 (length (gg-move-history game)))
-           (push *board-size* legal-moves)
-          ; )
-         ;; Check that the board is not returning to 
-         ;; the state prior to your opponents last
-         ;; move. (Ko Rule)
+       ;; Playing with fire
+       (let ((move nil)
+             (new-board nil)
+             (old-board nil))
+         ;; Check for for infringement of the Ko rule
+         (dotimes (i (length valid-moves))
 
-         ;; Playing with fire
-         (let ((new-board nil)
-               (old-board nil))
+           (setq move (pop valid-moves))
+
 
            ;; Get the old board
            (setq old-board (first (gg-board-history game)))
@@ -645,17 +648,18 @@
            (setq new-board (copy-vector (gg-board game)))
            ;; Reset game 
            (undo-move! game)
+           ;; When a ko is found
+           (when (equal-board? new-board old-board)
+             ;; All other moves must be legal 
+             (setq legal-moves (append legal-moves valid-moves))
+             (return))
 
-            ;; Ensure passing is the last move considered
-           (unless (or (eq *board-size* move)
-                       (equal-board? new-board old-board))
+           ;; Ensure passing is the last move considered
+           (unless (= *board-size* move)
              (push move legal-moves))))
-      ;; Return legal moves
-      (make-array (length legal-moves) :initial-contents legal-moves))
+       ;; Return legal moves
+       (make-array (length legal-moves) :initial-contents legal-moves))
 
-    (t 
-      ;(when (< 30 (length (gg-move-history game)))
-        (push *board-size* valid-moves)
-       ; )
-      ;; Otherwise return the valid moves
-      (make-array (length valid-moves) :initial-contents valid-moves)))))
+      (t 
+        ;; Otherwise return the valid moves
+        (make-array (length valid-moves) :initial-contents valid-moves)))))

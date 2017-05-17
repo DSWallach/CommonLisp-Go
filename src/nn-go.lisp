@@ -114,11 +114,7 @@
           (setq best-score (svref output move))
           (setq best-move move))))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
-    ;(if (< 0.001 (abs best-score))
-      best-move
-      ;; If isn't above the threashold return pass as the best move 
-    ;  *board-size*)
-    ))
+      best-move))
 
 
 (defun net-to-string (nn)
@@ -217,10 +213,6 @@
 
     ;; Make the new nn
     (setq read-nn (init-nn size-list weight-arrays name id))
-    ;; Explicitly clear the read in values
-    (setq layer-sizes nil)
-    (setq layer-weights nil)
-    (setq size-list nil)
     ;; Return the networks
     read-nn))
 
@@ -482,7 +474,6 @@
 ;;;  SIGMOID(X) = 1/(1 + e^(-x)) -- the sigmoid (or logistic) function
      
 (defun sigmoid (x)
-  (declare (type 'single-float x))
   (/ 1.0 (+ 1 (exp (- x)))))
 
 ;;;  FEED-FORWARD

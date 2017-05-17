@@ -68,7 +68,7 @@
       ;; board are referenced using the go-position function 
       :board (make-array *board-size* :initial-element 0)
       ;; The hash key for the current board state
-      :board-hash (make-array (* 2 *board-size*):element-type 'bit :initial-element 0)
+      :board-hash (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0)
       ;; Groups captured by each player
       ;; necessary to be able to destructively undo moves
       :captures (vector '() '())
@@ -304,7 +304,6 @@
       (when verbose? (format t "Game ko's are not equal. ~%~A, ~A~%" 
               (gg-ko? game0) (gg-ko? game1)))
       (return-from equal-go? nil))
-      
 
     ;; If all tests pass return true 
     t))
@@ -326,7 +325,7 @@
 (defmacro make-hash-key-from-game (game)
   ;; The hash is computed when a move is performed
   ;; so just make a indenticate bit vector
-  `(let ((key (make-array (* 2 *board-size*) :element-type 'bit :initial-element 0)))
+  `(let ((key (make-array (+ 1 (* 2 *board-size*)) :element-type 'bit :initial-element 0)))
               (bit-xor key (gg-board-hash ,game))))
 
 ;;  EVAL-TOTALS! : GAME 
@@ -341,7 +340,8 @@
         (player? nil)
         (total 0)
         )
-    
+    ;; They are used in the loop
+   (declare (ignore player) (ignore opponent)) 
     ;; Calc for black
     (dotimes (row *board-length*)
       ;; When a wall is reached 
@@ -586,17 +586,17 @@
 ;;  Captures all groups that don't have two eyes or
 ;;  room for two eyes
 (defun remove-dead-groups! (game)
-  (let ((b-count 0)
-        (w-count 0)
-        (b-groups (svref (gg-groups game) *black*))
+  (let ((b-groups (svref (gg-groups game) *black*))
         (w-groups (svref (gg-groups game) *white*))
         (b-caps (svref (gg-captures game) *black*))
         (w-caps (svref (gg-captures game) *white*))
-        (groups )
+        (groups nil)
+        (player nil)
         (turn (gg-whose-turn? game))
         (group nil)
-        (player nil)
         )
+    ;; It is used in a loop
+    (declare (ignore player))
     (labels ((num-liberties 
                (group1 group2)
                ;; Order of dead groups then
