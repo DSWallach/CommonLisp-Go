@@ -399,13 +399,13 @@
 
 ;; Used during network evolution
 (defun gauntlet (net1 net2 file-lock)
-  (compete 750 1 750 1
-           :black-threads 24
-           :white-threads 24
+  (compete 750 0.5 750 0.5
+           :black-threads 48
+           :white-threads 48
            :black-p-network net1
            :white-p-network net2
            :file file-lock
-           :time-limit 20000
+           :time-limit 10000
            ))
 
 (defun run-sims (num)
@@ -678,7 +678,8 @@
 
 
 (defmacro run-evo (nets gens fronts file-lock)
-  `(evolve-networks (read-nets ,nets) ,gens ,fronts ,file-lock t))
+;; The parallel implementation of this uses too much memory
+  `(evolve-networks (read-nets ,nets) ,gens ,fronts ,file-lock nil))
 
 
 (defmacro p-run-evo (nets gens fronts file-lock)
