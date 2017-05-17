@@ -1,15 +1,67 @@
-;; Network Training 
-;; Trained-Network '(81 65 49 65 81) 0.25
-;; policy-network-1a '(81 81 81) 0.5
-;; policy-network-1b '(81 49 81) 0.5
-;; policy-network-1c '(81 65 81) 0.5
-;; policy-network-1d '(81 81 81) 0.25
-;; policy-network-1e '(81 49 81) 0.25
-;; policy-network-1f '(81 65 81) 0.25
-;; policy-network-1g '(81 81 81) 0.75
-;; policy-network-1h '(81 49 81) 0.75
-;; policy-network-1i '(81 65 81) 0.75
+;;; ===============================
+;;;  CMPU-365, Fall 2010
+;;;  NEW-NN.LISP
+;;; ===============================
+;;;  Implementation of neural networks
 
+;; These calculations need to happen quickly and flaoting
+;; point operations don't always need to return the same 
+;; results for the lowest bits
+(eval-when (compile)
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+
+
+;;;  NN struct
+;;; ------------------------------------------------------
+;;;  Neurons and edges are not explicitly represented.  Instead, the 
+;;;  information for all the neurons and edges (e.g., output values,
+;;;  weights, delta values) is contained in various vectors and arrays.
+;;;  For example, in a 3-layer network with 3 input neurons, 4 hidden neurons,
+;;;  and 2 output neurons, the NN struct would have:
+;;;     NUM-LAYERS = 3
+;;;     LAYER-SIZES = (3 4 2)
+;;;     OUTPUT-VECKS = vector of 3 vectors (one for each layer)
+;;;        output-veck #0 would have 3 entries
+;;;        output-veck #1 would have 4 entries
+;;;        output-veck #2 would have 2 entries
+;;;     DELTA-VECKS = vector of 3 vectors (similar to OUTPUT-VECKS)
+;;;     WEIGHT-ARRAYS = vector of 2 weight arrays
+;;;        weight-array #0 would be a 3-by-4 array of weights
+;;;          (corresponding to weights between 3 input neurons
+;;;           and 4 hidden neurons)
+;;;        weight-array #1 would be a 4-by-2 array of weights
+;;;          (corresponding to weights between 4 hidden neurons
+;;;           and 2 output neurons)
+
+;(in-package :nn-go)
+
+(defstruct nn
+  ;; FAMILY-NAME: A string for identifying this network's family
+  family-name
+  ;; ID: An identifier for this network that is unique within this lineage
+  id
+  ;; NUM-LAYERS:  the number of layers in the neural network
+  num-layers    
+  ;; LAYER-SIZES:  a vector specifying the number of neurons in each layer
+  ;;   (The input layer is layer 0; the output layer is layer (1- num-layers)
+  layer-sizes   
+  ;; OUTPUT-VECKS:  A vector of vectors.
+  ;;  Each neuron has an associated output value.
+  ;;  (svref output-vecks i) -- is a vector of the computed output
+  ;;        values for the neurons in layer i.
+  output-vecks 
+  ;; WEIGHT-ARRAYS:  A vector of arrays.
+  ;;  (svref weight-arrays i) -- is an MxN array holding the weights
+  ;;        for all edges between layer i and layer (i+1).
+  ;;        M = number of neurons in layer i; N = number of neurons in layer (i+1)
+  weight-arrays 
+  ;; DELTA-VECKS:  A vector of vectors.
+  ;;  Each neuron (except those in the input layer) has an associated
+  ;;  DELTA value computed during back-propagation.
+  ;;  (svref delta-vecks i) -- is a vector of the delta values for
+  ;;       the neurons in layer i.
+  delta-vecks   
+  )
 
 ;;  INVERT-BOARD
 ;; -------------------------------
@@ -26,32 +78,17 @@
           (setf (svref new-board pos) -1))))
      new-board))
 
-
-;;  ANNALYZE-BOARD : NN BOARD LEGAL-MOVES PLAYER
+;;  ANNALYZE-BOARD : NN BOARD PLAYER
 ;; ------------------------------------------
 ;;  Analyze the scores of the various moves at
 ;;  the given board position
-(defun annalyze-board (nn board legal-moves player)
+(defmacro annalyze-board (nn board player)
   ;; Get the output of the nn for the given input (board state)
-  (let ((output (get-output-for nn  board))
-        (move-scores (make-array (length legal-moves) :initial-element 0))
-        )
-    ;; For each legal move 
-    (dotimes (i (length legal-moves))
+  `(if (eq ,player *white*)
+     (get-output-for ,nn (invert-board ,board))
+     (get-output-for ,nn ,board)))
 
-      ;; Skip passing
-      (unless (= *board-size* (svref legal-moves i))
-        ;; Set the score of the move to the probability of 
-        ;; the move being selected by the network
-        (setf (svref move-scores i)
-              ;; i.e. the value of the network's output for 
-              ;; that board position
-              (ssvref output (svref legal-moves i))))
-      )
-    ;; Return the scores
-    move-scores))
-
-;;  ANNALYZE-move : NN BOARD LEGAL-MOVES PLAYER
+;;  ANNALYZE-MOVES : NN BOARD LEGAL-MOVES PLAYER
 ;; ------------------------------------------
 ;;  Analyze the scores of the various moves at
 ;;  the given board position
@@ -73,8 +110,8 @@
       (setq move (svref legal-moves i))
       ;; Skip passing
       (unless (= *board-size* move)
-        (when (> (ssvref output move) best-score)
-          (setq best-score (ssvref output move))
+        (when (> (svref output move) best-score)
+          (setq best-score (svref output move))
           (setq best-move move))))
     ;(format t "Best Move ~A Score ~A~%" best-move best-score)
     ;(if (< 0.001 (abs best-score))
@@ -91,8 +128,6 @@
                "-"
                (write-to-string (nn-id nn)))))
 
-;; NOTE: I cannot believe that it's this easy to read/write from files
-
 ;;  WRITE-NETWORK : 
 ;;  INPUT: FILENAME - A string representing where the file will be written
 ;;         NN - A neural network struct
@@ -101,7 +136,6 @@
 ;;  Writes a NN to a space deliminated text file
 (defun write-network 
   (nn &optional (force? nil))
-
   ;; Network files are put in the 'networks' sub directory
   (let* ((filename (net-to-string nn))
          (file-path (make-pathname :name (concatenate 'string "../networks/" filename ".net")))
@@ -190,608 +224,527 @@
     ;; Return the networks
     read-nn))
 
+;; Only for 2-d arrays
+(defun copy-array (arr)
+  (let* ((dims (array-dimensions arr))
+        (new-arr (make-array dims))
+        )
+    (dotimes (i (first dims))
+      (dotimes (j (second dims))
+        (setf (aref new-arr i j)
+              (aref arr i j))))
+    new-arr))
 
-(defmacro read-nets (lof)
-  `(let ((lon (list)))
-     (dolist (filename ,lof)
-       (push (read-network filename) lon)
-       )
-     lon))
+;;  NN-MUTATE
+;; -----------------------------
+;;  Returns a fresh NN with weights slightly modified from NN
+(defun nn-mutate 
+  (nn mutation-rate)
+  (let ((name (nn-family-name nn))
+        (id (+ 1 (nn-id nn)))
+        (num-layers (nn-num-layers nn))
+        (layer-sizes (copy-vector (nn-layer-sizes nn)))
+        (size-list (list))
+        (weight-arrays (copy-vector (nn-weight-arrays nn) #'copy-array))
+        )
+    (dotimes (lay-num (1- num-layers))
+      (let ((weight-array (svref weight-arrays lay-num)))
+        ;; For each neuron N_i in that layer...
+        (dotimes (i (svref layer-sizes lay-num))
+          ;; For each neuron N_j in the following layer...
+          (dotimes (j (svref layer-sizes (1+ lay-num)))
+            ;; If random is less than the mutation-rate
+            (when (> mutation-rate (random 1.0))
+              ;; Should be about 50%
+              (if (= 0 (random 2))
+                ;; Modify the weights by some amount less than the mutation-rate
+                (incf (aref weight-array i j)
+                      (random mutation-rate))
+                (decf (aref weight-array i j)
+                      (random mutation-rate))))))))
 
-;; Create a list of pathnames to the files to parse
-(defun make-parse-list 
-  (num)
-  (let ((path-list (list )))
+    ;; Convert layer sizes to list from vector
+    (dotimes (i (length layer-sizes))
+      (push (svref layer-sizes (- (length layer-sizes) i 1))
+            size-list))
+    (format t "Mutated ~A-~A~%" name id)
+    ;; Return a fresh 
+    (init-nn size-list weight-arrays name id)))
+
+
+;;  NN-EQUAL
+;; ------------------------
+;; Equality test for two NN's
+(defun nn-equal (nn1 nn2)
+  (if (and (= (nn-num-layers nn1)
+              (nn-num-layers nn2))
+           (equalp (nn-layer-sizes nn1)
+                   (nn-layer-sizes nn2))
+           (equalp (nn-weight-arrays nn1)
+                   (nn-weight-arrays nn2))
+           )
+    t 
+    nil))
+
+;;  DEEP-COPY-NN-OUTPUS : NN - A NN struct
+;; --------------------------------------
+;;  Creates a new neural network with pointers to 
+;;  all the network properties of the original network
+;;  except the outputs. It creates a new vector for the 
+;;  output values of the neuron. This is used to create
+;;  multiple copies of a single network for use by the 
+;;  multiple threads during MCTS. As the networks are not
+;;  trained during the search only the values of the outputs
+;;  need to be unique between the networks
+(defun deep-copy-nn-outputs (nn)
+  (let ((name (nn-family-name nn))
+        (id (nn-id nn))
+        (layers (nn-num-layers nn))
+        (sizes (nn-layer-sizes nn))
+        ;; New memory is allocated for outputs 
+        (outputs (make-array (length (nn-output-vecks nn))))
+        (weights (nn-weight-arrays nn))
+        (deltas (nn-delta-vecks nn))
+        )
+
+    (dotimes (i layers)
+      (setf (svref outputs i) 
+            (make-array (svref sizes i)
+                        :initial-element 0.0)))
+
+    (make-nn :family-name name
+             :id id
+             :num-layers layers
+             :layer-sizes sizes
+             :output-vecks outputs
+             :weight-arrays weights
+             :delta-vecks deltas)))
+
+(defun deep-copy-nn (nn)
+  (let ((name (nn-family-name nn))
+        (id (nn-id nn))
+        (sizes (nn-layer-sizes nn))
+        (size-list (list))
+        ;; New memory is allocated for outputs 
+        (weights (nn-weight-arrays nn))
+        )
+    (dotimes (i (length sizes))
+      (push (svref sizes (- (length sizes) i 1))
+            size-list))
+
+
+    (init-nn size-list weights name id)))
+
+
+(defun map-short (arr)
+  ;; Create the new array
+  (let* ((num-rows (first (array-dimensions arr)))
+         (num-cols (second (array-dimensions arr)))
+         (new-arr (make-array (list num-rows num-cols) :element-type 'short-float))
+         )
+    (dotimes (i num-rows)
+      (dotimes (j num-cols)
+        (setf (aref new-arr i j)
+              (coerce (aref arr i j) 'short-float))))
+    ;; Return the finished array
+    new-arr))
+
+
+
+;;;  INIT-NN
+;;; -----------------------------------------
+;;;  INPUT:  SIZES-OF-LAYERS, a list of numbers indicating how
+;;;           many neurons are in each layer.  (Layer 0 corresponds
+;;;           to the input layer).
+;;;  OUTPUT:  A neural network (NN struct) of that size, initialized
+;;;           with weights randomly selected between -0.5 and +0.5.
+
+(defun init-nn (sizes-of-layers &optional 
+                                (weight-arrays-init nil)
+                                (name "default")
+                                (id 0))
+  (let* (;; NUM-LAYERS:  the number of layers in the network
+         (num-layers (length sizes-of-layers))
+         ;; LAYER-SIZES:  a vector whose ith element will say how many
+         ;;  neurons are in layer i
+         (layer-sizes (make-array num-layers))
+         ;; OUTPUT-VECKS:  a vector of vectors.  The ith vector will
+         ;;  contain output values for each neuron in layer i
+         (output-vecks (make-array num-layers ));:element-type 'short-float)) 
+         ;; Short floats to save memory
+         ;; NN's are basically approximation functions, they don't need to be super accurate
+         ;; DELTA-VECKS:  similar to output-vecks, except they contain
+         ;;  the delta values for each neuron
+         (delta-vecks (make-array num-layers ));:element-type 'short-float))
+         ;; WEIGHT-ARRAYS:  see documentation of NN struct
+         (weight-arrays (make-array (1- num-layers)))
+         ;; NN: the network
+         (nn (make-nn :family-name name
+                      :id id 
+                      :num-layers num-layers
+                      :layer-sizes layer-sizes
+                      :output-vecks output-vecks
+                      :weight-arrays weight-arrays
+                      :delta-vecks delta-vecks)))
+
+    (format t "Init: ~A-~A~%" name id)
+    ;; For each layer...
+    (dotimes (i num-layers)
+      ;; Set the size of that layer (i.e., how many neurons)
+      (setf (svref layer-sizes i) (nth i sizes-of-layers))
+      ;; Create a vector of output values for the neurons in that layer
+      (setf (svref output-vecks i) (make-array (svref layer-sizes i)
+                                              ;;:element-type 'short-float
+                                               :initial-element ;0.0
+                                               nil
+                                               ))
+      ;; Create a vector of delta values for the neurons in that layer
+      (setf (svref delta-vecks i) (make-array (svref layer-sizes i)
+                                            ;;  :element-type 'short-float
+                                             :initial-element ;0.0
+                                             nil
+                                              ))
+      ;; For non-input neurons, create an array of weights
+      ;; corresponding to edges between current layer and previous layer
+      (when (> i 0)
+        (if weight-arrays-init 
+            ;; The array of weights
+            (setf (svref weight-arrays (1- i)) 
+                  (map-short (svref weight-arrays-init (1- i))))
+
+          ;; Otherwise use random values
+          (let* ((num-rows (svref layer-sizes (1- i)))
+                 (num-cols (svref layer-sizes i))
+                 ;; The array of weights
+                 (harry (make-array (list num-rows num-cols))))
+            (setf (svref weight-arrays (1- i)) harry)
+            ;; randomize weights
+            (dotimes (i num-rows)
+              (dotimes (j num-cols)
+                (setf (aref harry i j) 
+                      (- (/ (random 100) 100) 0.5))))))))
+    ;; return the NN
+    nn))
+
+
+
+;;;  ERASE-OUTPUTS
+;;; -----------------------------------------------------
+;;;  INPUT:  NN, a neural network
+;;;  OUTPUT:  T
+;;;  SIDE-EFFECT: Destructively modifies NN by setting all output
+;;;   values to NIL (usually done before the FEED-FORWARD process).
+
+(defun erase-outputs (nn)
+  (let ((out-vecks (nn-output-vecks nn))
+        (num (nn-num-layers nn))
+        (lay-sizes (nn-layer-sizes nn)))
+    ;; For each layer...
     (dotimes (i num)
-      (push (make-pathname :name 
-                           (concatenate 'string 
-                                        "../../9x9/game"
-                                        (write-to-string i)
-                                        ".csv"))
-            path-list))
-    path-list))
+      (let ((num-neurons (svref lay-sizes i))
+            (outputs (svref out-vecks i)))
+        ;; For each neuron in that layer...
+        (dotimes (j num-neurons)
+          ;; Set that neuron's output value to NIL
+          ;; svref is for short arrays
+          (setf (svref outputs j) 0.0))))
+    t))
 
-;;  Load the training data into memory
-;; -------------------------------------
-;;  INPUT: List of files
-(defun load-data (lof &optional (verbose? nil))
-  (let ((data (list))
-        (in-arr (make-array *board-size* :initial-element 0))
-        (out-arr (make-array *board-size* :initial-element 0))
-        (line nil)
-        )
-    ;; For evey files
-    (dolist (file-path lof)
-      (when verbose? (format t "Reading file ~A " file-path))
-      (with-open-file (file file-path :direction :input)
-        ;; For every line in the file
-        (loop while (peek-char t file nil nil)
-              do 
-              ;; Get the input
-              (setq in-arr (read file))
-              ;; Get the output
-              (setq out-arr (read file))
-              ;; Add it to the list of training data
-              (push (list in-arr out-arr) data)
-              ))
-      ;; Add the array pair to the list
-      )
-    (when verbose? (format t "Created ~A (state, action) pairs~%" (length data)))
-    ;; Return the lists
-    data))
+;;;  SET-INPUTS
+;;; --------------------------------------------------
+;;;  INPUT:  NN, a neural network
+;;;          INPUTS, a list of input values for the input neurons of NN
+;;;  OUTPUT: NN
+;;;  SIDE EFFECT:  Sets the "output" value of each neuron in the
+;;;    input layer to the corresponding value in INPUTS.
 
-;; Open NUM files and convert them into training data
-(defun load-files (num-files)
-  (load-data (make-parse-list num-files)))
-
-;; Synchonized pool for storing instances of the trained network
-(defstruct (pool (:include synchronizing-structure))
-  nets
-  )
-
-
-;; Needs to start with a fresh nn
-;; having multiple pools of the same nn causes memory issues
-(defun init-pool (nn num-nets)
-  (let ((p (make-pool))
-        (net (deep-copy-nn nn)))
-    (with-locked-structure 
-      (p)
-      (dotimes (i num-nets)
-        (track (push (deep-copy-nn-outputs nn) (pool-nets p)))))
-    (format t "Create pool of size ~A from net ~A~%"
-            (length (pool-nets p))
-            (net-to-string (first (pool-nets p)))
-            )
-    p))
-
-(defun init-nn-pool (net-name num-cores)
-  (init-pool (read-network net-name) num-cores))
-
-(defmacro process-store-nn (name layers rate files)
-  `(mp:process-run-function ,name #'store-nn ,name ,layers ,rate ,files))
-
-(defun store-nn (name layers rate files)
-  (let ((nn (init-nn layers nil name)))
-    (format t "Network ~A~%" (nn-family-name nn))
-    (train-all nn rate files)
-    (format t "Training Network ~A~%" (nn-family-name nn))
-    (write-network nn name t)
-    (format t "Network ~A ~A written~%" (nn-family-name nn) (nn-id nn))
-    ))
-
-
-(defconstant *lot*
-             (list 
-               (list "full-conn-0.25" (list 81 81 81 81 81) 0.25)
-               (list "full-conn-0.5" (list 81 81 81 81 81) 0.5)
-               (list "full-conn-0.75" (list 81 81 81 81 81) 0.75)
-               (list "full-conn-1" (list 81 81 81 81 81) 1)
-               (list "small-conn-0.25" (list 81 81 81) 0.25)
-               (list "small-conn-0.5" (list 81 81 81) 0.5)
-               (list "small-conn-0.75" (list 81 81 81) 0.75)
-               (list "small-conn-1" (list 81 81 81) 1)
-               (list "full-conv-0.25" (list 81 65 49 65 81) 0.25)
-               (list "full-conv-0.5" (list 81 65 49 65 81) 0.5)
-               (list "full-conv-0.75" (list 81 65 49 65 81) 0.75)
-               (list "full-conv-1" (list 81 65 49 65 81) 1)
-               (list "small-conv-0.25" (list 81 49 81) 0.25)
-               (list "small-conv-0.5" (list 81 49 81) 0.5)
-               (list "small-conv-0.75" (list 81 49 81) 0.75)
-               (list "small-conv-1" (list 81 49 81) 1)
-               (list "charles" (list 81 67 81) 0.9)
-               (list "direct" (list 81 81) 0.25)
-               ))
-
-(defconstant *s-conn* (list
-                              "small-conn-0.25-0"
-                              "small-conn-0.5-0"
-                              "small-conn-0.75-0"
-                              "small-conn-1-0"
-))
-(defconstant *s-conv* (list
-                              "small-conv-0.25-0"
-                              "small-conv-0.5-0"
-                              "small-conv-0.75-0"
-                              "small-conv-1-0"
-))
-(defconstant *f-conv* (list
-                              "full-conv-0.25-0"
-                              "full-conv-0.5-0"
-                              "full-conv-0.75-0"
-                              "full-conv-1-0"
-))
-
-(defconstant *lon*
-             (reverse (list 
-                              "full-conn-0.25-0"
-                              "full-conn-0.5-0" 
-                              "full-conn-0.75-0"
-                              "full-conn-1-0" 
-                              "small-conn-0.25-0"
-                              "small-conn-0.5-0"
-                              "small-conn-0.75-0"
-                              "small-conn-1-0"
-                              "full-conv-0.25-0"
-                              "full-conv-0.5-0"
-                              "full-conv-0.75-0"
-                              "full-conv-1-0"
-                              "small-conv-0.25-0"
-                              "small-conv-0.5-0"
-                              "small-conv-0.75-0"
-                              "small-conv-1-0"
-             ;                 "charles-0" 
-;                              "direct-0" 
-                              )))
-             ;;  TRAIN-NETWORKS
-;; ---------------------
-;; INPUTS: LOT, a list of triples 
-;;              first = network-name
-;;              second = layer-sizes 
-;;              third = training-rate
-;; For training multiple networks at the same time
-;; so the files don't have to be opened mulitple times
-(defun train-networks (lot)
-  (let ((files (load-files 60000)))
-    (dolist (triple lot)
-      ;; Can't use apply cause files is a list
-      ;(format t "Applying ~A~%" triple)
-      (process-store-nn (first triple)
-                        (second triple)
-                        (third triple)
-                        files
-                        ))))
-;; Trains the networks with the names and parameters 
-;; passed in as a list of triples
-(defmacro p-train-networks (lot)
-  `(mp:process-run-function (write-to-string ,lot) #'train-networks ,lot))
-
-;;  COMPETE : BLACK-NUM-SIMS BLACK-C WHITE-NUM-SIMS WHITE-C
-;; --------------------------------------------------
-;;  NOTE:  Compete has a lot of functionality for various situations
-;;           for simply watching two A.I.'s player it's recommended to 
-;;           use one of the macros defined below
-;;  INPUTS:  BLACK-NUM-SIMS, the number of simulations for each of black's moves
-;;           BLACK-C, the exploration/exploitation constant used by black
-;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
-;;           WHITE-C, the exploration/exploitation constant used by white
-;;  OUTPUT:  Don't care
-;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
-;;    for both players according to the specified parameters.
-
-(defun compete
-  (black-num-sims black-c white-num-sims white-c 
-                  &optional 
-                  (black-threads? nil)
-                  (white-threads? nil)
-                  (black-network  nil)
-                  (white-network  nil)
-                  (pool nil)
-                  (return-game? nil)
-                  (filename nil)
-                  (verbose? t)
-                  )
-
-  ;; Record a random board state from the game along with who won the game
-  (labels ((record-game 
-             (game)
-             ;; Get a random board state
-             (let* ((store-board  (nth (random (length (gg-board-history game)))
-                                       (gg-board-history game)))
-                    (score (- (svref (gg-subtotals game) *black*)
-                              (svref (gg-subtotals game) *white*)))
-                    (winner nil)
-                    (set-struct (make-compete-settings 
-                                  :b-sims black-num-sims 
-                                  :b-c black-c 
-                                  :w-sims white-num-sims 
-                                  :w-c white-c 
-                                  :b-t black-threads?
-                                  :w-t white-threads?
-                                  :b-net black-network
-                                  :w-net white-network
-                                  :pool pool)))
-               ;; If the score is greater than 0, black won
-               (if (> score 0)
-                 ;; The network represents black as a 1
-                 (setq winner 1)
-                 ;; Otherwise white won
-                 (setq winner -1))
-
-               (with-locked-structure 
-                 (filename)
-                 (with-open-file (file (file-lock-path filename) :direction :output 
-                                       :if-does-not-exist :create
-                                       :if-exists :append)
-                   ;; Write the board state
-                   (write-string (write-to-string store-board) file) 
-                   ;; Write who won the game
-                   (write-string (write-to-string winner) file)
-                   (write-line (write-to-string (compete-to-list set-struct)) file)))))
-           )
-    (let ((g (init-game))
-          (b-p nil)
-          (w-p nil))
-
-      (when black-network
-        ;; When provided a string
-        (if (stringp black-network)
-          ;; Load the network
-          (setq b-p (init-nn-pool black-network black-threads?))
-          ;; Otherwise were provided a network so use it
-          (setq b-p (new-pool black-network black-threads?))))
-
-      (when white-network
-        ;; When provided a string
-        (if (stringp white-network)
-          ;; Load the network
-          (setq w-p (init-nn-pool white-network white-threads?))
-          ;; Otherwise were provided a network so use it
-          (setq w-p (new-pool white-network white-threads?))))
-
-      (loop while (not (game-over? g))
-            do (cond
-                 ((= (gg-whose-turn? g) *black*)
-                  (when verbose? (format t "BLACK'S TURN!~%"))
-                  (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
-                    (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
-                  (when verbose? (print-go g t nil nil nil nil)))
-                 (t
-                   (when verbose? (format t "WHITE'S TURN!~%"))
-                   (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
-                     (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
-                   (when verbose? (print-go g t nil nil nil nil)))))
-
-      ;; Show all game information
-      (when verbose? (print-go g t nil t t))
-
-      ;; If a record from the game is to be used
-      (when filename
-        ;; Record 4 states b/c don'thave much time
-        (dotimes (i 4) 
-          (record-game g)))
-      ;; Explicitly clear the pool
-      (setq w-p nil)
-      (setq b-p nil)
-      ;; Return the final game state if requested
-      (when return-game? g))))
-
-(defun play-nets-no-t (net1 net2)
-  (compete 81 2 1 2 nil nil net1 net2)
-  (gc t))
-
-(defun play-nets (net1 net2 file-lock)
-  (compete 750 1 750 1 16 16 net1 net2 nil nil file-lock))
-
-(defun play-nets-sims (net1 net2 sims1 sims2 file-lock)
-  (compete sims2 (+ 1 (random 4)) sims1 (+ 1 (random 4)) 16 16 net1 net2 nil nil file-lock))
-
-(defun play-b-net (net)
-  (compete 750 1 750 1 1 1 net nil nil nil file-lock))
-
-(defun play-mcts (b-num w-num)
-  (compete b-num 2 w-num 2 nil nil nil nil nil))
-
-(defun run-sims (num)
-  (dolist (net1 *lon*)
-    (dolist (net2 *lon*)
-      (unless (equalp net1 net2)
-        (dotimes (i num)
-          (play-nets-sims net1 net2 (+ 250 i) (+ 250 i) file-lock))))))
-
-(defmacro p-run-sims (num)
-  `(mp:process-run-function (concatenate 'string "number-" (write-to-string ,num))
-                            #'run-sims
-                            ,num
-                            ))
-
-
-;; I'm using an evolutionary algorithm instead of 
-;; training on the results of the matches b/c the network
-;; trained that way wasn't better when combined with the 
-;; Value network in the original paper so I'm going to 
-;; try something else
-(defstruct (competetor
-             (:conc-name c-)
-             (:print-function print-comp)
-             (:include synchronizing-structure))
-  id        ;; A number that is unique within each generation
-  net       ;; A NN
-  age       ;; The number of gens this network has been a competetor
-  fitness   ;; The fitness of this competetor in the current generation
-  dominated ;; A parameter for use with AFPO
-  )
-
-(defun print-comp (comp str depth)
-  (declare (ignore depth))
-  (format t "~A-~A~%" (nn-family-name (c-net comp))
-          (nn-id(c-net comp))))
-
-(defun new-competetor (net id)
-  (make-competetor :net net 
-                   :age 0
-                   :fitness 0
-                   :dominated nil))
-
-;; Returns a list of pairs containing every combination of 
-;; pairs of two networks provided
-;; These lists are akin to the pareto fronts in AFPO
-(defmacro make-pairs (loc)
-  `(let ((pairs (list))
-         (comp1 nil)
-         )
-     (loop while (< 0 (length ,loc))
-           do (setq comp1 (pop ,loc))
-           (dolist (comp2 ,loc)
-             (when (and comp1 comp2)
-               (push (list comp1 comp2) pairs)))
-           )
-     pairs))
-
-;; Non-dominated before dominated then 
-;; by fitness
-(defun most-fit (comp1 comp2)
-  (if (or (and (not (c-dominated comp1))
-               (c-dominated comp2))
-          (> (c-fitness comp1) 
-             (c-fitness comp2)))
-    t nil))
-
-;; Macro for returning the next generation of 
-;; competetors
-(defmacro get-next-gen (generation)
-  `(let ((next-gen (list))
-         (gen nil)
-         (child nil)
-         (gen-id 0)
-         )
-     ;; Sort the list by highest fitness
-     (setq gen (sort ,generation #'most-fit))
-
-     ;; For each member of the population
-     (dolist (comp gen)
-       ;; Every non-dominated ID gets a mutant offspring 
-       ;; added to the next-generation
-       (unless (c-dominated comp)
-         (setq child (new-competetor (nn-mutate (c-net comp) 0.25) gen-id))
-         (format t "Child ~A~%" child)
-         (write-network (c-net child))
-         (push child 
-               next-gen)
-         (incf gen-id))
-       ;; Increment age
-       (incf (c-age comp))
-       ;; Reset fitness
-       (setf (c-fitness comp) 0)
-       ;; Reset dominated
-       (setf (c-dominated comp) nil)
-
-       ;; Return when all non-dominated networks
-       ;; are added and the previous population size
-       ;; has been reached
-       (if (or (not (c-dominated comp))
-               (<= (length next-gen)
-                   (length ,generation)))
-       ;; Add it to the next generation
-       (push comp next-gen)
-       ;; Otherwise discard it
-       (setq comp nil)))
-
-     ;; Return the next generation
-     next-gen))
-
-;; Basically a wrapper for compete
-(defun gaunlet (net1 net2 file-lock)
-  (compete 250 1 250 1 2 2
-           (net-to-string net1)
-           (net-to-string net2) 
-           nil t 
-           file-lock
-           nil))
-
-;; Has two competitors play two games against each other 
-;; once each as black and white. The player with the combined
-;; higher score from both games is the winner (ties are a one 
-;; point win for white)
-(defun face-off (pair gen barrier file-lock)
-  (let ((comp1 (first pair))
-        (comp2 (second pair))
-        (score1 0)
-        (score2 0)
-        (game nil)
-        )
-    (format t "Round 1 ~A" pair)
-
-    ;; Play a game recording two random board states 
-    ;; as well as who won in this generation's game-history
-    (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
+(defun set-inputs (nn inputs)
+  (declare (:explain :types :variables :calls))
+  (let* ((out-vecks (nn-output-vecks nn))
+	 ;; OUT-VECK-ZERO:  the vector of "output" values for layer 0 
+	 (out-veck-zero (svref out-vecks 0))
+	 (num-inputs (svref (nn-layer-sizes nn) 0)))
     (cond
-      ;; If a tie count as a one point victory for white
-      ((= (svref (gg-subtotals game) *black*)
-          (svref (gg-subtotals game) *white*))
-       (incf score2 1))
-      (t 
-        ;; First comp1 is black
-        (incf score1 (svref (gg-subtotals game) *black*))
-        ;; And comp2 is white
-        (incf score2 (svref (gg-subtotals game) *white*))
-        ))
+     ;; CASE 1:  INPUTS has the right number of input values
+     ((= num-inputs (length inputs))
+      ;; For each input value...
+      (dotimes (i num-inputs)
+	;; Set the "output" value for the corresponding neuron in layer 0 
+	(setf (svref out-veck-zero i) (coerce (svref inputs i) 'float)))
+      ;; return the NN
+      nn)
+     ;; Case 2:  Error!
+     (t
+      (format t "Whoops!  Wrong number of input values for this NN!~%")))))
 
-    (format t "Round 2 ~A" pair)
-    ;; Then they switch
-    (setq game (gaunlet (c-net comp2) (c-net comp1) file-lock))
-    (cond
-      ;; If a tie count as a one point victory for white
-      ((= (svref (gg-subtotals game) *black*)
-          (svref (gg-subtotals game) *white*))
-       (incf score1 1))
-      (t 
-        ;; First comp1 is black
-        (incf score2 (svref (gg-subtotals game) *black*))
-        ;; And comp2 is white
-        (incf score1 (svref (gg-subtotals game) *white*))
-        ))
-    ;; Evaluate the winner
-    (cond 
-      ;; If comp1 was the victor
-      ((> score1 score2)
-       ;; Update it's fitness
-       (with-locked-structure 
-         (comp1)
-         (incf (c-fitness comp1)))
-       (with-locked-structure 
-         (comp2)
-         ;; Update the other fitness
-         (decf (c-fitness comp2))
-         ;; Set dominated 
-         (setf (c-dominated comp2) t)))
-      ;; If comp2 was the victor
-      ((> score2 score1)
-       ;; Update it's fitness
-       (with-locked-structure 
-         (comp2)
-         (incf (c-fitness comp2)))
-       (with-locked-structure 
-         (comp1)
-         ;; Update the other fitness
-         (decf (c-fitness comp1))
-         ;; Set dominated 
-         (setf (c-dominated comp1) t))))
-    ;; If there is a tie, neither is dominated 
-    ;; or has a change in fitness
+;;;  SIGMOID
+;;; ------------------------------
+;;;  SIGMOID(X) = 1/(1 + e^(-x)) -- the sigmoid (or logistic) function
+     
+(defun sigmoid (x)
+  (declare (type 'single-float x))
+  (/ 1.0 (+ 1 (exp (- x)))))
 
-    (mp:barrier-pass-through barrier)
-    (format t "Thread completing ~A ~%" barrier)))
+;;;  FEED-FORWARD
+;;; ----------------------------------------------------------
+;;;  INPUTS:  NN, a neural network
+;;;           INPUTS, a list of input values for the input neurons in NN
+;;;  OUTPUT:  NN
+;;;  SIDE-EFFECT:  Applies the given INPUT values to the input layer of NN
+;;;   and propagates them forward to generate output values for all neurons
+;;;   in the network.
 
-;; Run evolutionary trials pitting networks against
-;; networks and store a few game state pairs from the 
-;; game
-(defun evolve-networks (lon generations num-fronts file-lock &optional (threads? nil))
-  (let ((lineage-counters (make-array (length lon) :initial-element 1))
-        (fronts (make-array num-fronts :initial-element (list)))
-        (generation (list))
-        (pairs (list)) ; A list of pairs containing every combination of networks in the generation
-        (gen-id 0)
-        (barrier nil)
-        (front-count 0)
-        )
-    ;(format t "LON: ~A~%" lon)
-    (time (dolist (net lon)
-            (push (new-competetor net gen-id)
-                  generation)
-            (incf gen-id)))
+(defun feed-forward (nn inputs)
+  (declare (:explain :types :variables :calls))
+  ;; First, set the output value for each neuron to NIL
+  (erase-outputs nn)
+  ;; Next, set the "output" value for each neuron in the input layer
+  ;; to the corresponding value in INPUTS
+  (set-inputs nn inputs)
 
-    (format t "Initial Population ~A~%" generation)
+  (let ((num-layers (nn-num-layers nn))
+        (layer-sizes (nn-layer-sizes nn))
+        (output-vecks (nn-output-vecks nn))
+        (weight-arrays (nn-weight-arrays nn)))
 
-    ;; Run the evolutionary algorithm
-    (dotimes (gen generations)
-      (format t "Running Generation ~A~%" gen)
+    ;; For each LAYER from 1 onward (i.e., not including the input layer)
+    (do ((lay-num 1 (1+ lay-num)))
 
-      ;; Randomly distribute the networks among the fronts
-      (dolist (comp generation)
-              (push comp (svref fronts front-count))
-              (incf front-count)
-              (when (= num-fronts front-count)
-                (setq front-count 0)))
+      ;; Exit Condition
+      ((= lay-num num-layers)
+       nn)
 
-      ;; Reset the fronts as pairs
-      (dotimes (i num-fronts)
-              (setf (svref fronts i)
-                    (make-pairs (svref fronts i))))
+      ;; Body of DO
+      (let* ((outputs (svref output-vecks lay-num))
+             (prev-outputs (svref output-vecks (1- lay-num)))
+             (num-prev-outputs (length prev-outputs))
+             (weight-array (svref weight-arrays (1- lay-num))))
+        ;; For each neuron in that layer...
+        (dotimes (neuron-num (svref layer-sizes lay-num))
+          ;; Compute output value of that neuron 
+          (setf (svref outputs neuron-num)
+                ;; SIGMOID of the DOT-PRODUCT of WEIGHTS and INPUT VALUES
+                ;;  (INPUTS for this neuron are OUTPUTS from neurons 
+                ;;     in previous layer)
+                (sigmoid (let ((dot-prod 0))
+                           (dotimes (j num-prev-outputs)
+                             (incf dot-prod
+                                   (* (svref prev-outputs j)
+                                      (aref weight-array j neuron-num))))
+                           dot-prod))))))))
 
-      ;; Add all the pairs into one list
-      (dotimes (i num-fronts)
-              (dolist (pair (svref fronts i))
-                (push pair pairs)))
+;;;  TRAIN-ONE
+;;; ----------------------------------------------------
+;;;  INPUTS:  NN, a neural network
+;;;           ALPHA, a small positive number that specifies the sensitivity
+;;;             of updates to the error
+;;;           INPUTS, a list of input values for the neurons in the input layer
+;;;           TARGET-OUTPUTS, the desired outputs for neurons in the output
+;;;             layer, given the specified INPUTS.
+;;;  OUTPUT:  NN
+;;;  SIDE EFFECT:  Uses FEED-FORWARD to generate output values for
+;;;   the given inputs; then uses the BACK-PROPAGATION algorithm to
+;;;   generate DELTA values for each neuron (starting from output layer
+;;;   and working back to first hidden layer); then uses the DELTA values
+;;;   to update each non-input neuron.
 
-      ;; Evaluate each network's fitness
-      ;; Do the fronts one at a time to make better use of memory
-      ;(dotimes (i num-fronts)
-      ;; Reset the barrier
-      (setq barrier (mp:make-barrier (+ 1 (length pairs))))
-      (format t "Pairs: ~A ~%" pairs)
-      (dolist (pair pairs);(svref fronts i))
-(when (and (first pair)
-(second pair))
-        (format t "Face Off: ~A ~%" pair)
-        (if threads? 
-          (mp:process-run-function (write-to-string pair) 
-                                   #'face-off
-                                   pair
-                                   gen
-                                   barrier
-                                   file-lock)
-          (face-off pair gen barrier file-lock)
-          )
-)
-        ;    )
-        (format t "Waiting for threads to finish~%")
-        ;; Wait for all the trials to finish
-        )
+(defun train-one (nn alpha inputs target-outputs)
+  (declare (:explain :types :variables :calls))
+  (feed-forward nn inputs)
 
-      (mp:barrier-wait barrier)
+  ;; Back prop algorithm...
+  (let* ((num-layers (nn-num-layers nn))
+	 (layer-sizes (nn-layer-sizes nn))
+	 ;; The index for the output layer
+	 (last-layer-index (1- num-layers))
+	 (num-output-neurons (svref layer-sizes last-layer-index))
+	 ;; The index for the layer just before the output layer
+	 (penult-layer-index (1- last-layer-index))
+	 ;;(num-penult-neurons (svref layer-sizes penult-layer-index))
+	 (output-vecks (nn-output-vecks nn))
+	 ;;(penult-output-veck (svref output-vecks penult-layer-index))
+	 (last-output-veck (svref output-vecks last-layer-index))
+	 (delta-vecks (nn-delta-vecks nn))
+	 (last-delta-veck (svref delta-vecks last-layer-index))
+	 (weight-arrays (nn-weight-arrays nn))
+	 ;;(last-weight-array (svref weight-arrays penult-layer-index))
+	 )
 
-      (format t "Creating next generation~%")
-      ;; Get the next generation
-      (setq generation (get-next-gen generation))
-      ;; Reset pairs
-      (setq pairs (list))
-      (setq file-lock nil) 
-      )
-    (format t "Done!~%")
-    ))
+    ;; for each neuron in the output layer:
+    (dotimes (neuron-num num-output-neurons)
+      (let* ((target-output (svref target-outputs neuron-num))
+             (my-output  (svref last-output-veck neuron-num))
+             (diffy (- target-output my-output)))
+        ;;   DELTA_J = G'(IN_J) * (Y_J - A_J)
+        ;;           = G(IN_J)*(1 - G(IN_J))*(Y_J - A_J)
+        ;;           = A_J * (1 - A_J) * (Y_J - A_J)
+        (setf (svref last-delta-veck neuron-num)
+              (* my-output (- 1 my-output) diffy))))
+
+    ;; for each hidden layer...
+    (do ((lay-num penult-layer-index (1- lay-num)))
+      ;; exit
+      ((= lay-num 0))
+      ;; BODY of DO
+      ;; ---------------------------
+      (let* ((num-neurons (svref layer-sizes lay-num))
+             (curr-out-veck (svref output-vecks lay-num))
+             (next-delta-veck (svref delta-vecks (1+ lay-num)))
+             (my-delta-veck (svref delta-vecks lay-num))
+             (num-neurons-next-layer (svref layer-sizes (1+ lay-num)))
+             (curr-weight-array (svref weight-arrays lay-num))
+             )
+        ;; for each neuron in that layer...
+        (dotimes (i num-neurons)
+          ;; DELTA_I = G'(IN_I) SUM [W_I_J DELTA_J]
+          ;;         = G(IN_I) * (1 - G(IN_I)) * SUM [ W_I_J DELTA_J ]
+          ;;         = A_I * (1 - A_I) * SUM [ W_I_J DELTA_J ]
+          (let* ((my-output (svref curr-out-veck i))
+                 (sum (let ((dotty 0))
+                        (dotimes (j num-neurons-next-layer)
+                          (incf dotty (* (aref curr-weight-array i j)
+                                         (svref next-delta-veck j))))
+                        dotty)))
+            (setf (svref my-delta-veck i)
+                  (* my-output (- 1 my-output) sum))))))
+
+    ;; Now, update all of the weights in the network using the DELTA values
+    ;;  For each layer...
+    (dotimes (lay-num (1- num-layers))
+      (let ((weight-array (svref weight-arrays lay-num))
+            (delta-veck (svref delta-vecks (1+ lay-num)))
+            (output-veck (svref output-vecks lay-num)))
+        ;; For each neuron N_i in that layer...
+        (dotimes (i (svref layer-sizes lay-num))
+          ;; For each neuron N_j in the following layer...
+          (dotimes (j (svref layer-sizes (1+ lay-num)))
+            ;; Update the weight on the edge from N_i to N_j
+            ;; W_I_J += ALPHA * A_I * DELTA_J
+            (incf (aref weight-array i j)
+                  (* alpha 
+                     (svref output-veck i) 
+                     (svref delta-veck j)))))))
+
+    ;; return the NN
+    nn))
+
+;;;  TRAIN-ALL
+;;; ------------------------------------------
+;;;  INPUTS:  NN, a neural network
+;;;           ALPHA, a training sensitivity parameter
+;;;           IN-OUT-PAIRS, a list of training data (input-output pairs)
+;;;  OUTPUT: NN
+;;;  SIDE EFFECT:  Performs feed-forward/back-propagation on each 
+;;;                  input-output pair.
+
+(defun train-all (nn alpha in-out-pairs)
+  (dolist (pair in-out-pairs)
+    (train-one nn alpha (first pair) (second pair)))
+  nn)
+
+;;;  TRAIN-FOR-SINE
+;;; ---------------------------------------------------
+;;;  INPUT:  ALPHA, training sensitivity parameter
+;;;          LISTY, a list of row-lengths for the neural network
+;;;          (e.g., '(1 4 3 1))
+;;;          NUM-TRIALS, number of training examples to run
+;;;  OUTPUT:  trained network
+;;;  SIDE EFFECT:  creates a neural network and performs NUM-TRIALS
+;;;                rounds of training so that the network can "learn"
+;;;                how to simulate the sine function
+
+(defun train-for-sine (alpha listy num-trials)
+  (let ((nn (init-nn listy)))
+    (dotimes (i num-trials)
+      (let* ((x (/ (random 100) 16.0))
+	     (y (sin (/ x 2))))
+	(train-one nn alpha (list x) (list y))))
+    nn))
+
+	      		      
+
+;;;  GET-OUTPUT-FOR
+;;; --------------------------------------
+;;;  INPUTS:  NN, a neural network
+;;;           INPUTS, a list of input values for the neurons in the
+;;;             input layer of NN
+;;;  OUTPUT:  A vector of output values corresponding to those inputs
+;;;            (resulting from doing FEED-FORWARD)
+
+(defun get-output-for (nn inputs)
+  (declare (:explain :types :variables :calls))
+  (feed-forward nn inputs)
+  (let* ((num-layers (nn-num-layers nn))
+	 (out-vecks (nn-output-vecks nn))
+	 )
+    (svref out-vecks (1- num-layers))))
+
+;;;  VECTOR->LIST
+;;; --------------------------------------------
+;;;  INPUT:  VECK, a vector
+;;;  OUTPUT:  A list containing the same elements as VECK
+
+(defun vector->list (veck)
+  (let ((listy nil))
+    (dotimes (i (length veck))
+      (push (svref veck i) listy))
+    (nreverse listy)))
+
+;;;  COMPARE-VALUES
+;;; ------------------------------------------------
+;;;  INPUT: NN, a neural network trained to simulate the SINE function
+;;;         NUM, number of data points to compare NN vs. actual SINE func.
+;;;  OUTPUT: NIL
+;;;  SIDE EFFECT:  Displays a comparison of the true SINE values
+;;;    and those computed by the network for a variety of inputs.
+
+(defun compare-values (nn num)
+  (dotimes (i num)
+    (let* ((x (/ i 16))
+	   (output (first (vector->list (get-output-for nn (list x)))))
+	   (realout (sin (/ x 2))))
+      (format t "X: ~6,3F, NN: ~6,3F, REAL: ~6,3F, DIFF: ~6,3F~%"
+	      x output realout (- output realout)))))
+
+;;(setf nn (train-for-sine .2 '(1 4 5 4 1) 100000))
+;;(setf nn (train-for-sine .2 '(1 4 3 1) 100000))
+;;(compare-values nn 50)
 
 
-(defmacro init-lock (gen)
-      ;; Create the lock for this gen's file
-      `(setq file-lock
-            (make-file-lock :path 
-                            (make-pathname :name 
-                                           (concatenate 'string 
-                                                        "../game-records/game-history-gen-" 
-                                                        (write-to-string ,gen)
-                                                        "-"
-                                                        (short-site-name) ;; Diff machines record different files
-							".dat"
-                                                        )))))
+;;  Training neural network for XOR
 
-(defmacro prep-nets (num)
-  `(read-nets (subseq *lon* 0 ,num)))
+(defun xor (x y)
+  (if (= (+ x y) 1) 1 0))
 
-(defmacro run-evo (nets gens fronts file-lock)
-  `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets))
-"-"
-(write-to-string ,gens)
-"-"
-(write-to-string ,fronts)
-)
-                            #'evolve-networks ,nets ,gens ,fronts ,file-lock nil))
+(defun train-for-xor (alpha listy num-trials)
+  (let ((nn (init-nn listy)))
+    (dotimes (i num-trials)
+      (let* ((x (random 2))
+	     (y (random 2)))
+	(train-one nn alpha (list x y) (list (xor x y)))))
+    nn))
+
+(defun train-for-binary (alpha listy num-trials func)
+  (let ((nn (init-nn listy)))
+    (dotimes (i num-trials)
+      (let* ((x (random 2))
+	     (y (random 2)))
+	(train-one nn alpha (list x y) (list (funcall func x y)))))
+    nn))
+
+(defun show-binary-results (nn func)
+  (dotimes (x 2)
+    (dotimes (y 2)
+      (format t "(funk ~A ~A) ==> ~A; NN got: ~A~%" x y
+	      (funcall func x y) (get-output-for nn (list x y))))))
+
+(defun show-xor-results (nn)
+  (dolist (listy '((0 0 0) (0 1 1) (1 0 1) (1 1 0)))
+    (let ((x (first listy))
+	  (y (second listy)))
+      (format t "(xor ~A ~A) ==> ~A; NN got: ~A~%" x y (xor x y)
+	      (get-output-for nn (list x y))))))
 
 
-
-(defmacro run-evos (num lon lock)
-`(dotimes (i ,num)
-(setq nets (nth (random (length ,lon)) ,lon))
-(run-evo nets (random 10) 2 ,lock)
-)
-)
+;; (setf nn (train-for-xor 1 '(2 4 1) 10000))
+;; (show-xor-results nn)

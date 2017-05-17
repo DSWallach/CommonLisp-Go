@@ -16,11 +16,10 @@
   (setf (sys:gc-parameter :helper-threads-requested) 8)
   ;(setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
   ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 0) (debug 0))))
+  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defmacro track (funcal)
-  `(gcpath:collected-newstuff () ,funcal)
-  )
+  `(gcpath:collected-newstuff () ,funcal))
 
 
 (defun ttest (num threads?)
@@ -95,7 +94,7 @@
   (maker '(
            "basic-defns"
            "nn-go"
-           "2014-new-nn"
+           "nn-operations"
            "go-game"
            "group"
            "game-playing"
