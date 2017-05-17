@@ -1,8 +1,7 @@
 (defmacro read-nets (lof)
   `(let ((lon (list)))
      (dolist (filename ,lof)
-       (push (read-network filename) lon)
-       )
+       (push (read-network filename) lon))
      lon))
 
 ;; Create a list of pathnames to the files to parse
@@ -29,8 +28,6 @@
                                         ".csv"))
             path-list))
     path-list))
-
-
 
 (defun shuffle-listy (listy)
   (do* ((listy (copy-listy listy) listy)
@@ -75,9 +72,7 @@
 
 ;; Synchonized pool for storing instances of the trained network
 (defstruct (pool (:include synchronizing-structure))
-  nets
-  )
-
+  nets)
 
 ;; Needs to start with a fresh nn
 ;; having multiple pools of the same nn causes memory issues
@@ -98,19 +93,17 @@
   (init-pool (read-network net-name) num-cores))
 
 (defmacro process-store-nn (triple files)
-      ;; Can't use apply cause files is a list
+  ;; Can't use apply cause files is a list
   `(mp:process-run-function (write-to-string ,triple) #'store-nn ,triple ,files))
 
 (defun store-nn (triple files)
-;; Triple is : Name, Layers, Training-Rate
-  (let ((nn (init-nn (second triple) nil (first triple)))
-        )
+  ;; Triple is : Name, Layers, Training-Rate
+  (let ((nn (init-nn (second triple) nil (first triple))))
     (format t "Network ~A~%" (nn-family-name nn))
     (train-all nn (third triple) files)
     (format t "Training Network ~A~%" (nn-family-name nn))
     (write-network nn t)
-    (format t "Network ~A ~A written~%" (nn-family-name nn) (nn-id nn))
-    ))
+    (format t "Network ~A ~A written~%" (nn-family-name nn) (nn-id nn))))
 
 (defconstant *lov*
              (list 
@@ -140,7 +133,6 @@
                (list "v-full-conv-0.5" (list 81 49 25 1) 0.5)
                (list "v-full-conv-0.75" (list 81 49 25 1) 0.75)
                (list "v-full-conv-1" (list 81 49 25 1) 1)))
-
 (defconstant *lov-small* 
              (list 
                (list "v-small-conn-0.25" (list 81 49 1) 0.25)
@@ -172,40 +164,40 @@
                (list "charles" (list 81 67 81) 0.9)
                (list "direct" (list 81 81) 0.25)))
 (defconstant *s-conn* (list
-                              "small-conn-0.25-0"
-                              "small-conn-0.5-0"
-                              "small-conn-0.75-0"
-                              "small-conn-1-0"))
+                        "small-conn-0.25-0"
+                        "small-conn-0.5-0"
+                        "small-conn-0.75-0"
+                        "small-conn-1-0"))
 (defconstant *s-conv* (list
-                              "small-conv-0.25-0"
-                              "small-conv-0.5-0"
-                              "small-conv-0.75-0"
-                              "small-conv-1-0"))
+                        "small-conv-0.25-0"
+                        "small-conv-0.5-0"
+                        "small-conv-0.75-0"
+                        "small-conv-1-0"))
 (defconstant *f-conv* (list
-                              "full-conv-0.25-0"
-                              "full-conv-0.5-0"
-                              "full-conv-0.75-0"
-                              "full-conv-1-0"))
+                        "full-conv-0.25-0"
+                        "full-conv-0.5-0"
+                        "full-conv-0.75-0"
+                        "full-conv-1-0"))
 (defconstant *lon*
              (reverse (list 
-                              "full-conn-0.25-0"
-                              "full-conn-0.5-0" 
-                              "full-conn-0.75-0"
-                              "full-conn-1-0" 
-                              "small-conn-0.25-0"
-                              "small-conn-0.5-0"
-                              "small-conn-0.75-0"
-                              "small-conn-1-0"
-                              "full-conv-0.25-0"
-                              "full-conv-0.5-0"
-                              "full-conv-0.75-0"
-                              "full-conv-1-0"
-                              "small-conv-0.25-0"
-                              "small-conv-0.5-0"
-                              "small-conv-0.75-0"
-                              "small-conv-1-0"
-             ;                 "charles-0" 
-                              )))
+                        "full-conn-0.25-0"
+                        "full-conn-0.5-0" 
+                        "full-conn-0.75-0"
+                        "full-conn-1-0" 
+                        "small-conn-0.25-0"
+                        "small-conn-0.5-0"
+                        "small-conn-0.75-0"
+                        "small-conn-1-0"
+                        "full-conv-0.25-0"
+                        "full-conv-0.5-0"
+                        "full-conv-0.75-0"
+                        "full-conv-1-0"
+                        "small-conv-0.25-0"
+                        "small-conv-0.5-0"
+                        "small-conv-0.75-0"
+                        "small-conv-1-0"
+                        ;                 "charles-0" 
+                        )))
 
 ;;  TRAIN-NETWORKS
 ;; ---------------------
@@ -221,8 +213,9 @@
       (format t "Training ~A~%" triple)
       (process-store-nn triple
                         files))))
+
 ;; Trains the networks with the names and parameters 
-;; passed in as a list of triples
+;; passed in as a list of triples. Runs in a new process.
 (defmacro p-train-networks (lot)
   `(mp:process-run-function (write-to-string ,lot) #'train-networks ,lot))
 
@@ -359,7 +352,7 @@
   (gc t))
 
 (defun play-p-nets (net1 net2 file-lock)
-  (compete 750 1 750 1 16 16 net1 net2 nil nil nil nil file-lock))
+  (compete 750 1 750 1 1 1 net1 net2 nil nil nil nil file-lock))
 
 (defun play-nets (net1 net2 net3 net4 file-lock)
   (compete 750 1 750 1 16 16 net1 net2 net3 net4 nil nil file-lock))
@@ -386,6 +379,11 @@
                             ,num
                             ))
 
+
+
+
+;;   Evolutionary Pipline Functions
+;; ======================================
 
 ;; I'm using an evolutionary algorithm instead of 
 ;; training on the results of the matches b/c the network
@@ -473,10 +471,10 @@
        (if (or (not (c-dominated comp))
                (<= (length next-gen)
                    (length ,generation)))
-       ;; Add it to the next generation
-       (push comp next-gen)
-       ;; Otherwise discard it
-       (setq comp nil)))
+         ;; Add it to the next generation
+         (push comp next-gen)
+         ;; Otherwise discard it
+         (setq comp nil)))
 
      ;; Return the next generation
      next-gen))
@@ -590,20 +588,20 @@
 
       ;; Randomly distribute the networks among the fronts
       (dolist (comp generation)
-              (push comp (svref fronts front-count))
-              (incf front-count)
-              (when (= num-fronts front-count)
-                (setq front-count 0)))
+        (push comp (svref fronts front-count))
+        (incf front-count)
+        (when (= num-fronts front-count)
+          (setq front-count 0)))
 
       ;; Reset the fronts as pairs
       (dotimes (i num-fronts)
-              (setf (svref fronts i)
-                    (make-pairs (svref fronts i))))
+        (setf (svref fronts i)
+              (make-pairs (svref fronts i))))
 
       ;; Add all the pairs into one list
       (dotimes (i num-fronts)
-              (dolist (pair (svref fronts i))
-                (push pair pairs)))
+        (dolist (pair (svref fronts i))
+          (push pair pairs)))
 
       ;; Evaluate each network's fitness
       ;; Do the fronts one at a time to make better use of memory
@@ -612,19 +610,19 @@
       (setq barrier (mp:make-barrier (+ 1 (length pairs))))
       (format t "Pairs: ~A ~%" pairs)
       (dolist (pair pairs);(svref fronts i))
-(when (and (first pair)
-(second pair))
-        (format t "Face Off: ~A ~%" pair)
-        (if threads? 
-          (mp:process-run-function (write-to-string pair) 
-                                   #'face-off
-                                   pair
-                                   gen
-                                   barrier
-                                   file-lock)
-          (face-off pair gen barrier file-lock)
+        (when (and (first pair)
+                   (second pair))
+          (format t "Face Off: ~A ~%" pair)
+          (if threads? 
+            (mp:process-run-function (write-to-string pair) 
+                                     #'face-off
+                                     pair
+                                     gen
+                                     barrier
+                                     file-lock)
+            (face-off pair gen barrier file-lock)
+            )
           )
-)
         ;    )
         (format t "Waiting for threads to finish~%")
         ;; Wait for all the trials to finish
@@ -644,35 +642,33 @@
 
 
 (defmacro init-lock (gen)
-      ;; Create the lock for this gen's file
-      `(setq file-lock
-            (make-file-lock :path 
-                            (make-pathname :name 
-                                           (concatenate 'string 
-                                                        "../game-records/game-history-gen-" 
-                                                        (write-to-string ,gen)
-                                                        "-"
-                                                        (short-site-name) ;; Diff machines record different files
-							".dat"
-                                                        )))))
+  ;; Create the lock for this gen's file
+  `(setq file-lock
+         (make-file-lock :path 
+                         (make-pathname :name 
+                                        (concatenate 'string 
+                                                     "../game-records/game-history-gen-" 
+                                                     (write-to-string ,gen)
+                                                     "-"
+                                                     (short-site-name) ;; Diff machines record different files
+                                                     ".dat"
+                                                     )))))
 
 (defmacro prep-nets (num)
   `(read-nets (subseq *lon* 0 ,num)))
 
 (defmacro run-evo (nets gens fronts file-lock)
   `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets))
-"-"
-(write-to-string ,gens)
-"-"
-(write-to-string ,fronts)
-)
+                                         "-"
+                                         (write-to-string ,gens)
+                                         "-"
+                                         (write-to-string ,fronts)
+                                         )
                             #'evolve-networks ,nets ,gens ,fronts ,file-lock nil))
 
-
-
 (defmacro run-evos (num lon lock)
-`(dotimes (i ,num)
-(setq nets (nth (random (length ,lon)) ,lon))
-(run-evo nets (random 10) 2 ,lock)
-)
-)
+  `(dotimes (i ,num)
+     (setq nets (nth (random (length ,lon)) ,lon))
+     (run-evo nets (random 10) 2 ,lock)
+     )
+  )

@@ -190,7 +190,6 @@
 ;; Methods should be whatever functions in the go-game
 ;; file that are called by the montecarlo tree search
 (defun select-move (nodey c &optional (game-move nil))
-  ;; (format t "Selecet Move~%")
   (let ((scores (mc-node-veck-scores nodey))
         (visits (mc-node-veck-visits nodey))
         (node-visits (mc-node-num-visits nodey))
@@ -373,8 +372,6 @@
 ;;  OUTPUT:  doesn't matter
 ;;  SIDE EFFECT:  Updates the relevant nodes in the MC-TREE/HASHY
 (defun backup (tree key-move-acc result &optional (imp t))
-  (cond 
-    (imp
       (while key-move-acc
              (let* ((key (pop key-move-acc))
                     (hashy (mc-tree-hashy tree))
@@ -382,9 +379,6 @@
                     (mv-index (pop key-move-acc))
                     (visitz (mc-node-veck-visits nodey))
                     (scorez (mc-node-veck-scores nodey)))
-    ;           (format t "Key ~A~%" key)
-    ;           (format t "++++++++Tree pre backup~%")
-    ;           (print-mc-tree tree t nil)
                ;; incremenet node num visits
                (incf (mc-node-num-visits nodey))
                ;; increment num times did this move from this state
@@ -392,41 +386,9 @@
                ;; increment the SCORE
                (incf (svref scorez mv-index)
                      (/ (- result (svref scorez mv-index))
-                        (svref visitz mv-index)))
-               ;; Tree post
-               )))
-    (t (let ((node-holder nil)
-             (key nil)
-             (move nil)
-             (hashy (mc-tree-hashy tree))
-             )
-         ;; Iterate through the list, two elements at a time
-         (dotimes (i (/ (length key-move-acc) 2))
-           ;; Get the first element (key)
-           (setq key (pop key-move-acc))
-           ;; Get the second element (move)
-           (setq move (pop key-move-acc))
-           ;; Get the matching node
-           (setq node-holder (gethash key hashy))
-
-           ;; Update N(S_t)
-           (incf (mc-node-num-visits node-holder))
-           ;; Update N(S_t, A_t)
-           (incf (svref (mc-node-veck-visits node-holder) move))
-
-           ;; Update Q(S_t, A_t)
-           (setf(svref (mc-node-veck-scores node-holder) move)
-             (+ (svref (mc-node-veck-scores node-holder) move)
-                (/ (- result (svref (mc-node-veck-scores node-holder) move))
-                   (svref (mc-node-veck-visits node-holder) move))))
-
-           ;; Update the tree
-           (with-locked-structure ((gethash key (mc-tree-hashy tree)))
-                                  (setf (gethash key (mc-tree-hashy tree))
-                                        node-holder)))
-         ))
-    )
-  tree)
+                        (svref visitz mv-index)))))
+      ;; Tree post
+      tree)
 
 ;; For use by each thread of uct-search
 (defun sim-ops
@@ -438,20 +400,23 @@
          (game nil))
 
     ;; When provided a policy pool
-    (when (< 0 (length (pool-nets p-pool)))
+    (when (and p-pool (< 0 (length (pool-nets p-pool))))
       ;; Get a network 
       (with-locked-structure 
         (p-pool)
         (setq p-nn (pop (pool-nets p-pool))))
-      (format t "Got Policy Net ~A~%" (net-to-string p-nn)))
+      (format t "Got Policy Net ~A~%" (net-to-string p-nn))
+      )
 
     ;; When provided a value pool
-    (when (< 0 (length (pool-nets v-pool)))
+    (when (and v-pool (< 0 (length (pool-nets v-pool))))
       ;; Get a network 
       (with-locked-structure 
         (v-pool)
         (setq v-nn (pop (pool-nets v-pool))))
-      (format t "Got Value Net ~A~%" (net-to-string v-nn)))
+      (format t "Got Value Net ~A~%" (net-to-string v-nn))
+      )
+
     (cond 
       ;; Search with both networks
       ((and p-nn v-nn)
