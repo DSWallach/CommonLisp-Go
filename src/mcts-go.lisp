@@ -243,7 +243,7 @@
       ;; Increment the number of visits to this node
       (incf (mc-node-num-visits nodey)))
 
-    (when game-move (format t "Move score: ~A~%" max-so-far))
+   ; (when game-move (format t "Move score: ~A~%" max-so-far))
 
     ;; Return the best move found
     best-move-so-far))
@@ -405,7 +405,7 @@
       (with-locked-structure 
         (p-pool)
         (setq p-nn (pop (pool-nets p-pool))))
-      (format t "Got Policy Net ~A~%" (net-to-string p-nn))
+      ;(format t "Got Policy Net ~A~%" (net-to-string p-nn))
       )
 
     ;; When provided a value pool
@@ -414,7 +414,7 @@
       (with-locked-structure 
         (v-pool)
         (setq v-nn (pop (pool-nets v-pool))))
-      (format t "Got Value Net ~A~%" (net-to-string v-nn))
+      ;(format t "Got Value Net ~A~%" (net-to-string v-nn))
       )
 
     (cond 

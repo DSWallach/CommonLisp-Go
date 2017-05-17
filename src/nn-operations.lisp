@@ -367,7 +367,7 @@
 
 ;; Basically a wrapper for compete
 (defun gauntlet (net1 net2 file-lock)
-  (compete 250 1 250 1 1 1 net1 net2 nil nil t file-lock nil))
+  (compete 250 1 250 1 16 16 net1 net2 nil nil t file-lock nil))
 
 (defun run-sims (num)
   (dolist (net1 *lon*)
@@ -615,7 +615,10 @@
                                        gen
                                        barrier
                                        file-lock)
-              (face-off pair gen barrier file-lock)))
+              (face-off pair gen barrier file-lock))
+;; So the OS doesn't freak out over memory requests
+(sleep 1)
+)
           (format t "Waiting for threads to finish~%"))
 
         ;; Wait for all the trials to finish
