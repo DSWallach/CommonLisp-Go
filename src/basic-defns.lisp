@@ -15,8 +15,8 @@
   (sys:resize-areas :new 6000000000 :old 1000000000) ;; Allocate extra memory to minize garbage collection
   (setf (sys:gc-parameter :helper-threads-requested) 8)
   ;(setf (sys:gc-parameter :generation-spread) 25) ;; Hold off on tenuring. Networks will last a while before they are defunct
-  (setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
-  (declaim (optimize (speed 2) (safety 1) (space 3) (debug 0))))
+  ;(setf (sys:gc-switch :gc-old-before-expand) t) ;; Don't request more memory, use old memory
+  (declaim (optimize (speed 2) (safety 1) (space 2) (debug 3))))
 
 (defmacro track (funcal)
   `(gcpath:collected-newstuff () ,funcal))
@@ -28,10 +28,8 @@
 (defun print-board (game)
             (dotimes (i *board-length*)
               (dotimes (j *board-length*)
-                (format t "~A " (svref (gg-board game) (row-col->pos i j)))
-                )
-              (format t "~%")
-              ))
+                (format t "~A " (svref (gg-board game) (row-col->pos i j))))
+              (format t "~%")))
 
 ;;  GLOBAL CONSTANTS
 

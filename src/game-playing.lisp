@@ -548,9 +548,12 @@
 ;; -----------------------------
 ;;  INPUT:  GAME, A go game struct
 ;;  OUTPUT: A list of legal moves 
-(defun legal-moves (game &optional (fast? t))
-  (let ((legal-moves (list ))  ; Passing is always legal
-        (valid-moves (list ))
+(defun legal-moves (game &optional 
+                         ;; This causes problems for multiple threads
+                         ;; working on the same mc-tree
+                         (fast? nil))
+  (let ((legal-moves (list *board-size*))  ; Passing is always legal
+        (valid-moves (list *board-size*))
         (player (gg-whose-turn? game))
         (moves nil) 
         (board (gg-board game))
@@ -622,8 +625,9 @@
        ;; Check for for infringement of the Ko rule
        (dolist (move valid-moves)
          ;; Passing is always an options
-         (when (< 30 (length (gg-move-history game)))
-           (push *board-size* legal-moves))
+         ;(when (< 30 (length (gg-move-history game)))
+           (push *board-size* legal-moves)
+          ; )
          ;; Check that the board is not returning to 
          ;; the state prior to your opponents last
          ;; move. (Ko Rule)
@@ -639,15 +643,19 @@
            (do-move! game move)
            ;; Get board
            (setq new-board (copy-vector (gg-board game)))
-           ;; Unmod game 
+           ;; Reset game 
            (undo-move! game)
-           (unless (equal-board? new-board old-board)
+
+            ;; Ensure passing is the last move considered
+           (unless (or (eq *board-size* move)
+                       (equal-board? new-board old-board))
              (push move legal-moves))))
       ;; Return legal moves
       (make-array (length legal-moves) :initial-contents legal-moves))
 
     (t 
-      (when (< 30 (length (gg-move-history game)))
-        (push *board-size* valid-moves))
+      ;(when (< 30 (length (gg-move-history game)))
+        (push *board-size* valid-moves)
+       ; )
       ;; Otherwise return the valid moves
       (make-array (length valid-moves) :initial-contents valid-moves)))))

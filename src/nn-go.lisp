@@ -661,8 +661,6 @@
 	(train-one nn alpha (list x) (list y))))
     nn))
 
-	      		      
-
 ;;;  GET-OUTPUT-FOR
 ;;; --------------------------------------
 ;;;  INPUTS:  NN, a neural network

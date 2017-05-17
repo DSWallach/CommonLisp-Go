@@ -74,9 +74,12 @@
 (defstruct (pool (:include synchronizing-structure))
   nets)
 
-;; Needs to start with a fresh nn
-;; having multiple pools of the same nn causes memory issues
+;; Needs to start with a fresh nn otherwise creating 
+;; multiple pools of the same nn causes memory issues
 (defun init-pool (nn num-nets)
+  ;; Handle a non-threaded run of compete
+  (unless num-nets
+    (setq num-nets 1))
   (let ((p (make-pool))
         (net (deep-copy-nn nn)))
     (with-locked-structure 
@@ -85,12 +88,12 @@
         (push (deep-copy-nn-outputs nn) (pool-nets p))))
     (format t "Create pool of size ~A from net ~A~%"
             (length (pool-nets p))
-            (net-to-string (first (pool-nets p)))
-            )
+            (net-to-string (first (pool-nets p))))
+    ;; Return the network pool
     p))
 
-(defun init-nn-pool (net-name num-cores)
-  (init-pool (read-network net-name) num-cores))
+(defmacro init-nn-pool (net-name num-cores)
+  `(init-pool (read-network ,net-name) ,num-cores))
 
 (defmacro process-store-nn (triple files)
   ;; Can't use apply cause files is a list
@@ -172,12 +175,25 @@
                         "small-conv-0.25-0"
                         "small-conv-0.5-0"
                         "small-conv-0.75-0"
-                        "small-conv-1-0"))
+                        "small-conv-1-0"
+                        ))
 (defconstant *f-conv* (list
                         "full-conv-0.25-0"
                         "full-conv-0.5-0"
                         "full-conv-0.75-0"
-                        "full-conv-1-0"))
+                        "full-conv-1-0"
+                        ))
+(defconstant *conv* (list
+                        "small-conv-0.25-0"
+                        "small-conv-0.5-0"
+                        "small-conv-0.75-0"
+                        "small-conv-1-0"
+                        "full-conv-0.25-0"
+                        "full-conv-0.5-0"
+                        "full-conv-0.75-0"
+                        "full-conv-1-0"
+                      )
+             )
 (defconstant *lon*
              (reverse (list 
                         "full-conn-0.25-0"
@@ -228,21 +244,21 @@
 ;;           BLACK-C, the exploration/exploitation constant used by black
 ;;           WHITE-NUM-SIMS, the number of simulations for each of white's moves
 ;;           WHITE-C, the exploration/exploitation constant used by white
-;;  OUTPUT:  Don't care
 ;;  SIDE EFFECT:  Displays the entire game using UCT-SEARCH to compute best moves
 ;;    for both players according to the specified parameters.
 
 (defun compete
   (black-num-sims black-c white-num-sims white-c 
-                  &optional 
-                  (black-threads? nil)
-                  (white-threads? nil)
+                  &key
+                  (black-threads nil)
+                  (white-threads nil)
                   (black-p-network  nil)
                   (white-p-network  nil)
                   (black-v-network  nil)
                   (white-v-network  nil)
+                  (time-limit 15000)
                   (return-game? nil)
-                  (filename nil)
+                  (file nil)
                   (verbose? nil)
                   )
 
@@ -260,11 +276,11 @@
                                   :b-c black-c 
                                   :w-sims white-num-sims 
                                   :w-c white-c 
-                                  :b-t black-threads?
-                                  :w-t white-threads?
+                                  :b-t black-threads
+                                  :w-t white-threads
                                   :b-nets (list black-v-network black-p-network)
                                   :w-nets (list black-v-network white-p-network)
-                                  :pool pool)))
+                                  )))
                ;; If the score is greater than 0, black won
                (if (> score 0)
                  ;; The network represents black as a 1
@@ -273,8 +289,8 @@
                  (setq winner -1))
 
                (with-locked-structure 
-                 (filename)
-                 (with-open-file (file (file-lock-path filename) :direction :output 
+                 (file)
+                 (with-open-file (file (file-lock-path file) :direction :output 
                                        :if-does-not-exist :create
                                        :if-exists :append)
                    ;; Write the board state
@@ -282,6 +298,7 @@
                    ;; Write who won the game
                    (write-string (write-to-string winner) file)
                    (write-line (write-to-string (compete-to-list set-struct)) file))))))
+
     (let ((g (init-game))
           (b-p-pool nil)
           (w-p-pool nil)
@@ -290,56 +307,60 @@
           )
       ;;; Initialize policy nets
       (when black-p-network
+        (format t "Loading Black Policy Networks ~%")
         ;; When provided a string
         (if (stringp black-p-network)
           ;; Load the network
-          (setq b-p-pool (init-nn-pool black-p-network black-threads?))
+          (setq b-p-pool (init-nn-pool black-p-network black-threads))
           ;; Otherwise were provided a network so use it
-          (setq b-p-pool (init-pool black-p-network black-threads?))))
+          (setq b-p-pool (init-pool black-p-network black-threads))))
 
       (when white-p-network
+        (format t "Loading White Policy Networks ~%")
         ;; When provided a string
         (if (stringp white-p-network)
           ;; Load the network
-          (setq w-p-pool (init-nn-pool white-p-network white-threads?))
+          (setq w-p-pool (init-nn-pool white-p-network white-threads))
           ;; Otherwise were provided a network so use it
-          (setq w-p-pool (init-pool white-p-network white-threads?))))
+          (setq w-p-pool (init-pool white-p-network white-threads))))
 
       ;; Initialize value nets
       (when black-v-network
+        (format t "Loading Black Value Networks ~%")
         ;; When provided a string
         (if (stringp black-v-network)
           ;; Load the network
-          (setq b-v-pool (init-nn-pool black-v-network black-threads?))
+          (setq b-v-pool (init-nn-pool black-v-network black-threads))
           ;; Otherwise were provided a network so use it
-          (setq b-v-pool (init-pool black-v-network black-threads?))))
+          (setq b-v-pool (init-pool black-v-network black-threads))))
 
       (when white-v-network
+        (format t "Loading White Value Networks ~%")
         ;; When provided a string
         (if (stringp white-v-network)
           ;; Load the network
-          (setq w-v-pool (init-nn-pool white-v-network white-threads?))
+          (setq w-v-pool (init-nn-pool white-v-network white-threads))
           ;; Otherwise were provided a network so use it
-          (setq w-v-pool (init-pool white-v-network white-threads?))))
+          (setq w-v-pool (init-pool white-v-network white-threads))))
 
       (loop while (not (game-over? g))
             do (cond
                  ((eq (gg-whose-turn? g) *black*)
                   (when verbose? (format t "BLACK'S TURN!~%"))
-                  (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p-pool b-v-pool)))
-                    (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p-pool b-v-pool)))
+                  (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool)))
+                    (do-move! g (uct-search g black-num-sims black-c nil black-threads b-p-pool b-v-pool)))
                   (when verbose? (print-go g t nil nil nil nil)))
                  (t
                    (when verbose? (format t "WHITE'S TURN!~%"))
-                   (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p-pool b-v-pool)))
-                     (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p-pool w-v-pool)))
+                   (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool b-v-pool)))
+                     (do-move! g (uct-search g white-num-sims white-c nil white-threads w-p-pool w-v-pool)))
                    (when verbose? (print-go g t nil nil nil nil)))))
 
       ;; Show most game information at the end
       (when verbose? (print-go g t nil t t))
 
       ;; If a record from the game is to be used
-      (when filename
+      (when file
         ;; Record 4 states b/c don'thave much time
         (dotimes (i 4) 
           (record-game g)))
@@ -350,24 +371,42 @@
   (compete 81 2 1 2 nil nil net1 net2)
   (gc t))
 
-(defun play-p-nets (net1 net2 file-lock)
-  (compete 750 1 750 1 1 1 net1 net2 nil nil nil nil file-lock))
+(defun play-p-nets (net1 net2 &optional (file-lock nil))
+  (compete 750 1 750 1
+           :black-threads 1
+           :white-threads 1
+           :black-p-network net1
+           :white-p-network net2
+           :file file-lock))
 
 (defun play-nets (net1 net2 net3 net4 file-lock)
-  (compete 750 1 750 1 16 16 net1 net2 net3 net4 nil nil file-lock))
+
+  (compete 750 1 750 1
+           :black-threads 1
+           :white-threads 1
+           :black-p-network net1
+           :white-p-network net2
+           :black-v-network net3
+           :white-v-network net4
+           :file file-lock))
 
 (defun play-nets-sims (net1 net2 sims1 sims2 file-lock)
   (compete sims2 (+ 1 (random 4)) sims1 (+ 1 (random 4)) 16 16 net1 net2 nil nil file-lock))
 
+
 (defun play-b-net (net)
-  (compete 750 1 750 1 1 1 net nil nil nil file-lock))
+  (compete 750 1 750 1 8 8 :black-p-network net :file file-lock))
 
-(defun play-mcts (b-num w-num)
-  (compete b-num 2 w-num 2 nil nil nil nil nil))
-
-;; Basically a wrapper for compete
+;; Used during network evolution
 (defun gauntlet (net1 net2 file-lock)
-  (compete 250 1 250 1 16 16 net1 net2 nil nil t file-lock nil))
+  (compete 750 1 750 1
+           :black-threads 24
+           :white-threads 24
+           :black-p-network net1
+           :white-p-network net2
+           :file file-lock
+           :time-limit 20000
+           ))
 
 (defun run-sims (num)
   (dolist (net1 *lon*)
@@ -377,12 +416,7 @@
           (play-nets-sims net1 net2 (+ 250 i) (+ 250 i) file-lock))))))
 
 (defmacro p-run-sims (num)
-  `(mp:process-run-function (concatenate 'string "number-" (write-to-string ,num))
-                            #'run-sims
-                            ,num
-                            ))
-
-
+  `(mp:process-run-function (concatenate 'string "number-" (write-to-string ,num)) #'run-sims ,num))
 
 
 ;;   Evolutionary Pipline Functions
@@ -499,6 +533,7 @@
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
     (setq game (gauntlet (c-net comp1) (c-net comp2) file-lock))
+
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -561,12 +596,9 @@
 ;; networks and store a few game state pairs from the 
 ;; game
 (defun evolve-networks (lon generations num-fronts file-lock &optional (threads? nil))
-  (let ((lineage-counters (make-array (length lon) :initial-element 1))
-        (fronts (make-array num-fronts :initial-element (list)))
+  (let ((fronts (make-array num-fronts :initial-element (list)))
         (generation (list))
-        (pairs (list)) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
-        (round-pairs nil)
         (barrier nil)
         (front-count 0))
 
@@ -593,11 +625,6 @@
         (setf (svref fronts i)
               (make-pairs (svref fronts i))))
 
-      ;; Add all the pairs into one list
-      ;(dotimes (i num-fronts)
-      ;  (dolist (pair (svref fronts i))
-      ;    (push pair pairs)))
-
       ;; Evaluate each network's fitness
       ;; Do the competetitions in rounds so as not to
       ;; overwelm allegro with threads
@@ -616,12 +643,14 @@
                                        barrier
                                        file-lock)
               (face-off pair gen barrier file-lock))
-;; So the OS doesn't freak out over memory requests
-(sleep 1)
-)
-          (format t "Waiting for threads to finish~%"))
+            )
+          (format t "Waiting for threads to finish~%")
+            ;; So the OS doesn't freak out over memory requests
+            ;; Only necessary when spawning many threads
+            (when (> (length (svref fronts i)) 2) 
+              (sleep 1)))
 
-        ;; Wait for all the trials to finish
+        ;; Wait for all the networks in the front to finish
         (mp:barrier-wait barrier))
 
       (format t "Creating next generation~%")

@@ -145,14 +145,10 @@
                      :veck-visits (make-array (length moves) :initial-element 0)
                      :veck-scores (make-array (length moves) :initial-element 0)
                      ))
-    ;; If the node has been created by another thread
-    (if (gethash key (mc-tree-hashy tree))
-      ;; Lock the node
-      (with-locked-structure
-        ((gethash key (mc-tree-hashy tree)))
-        ;; Update N(S_t)
-        (incf (mc-node-num-visits (gethash key (mc-tree-hashy tree)))))
-      ;; Otherwise just insert the node
+    ;; Lock the tree
+    (with-locked-structure 
+      (tree)
+      ;; Insert the node
       (setf (gethash key (mc-tree-hashy tree)) new-node))
     new-node))
 
@@ -189,61 +185,59 @@
 
 ;; Methods should be whatever functions in the go-game
 ;; file that are called by the montecarlo tree search
-(defun select-move (nodey c &optional (game-move nil))
-  (let ((scores (mc-node-veck-scores nodey))
-        (visits (mc-node-veck-visits nodey))
-        (node-visits (mc-node-num-visits nodey))
-        (player (mc-node-whose-turn nodey))
+(defmacro select-move (nodey c &optional (game-move nil))
+  `(let ((scores (mc-node-veck-scores ,nodey))
+        (visits (mc-node-veck-visits ,nodey))
+        (node-visits (mc-node-num-visits ,nodey))
+        (player (mc-node-whose-turn ,nodey))
         (max-so-far 0)
         (best-move-so-far 0)
-        (new_q 0)
-        )
+        (i 0)
+        (new_q 0))
 
     ;; Compare all the potential moves
     (dotimes (i (length scores))
-      (cond
-        ;; Immediately select an unexplored move
-        ((and (> c 0)
-              (= 0 (svref visits i)))
-         (setq best-move-so-far i)
-         (return))
-        ;; Otherwise
-        (t 
-          ;; Calculate the monte-carlo value
-          (setq new_q (* c  (sqrt (/ (log node-visits)
-                                     (/ (svref visits i)
-                                        node-visits)))))))
-      ;; Set the value, adding or subtracting depending on the player
-      (cond
-        ;; If it's black the best score is the highest
-        ((eq player *black*)
-         (setf (svref scores i)
-               (+ (svref scores i)
-                  new_q))
-         (when (< max-so-far (svref scores i))
-           (setq max-so-far (svref scores i))
-           (setq best-move-so-far i)))
+          (cond
+            ;; Immediately select an unexplored move
+            ((and (> ,c 0)
+                  (= 0 (svref visits i)))
+             (setq best-move-so-far i)
+             (return))
+            ;; Otherwise
+            (t 
+              ;; Calculate the monte-carlo value
+              (setq new_q (* ,c  (sqrt (/ (log node-visits)
+                                          (/ (svref visits i)
+                                             node-visits)))))))
+          ;; Set the value, adding or subtracting depending on the player
+          (cond
+            ;; If it's black the best score is the highest
+            ((eq player *black*)
+             (with-locked-structure 
+               (,nodey) 
+               (incf-atomic (svref scores i) new_q)
+               )
 
-        (t ; If it's white the best score is the lowest
-          (setf (svref scores i)
-                (- (svref scores i)
-                   new_q))
-          (when (> max-so-far (svref scores i))
-            (setq max-so-far (svref scores i))
-            (setq best-move-so-far i)))))
+             (when (< max-so-far (svref scores i))
+               (setq max-so-far (svref scores i))
+               (setq best-move-so-far i)))
+            ; If it's white the best score is the lowest
+            (t (with-locked-structure 
+                 (,nodey)
+                 (decf (svref scores i) new_q))
+               (when (> max-so-far (svref scores i))
+                 (setq max-so-far (svref scores i))
+                 (setq best-move-so-far i)))))
 
     (with-locked-structure 
-      (nodey)
-      ;; Update the scores in the node
-      (setf (mc-node-veck-scores nodey) scores)
-
+      (,nodey)
       ;; Update the visits to the chosen move
-      (incf (svref (mc-node-veck-visits nodey) best-move-so-far))
+      (incf (svref (mc-node-veck-visits ,nodey) best-move-so-far))
 
       ;; Increment the number of visits to this node
-      (incf (mc-node-num-visits nodey)))
+      (incf (mc-node-num-visits ,nodey)))
 
-   ; (when game-move (format t "Move score: ~A~%" max-so-far))
+   (when ,game-move (format t "Move score: ~A, Move: ~A ~%" max-so-far best-move-so-far))
 
     ;; Return the best move found
     best-move-so-far))
@@ -265,6 +259,7 @@
   (let ((state-move-list nil)
         (moves (legal-moves game))
         (s_t nil)
+        (hash nil)
         (m_t 0))
     (dotimes (i 1000000)
       ;; Get the state (hash key)
@@ -287,9 +282,12 @@
           (return-from sim-tree (append state-move-list
                                         (list best-move)))))
 
+      (setq hash (gethash (make-hash-key-from-game game)
+                                      (mc-tree-hashy tree)) )
+
       ;; Otherwise the state does already exist so use select-move
-      (setq m_t (select-move (gethash (make-hash-key-from-game game)
-                                      (mc-tree-hashy tree)) c))
+      (setq m_t (select-move hash c))
+
       ;; Do the move
       (do-move! game (svref moves m_t))
 
@@ -417,6 +415,8 @@
       ;(format t "Got Value Net ~A~%" (net-to-string v-nn))
       )
 
+    ;; Keep the logic dealing with different settings out
+    ;; of the main loop
     (cond 
       ;; Search with both networks
       ((and p-nn v-nn)
