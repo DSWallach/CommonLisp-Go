@@ -82,6 +82,16 @@ it in my code. An large amount of memory gets allocated for character arrays (ac
 This becomes a serious issue when running multiple threads as each thread will use over 1 GB.
 This doesn't happen when running MCTS with the networks with or without multiple threads. 
 
+
+
+RESULTS
+
+  MCTS using one of the trained policy networks will beat regular MCTS when given the same parameters.
+In particular the larger networks (full-*) seem to be better than the smaller one and the networks
+trained with a higher learning rate will out perform the equivalent networks with a lower training 
+rate.
+
+TESTING
+
   The functions for testing are defined at the top of nn-operations.lisp. I didn't get everything 
 accomplished but I hope this is at least an interesting project.
-

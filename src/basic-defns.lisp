@@ -98,6 +98,7 @@
            "basic-defns"
            "nn-go"
            "nn-operations"
+           "nn-evolution"
            "go-game"
            "group"
            "game-playing"
