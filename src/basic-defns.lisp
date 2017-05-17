@@ -1,4 +1,4 @@
-(defconstant *num-cores* 16)
+(defconstant *num-cores* 8)
 
 ;;  COMPILER-FLAGS (must be loaded before compiling)
 
@@ -367,7 +367,7 @@
       (setq w-p pool))
 
     (when black-network
-      (setq b-p (init-nn-pool black-network)))
+      (time (setq b-p (init-nn-pool black-network))))
 
     (when white-network
       (setq w-p (init-nn-pool white-network)))
@@ -376,11 +376,11 @@
            (cond
              ((= (gg-whose-turn? g) *black*)
               (when verbose? (format t "BLACK'S TURN!~%"))
-              (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p))
+              (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
               (when verbose? (print-go g t nil t nil nil)))
              (t
                (when verbose? (format t "WHITE'S TURN!~%"))
-               (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p))
+               (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
                (when verbose? (print-go g t nil t nil nil)))))
 
     ;; Show all game information
