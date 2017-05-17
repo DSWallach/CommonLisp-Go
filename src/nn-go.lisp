@@ -8,7 +8,7 @@
 ;; point operations don't always need to return the same 
 ;; results for the lowest bits
 (eval-when (compile)
-  (declaim (optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  (declaim (optimize (speed 3) (safety 1) (space 3) (debug 0))))
 
 
 ;;;  NN struct
