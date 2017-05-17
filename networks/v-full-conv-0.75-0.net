@@ -1,4 +1,4 @@
-family-name "v-full-conv-0.75"
+family-name v-full-conv-0.75
 ID 0
 layer-sizes #(81 49 25 1)
 weight-arrays 
