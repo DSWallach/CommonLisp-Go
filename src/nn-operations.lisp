@@ -367,7 +367,7 @@
 
 ;; Basically a wrapper for compete
 (defun gauntlet (net1 net2 file-lock)
-  (compete 250 1 250 1 24 24 net1 net2 nil nil t file-lock nil))
+  (compete 250 1 250 1 16 16 net1 net2 nil nil t file-lock nil))
 
 (defun run-sims (num)
   (dolist (net1 *lon*)
