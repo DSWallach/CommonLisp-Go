@@ -1,8 +1,8 @@
-(defmacro read-nets (lof)
-  `(let ((lon (list)))
-     (dolist (filename ,lof)
-       (push (read-network filename) lon))
-     lon))
+(defun read-nets (lof)
+  (let ((lon (list)))
+    (dolist (filename lof)
+      (push (read-network filename) lon))
+    lon))
 
 ;; Create a list of pathnames to the files to parse
 (defun make-parse-list 
@@ -82,7 +82,7 @@
     (with-locked-structure 
       (p)
       (dotimes (i num-nets)
-        (track (push (deep-copy-nn-outputs nn) (pool-nets p)))))
+        (push (deep-copy-nn-outputs nn) (pool-nets p))))
     (format t "Create pool of size ~A from net ~A~%"
             (length (pool-nets p))
             (net-to-string (first (pool-nets p)))
@@ -241,10 +241,9 @@
                   (white-p-network  nil)
                   (black-v-network  nil)
                   (white-v-network  nil)
-                  (pool nil)
                   (return-game? nil)
                   (filename nil)
-                  (verbose? t)
+                  (verbose? nil)
                   )
 
   ;; Record a random board state from the game along with who won the game
@@ -296,7 +295,7 @@
           ;; Load the network
           (setq b-p-pool (init-nn-pool black-p-network black-threads?))
           ;; Otherwise were provided a network so use it
-          (setq b-p-pool (new-pool black-p-network black-threads?))))
+          (setq b-p-pool (init-pool black-p-network black-threads?))))
 
       (when white-p-network
         ;; When provided a string
@@ -304,7 +303,7 @@
           ;; Load the network
           (setq w-p-pool (init-nn-pool white-p-network white-threads?))
           ;; Otherwise were provided a network so use it
-          (setq w-p-pool (new-pool white-p-network white-threads?))))
+          (setq w-p-pool (init-pool white-p-network white-threads?))))
 
       ;; Initialize value nets
       (when black-v-network
@@ -313,7 +312,7 @@
           ;; Load the network
           (setq b-v-pool (init-nn-pool black-v-network black-threads?))
           ;; Otherwise were provided a network so use it
-          (setq b-v-pool (new-pool black-v-network black-threads?))))
+          (setq b-v-pool (init-pool black-v-network black-threads?))))
 
       (when white-v-network
         ;; When provided a string
@@ -321,19 +320,19 @@
           ;; Load the network
           (setq w-v-pool (init-nn-pool white-v-network white-threads?))
           ;; Otherwise were provided a network so use it
-          (setq w-v-pool (new-pool white-v-network white-threads?))))
+          (setq w-v-pool (init-pool white-v-network white-threads?))))
 
       (loop while (not (game-over? g))
             do (cond
                  ((eq (gg-whose-turn? g) *black*)
                   (when verbose? (format t "BLACK'S TURN!~%"))
                   (if verbose? (time (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p-pool b-v-pool)))
-                    (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p)))
+                    (do-move! g (uct-search g black-num-sims black-c nil black-threads? b-p-pool b-v-pool)))
                   (when verbose? (print-go g t nil nil nil nil)))
                  (t
                    (when verbose? (format t "WHITE'S TURN!~%"))
                    (if verbose? (time (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p-pool b-v-pool)))
-                     (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p)))
+                     (do-move! g (uct-search g white-num-sims white-c nil white-threads? w-p-pool w-v-pool)))
                    (when verbose? (print-go g t nil nil nil nil)))))
 
       ;; Show most game information at the end
@@ -365,6 +364,10 @@
 
 (defun play-mcts (b-num w-num)
   (compete b-num 2 w-num 2 nil nil nil nil nil))
+
+;; Basically a wrapper for compete
+(defun gauntlet (net1 net2 file-lock)
+  (compete 250 1 250 1 1 1 net1 net2 nil nil t file-lock nil))
 
 (defun run-sims (num)
   (dolist (net1 *lon*)
@@ -479,14 +482,6 @@
      ;; Return the next generation
      next-gen))
 
-;; Basically a wrapper for compete
-(defun gaunlet (net1 net2 file-lock)
-  (compete 250 1 250 1 2 2
-           (net-to-string net1)
-           (net-to-string net2) 
-           nil t 
-           file-lock
-           nil))
 
 ;; Has two competitors play two games against each other 
 ;; once each as black and white. The player with the combined
@@ -503,7 +498,7 @@
 
     ;; Play a game recording two random board states 
     ;; as well as who won in this generation's game-history
-    (setq game (gaunlet (c-net comp1) (c-net comp2) file-lock))
+    (setq game (gauntlet (c-net comp1) (c-net comp2) file-lock))
     (cond
       ;; If a tie count as a one point victory for white
       ((= (svref (gg-subtotals game) *black*)
@@ -571,14 +566,14 @@
         (generation (list))
         (pairs (list)) ; A list of pairs containing every combination of networks in the generation
         (gen-id 0)
+        (round-pairs nil)
         (barrier nil)
-        (front-count 0)
-        )
-    ;(format t "LON: ~A~%" lon)
-    (time (dolist (net lon)
+        (front-count 0))
+
+    (dolist (net lon)
             (push (new-competetor net gen-id)
                   generation)
-            (incf gen-id)))
+            (incf gen-id))
 
     (format t "Initial Population ~A~%" generation)
 
@@ -599,46 +594,38 @@
               (make-pairs (svref fronts i))))
 
       ;; Add all the pairs into one list
-      (dotimes (i num-fronts)
-        (dolist (pair (svref fronts i))
-          (push pair pairs)))
+      ;(dotimes (i num-fronts)
+      ;  (dolist (pair (svref fronts i))
+      ;    (push pair pairs)))
 
       ;; Evaluate each network's fitness
-      ;; Do the fronts one at a time to make better use of memory
-      ;(dotimes (i num-fronts)
-      ;; Reset the barrier
-      (setq barrier (mp:make-barrier (+ 1 (length pairs))))
-      (format t "Pairs: ~A ~%" pairs)
-      (dolist (pair pairs);(svref fronts i))
-        (when (and (first pair)
-                   (second pair))
-          (format t "Face Off: ~A ~%" pair)
-          (if threads? 
-            (mp:process-run-function (write-to-string pair) 
-                                     #'face-off
-                                     pair
-                                     gen
-                                     barrier
-                                     file-lock)
-            (face-off pair gen barrier file-lock)
-            )
-          )
-        ;    )
-        (format t "Waiting for threads to finish~%")
-        ;; Wait for all the trials to finish
-        )
+      ;; Do the competetitions in rounds so as not to
+      ;; overwelm allegro with threads
+      (dotimes (i num-fronts)
+        ;; Reset the barrier
+        (setq barrier (mp:make-barrier (+ 1 (length (svref fronts i)))))
+        (dolist (pair (svref fronts i))
+          (when (and (first pair)
+                     (second pair))
+            (format t "Face Off: ~A ~%" pair)
+            (if threads? 
+              (mp:process-run-function (write-to-string pair) 
+                                       #'face-off
+                                       pair
+                                       gen
+                                       barrier
+                                       file-lock)
+              (face-off pair gen barrier file-lock)))
+          (format t "Waiting for threads to finish~%"))
 
-      (mp:barrier-wait barrier)
+        ;; Wait for all the trials to finish
+        (mp:barrier-wait barrier))
 
       (format t "Creating next generation~%")
       ;; Get the next generation
-      (setq generation (get-next-gen generation))
-      ;; Reset pairs
-      (setq pairs (list))
-      (setq file-lock nil) 
-      )
-    (format t "Done!~%")
-    ))
+      (setq generation (get-next-gen generation)))
+
+    (format t "Done!~%")))
 
 
 (defmacro init-lock (gen)
@@ -657,7 +644,12 @@
 (defmacro prep-nets (num)
   `(read-nets (subseq *lon* 0 ,num)))
 
+
 (defmacro run-evo (nets gens fronts file-lock)
+  `(evolve-networks (read-nets ,nets) ,gens ,fronts ,file-lock t))
+
+
+(defmacro p-run-evo (nets gens fronts file-lock)
   `(mp:process-run-function (concatenate 'string "EVO-" (write-to-string (length ,nets))
                                          "-"
                                          (write-to-string ,gens)
@@ -669,6 +661,4 @@
 (defmacro run-evos (num lon lock)
   `(dotimes (i ,num)
      (setq nets (nth (random (length ,lon)) ,lon))
-     (run-evo nets (random 10) 2 ,lock)
-     )
-  )
+     (run-evo nets (random 10) 2 ,lock)))
